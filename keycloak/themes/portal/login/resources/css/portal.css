@@ -1,0 +1,173 @@
+/* Portal login theme, layered over Keycloak's own login.css. Colors follow frontend/src/styles.css. */
+
+:root {
+  --portal-red: #EE0000;
+  --portal-dark-red: #BA0000;
+  --portal-bg: #151515;
+  --portal-text: #1F2937;
+  --portal-muted: #6B7280;
+  --portal-border: #E5E7EB;
+
+  /* PatternFly 4 tokens used by the buttons, links and focus rings */
+  --pf-global--primary-color--100: var(--portal-red);
+  --pf-global--primary-color--200: var(--portal-dark-red);
+  --pf-global--link--Color: var(--portal-red);
+  --pf-global--link--Color--hover: var(--portal-dark-red);
+  --pf-global--active-color--100: var(--portal-red);
+  --pf-global--FontFamily--sans-serif: "Red Hat Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --pf-global--FontFamily--heading--sans-serif: "Red Hat Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Dark backdrop with a faint red glow instead of the Keycloak photo; no image files, so it works air-gapped */
+.login-pf body {
+  background:
+    radial-gradient(ellipse at top left, rgba(238, 0, 0, 0.22), transparent 55%),
+    radial-gradient(ellipse at bottom right, rgba(238, 0, 0, 0.10), transparent 50%),
+    var(--portal-bg);
+  background-attachment: fixed;
+  font-family: var(--pf-global--FontFamily--sans-serif);
+}
+
+/* Product name above the card */
+#kc-header-wrapper {
+  font-family: var(--pf-global--FontFamily--heading--sans-serif);
+  font-size: 26px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.5px;
+  color: #FFFFFF;
+  padding: 48px 10px 24px;
+}
+
+#kc-header-wrapper::before {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 4px;
+  margin: 0 auto 16px;
+  border-radius: 2px;
+  background: var(--portal-red);
+}
+
+/* Sign-in card */
+.login-pf-page .card-pf {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 32px 36px 28px;
+  border: 0;
+  border-top: 4px solid var(--portal-red);
+  border-radius: 8px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+}
+
+.login-pf-page .login-pf-header {
+  margin-bottom: 20px;
+}
+
+h1#kc-page-title {
+  font-family: var(--pf-global--FontFamily--heading--sans-serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--portal-text);
+  text-align: left;
+}
+
+.pf-c-form__label-text,
+.login-pf-page label {
+  font-weight: 500;
+  color: var(--portal-text);
+}
+
+.pf-c-form-control {
+  border-radius: 6px;
+  border: 1px solid var(--portal-border);
+  padding: 8px 12px;
+  min-height: 40px;
+}
+
+.pf-c-form-control:hover {
+  border-color: #D1D5DB;
+}
+
+.pf-c-form-control:focus {
+  border-color: var(--portal-red);
+  box-shadow: 0 0 0 3px rgba(238, 0, 0, 0.15);
+  outline: none;
+}
+
+/* Show-password toggle next to the password field */
+.pf-c-input-group .pf-c-form-control {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control {
+  border: 1px solid var(--portal-border);
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control::after {
+  border: 0;
+}
+
+.pf-c-button.pf-m-primary {
+  background-color: var(--portal-red);
+  border-radius: 6px;
+  font-weight: 600;
+  min-height: 42px;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.pf-c-button.pf-m-primary:hover,
+.pf-c-button.pf-m-primary:focus {
+  background-color: var(--portal-dark-red);
+}
+
+.login-pf a,
+.login-pf-page a {
+  color: var(--portal-red);
+}
+
+.login-pf a:hover,
+.login-pf-page a:hover {
+  color: var(--portal-dark-red);
+}
+
+#kc-form-options,
+#kc-info-wrapper {
+  color: var(--portal-muted);
+}
+
+/* Error and info messages */
+.pf-c-alert.pf-m-inline {
+  border-radius: 6px;
+}
+
+.pf-c-alert.pf-m-danger {
+  --pf-c-alert--BorderTopColor: var(--portal-red);
+}
+
+@media (max-width: 767px) {
+  .login-pf body {
+    background: var(--portal-bg);
+  }
+
+  #kc-header {
+    text-align: center;
+  }
+
+  #kc-header-wrapper {
+    color: #FFFFFF;
+    font-size: 20px;
+    padding: 24px 15px 16px;
+  }
+
+  .login-pf-page .card-pf {
+    box-sizing: border-box;
+    width: auto;
+    max-width: none;
+    margin: 0 16px;
+    padding: 24px 20px;
+  }
+}

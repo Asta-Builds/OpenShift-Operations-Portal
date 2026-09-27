@@ -51,6 +51,7 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 │   └── package.json            # Node / Angular configuration
 ├── docker-compose.yml          # Local sandbox (PostgreSQL, RabbitMQ, OpenLDAP, Keycloak, Backend, Frontend)
 ├── keycloak/                   # Sandbox realm imported by Keycloak (clients, roles, LDAP federation)
+│   └── themes/portal/          # Login theme matching the portal UI (the realm's loginTheme)
 ├── ldap/                       # Sandbox directory: users and portal groups
 ├── nginx/                      # Nginx reverse proxy configuration for air-gapped web bundle
 │   └── nginx.conf

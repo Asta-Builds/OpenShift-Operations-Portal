@@ -2,6 +2,7 @@
   "realm": "openshift-portal",
   "displayName": "OpenShift Operations Portal",
   "enabled": true,
+  "loginTheme": "portal",
   "sslRequired": "external",
   "roles": {
     "realm": [
