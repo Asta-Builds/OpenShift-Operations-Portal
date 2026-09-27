@@ -1,0 +1,62 @@
+# Sandbox directory for docker-compose: stands in for the corporate LDAP / Active Directory.
+# Keycloak federates it read-only; membership of the portal-* groups becomes the matching realm role.
+# The passwords are for the local sandbox only.
+
+dn: ou=users,dc=portal,dc=local
+objectClass: organizationalUnit
+ou: users
+
+dn: ou=groups,dc=portal,dc=local
+objectClass: organizationalUnit
+ou: groups
+
+dn: uid=alice,ou=users,dc=portal,dc=local
+objectClass: inetOrgPerson
+uid: alice
+cn: Alice Admin
+givenName: Alice
+sn: Admin
+mail: alice@portal.local
+userPassword: alice-sandbox
+
+dn: uid=bob,ou=users,dc=portal,dc=local
+objectClass: inetOrgPerson
+uid: bob
+cn: Bob Operator
+givenName: Bob
+sn: Operator
+mail: bob@portal.local
+userPassword: bob-sandbox
+
+dn: uid=carol,ou=users,dc=portal,dc=local
+objectClass: inetOrgPerson
+uid: carol
+cn: Carol Viewer
+givenName: Carol
+sn: Viewer
+mail: carol@portal.local
+userPassword: carol-sandbox
+
+dn: uid=dave,ou=users,dc=portal,dc=local
+objectClass: inetOrgPerson
+uid: dave
+cn: Dave Nogroup
+givenName: Dave
+sn: Nogroup
+mail: dave@portal.local
+userPassword: dave-sandbox
+
+dn: cn=portal-admin,ou=groups,dc=portal,dc=local
+objectClass: groupOfNames
+cn: portal-admin
+member: uid=alice,ou=users,dc=portal,dc=local
+
+dn: cn=portal-operator,ou=groups,dc=portal,dc=local
+objectClass: groupOfNames
+cn: portal-operator
+member: uid=bob,ou=users,dc=portal,dc=local
+
+dn: cn=portal-viewer,ou=groups,dc=portal,dc=local
+objectClass: groupOfNames
+cn: portal-viewer
+member: uid=carol,ou=users,dc=portal,dc=local

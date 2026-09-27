@@ -28,8 +28,9 @@ public class AcmHub {
     @Column(name = "api_url", nullable = false, length = 512)
     private String apiUrl;
 
-    @Column(name = "auth_token", columnDefinition = "TEXT")
-    private String authToken;
+    /** Name of the Kubernetes Secret holding this hub's API token; the token itself is never stored here. */
+    @Column(name = "credentials_secret_ref")
+    private String credentialsSecretRef;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

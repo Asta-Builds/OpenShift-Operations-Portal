@@ -128,14 +128,14 @@ public class AcmSimulatorService {
         AcmHub primaryHub = acmHubRepository.save(AcmHub.builder()
                 .name("acm-hub-primary-eu")
                 .apiUrl("https://api.acm-hub-primary.internal:6443")
-                .authToken("mock-bearer-token-primary")
+                .credentialsSecretRef("acm-hub-primary-eu-credentials")
                 .status(HubStatus.ACTIVE)
                 .build());
 
         AcmHub secondaryHub = acmHubRepository.save(AcmHub.builder()
                 .name("acm-hub-secondary-us")
                 .apiUrl("https://api.acm-hub-secondary.internal:6443")
-                .authToken("mock-bearer-token-secondary")
+                .credentialsSecretRef("acm-hub-secondary-us-credentials")
                 .status(HubStatus.ACTIVE)
                 .build());
 

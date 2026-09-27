@@ -153,6 +153,22 @@ export interface AcmHubSummary {
   latestSyncRun: HubSyncRun | null;
 }
 
+export type PortalRole = 'ADMIN' | 'OPERATOR' | 'VIEWER';
+
+export interface PortalAuthConfig {
+  enabled: boolean;
+  /** OpenID Connect issuer as the browser reaches it; null when security is disabled. */
+  issuer: string | null;
+  clientId: string | null;
+}
+
+export interface CurrentUser {
+  username: string;
+  name: string | null;
+  /** Includes roles implied by the hierarchy: an ADMIN also has OPERATOR and VIEWER. */
+  roles: PortalRole[];
+}
+
 export interface SimulatorStatus {
   simulateFailureActive: boolean;
   hubOutages: string[];

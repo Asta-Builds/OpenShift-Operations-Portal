@@ -34,5 +34,7 @@ public class AcmProperties {
     @Data
     public static class Security {
         private boolean enabled = false;
+        /** Keycloak client the browser UI signs in with (public client, authorization code + PKCE). */
+        private String uiClientId = "portal-ui";
     }
 }

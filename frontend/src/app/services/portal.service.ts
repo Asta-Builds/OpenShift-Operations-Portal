@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
+  CurrentUser,
+  PortalAuthConfig,
   FleetOverview,
   ClusterSummary,
   ClusterDetail,
@@ -19,6 +21,14 @@ import {
 export class PortalService {
   private http = inject(HttpClient);
   private baseUrl = '/api/v1';
+
+  getAuthConfig(): Observable<PortalAuthConfig> {
+    return this.http.get<PortalAuthConfig>(`${this.baseUrl}/auth/config`);
+  }
+
+  getCurrentUser(): Observable<CurrentUser> {
+    return this.http.get<CurrentUser>(`${this.baseUrl}/auth/me`);
+  }
 
   getFleetOverview(): Observable<FleetOverview> {
     return this.http.get<FleetOverview>(`${this.baseUrl}/fleet/overview`);
@@ -56,12 +66,10 @@ export class PortalService {
     return this.http.get<ReportDefinition[]>(`${this.baseUrl}/reports`);
   }
 
-  exportReportCsvUrl(type: string): string {
-    return `${this.baseUrl}/reports/export?type=${type}`;
-  }
-
-  exportReportPdfUrl(type: string): string {
-    return `${this.baseUrl}/reports/export/pdf?type=${type}`;
+  /** Fetched through HttpClient so the bearer token is sent; a plain link would not carry it. */
+  downloadReport(type: string, format: 'csv' | 'pdf'): Observable<HttpResponse<Blob>> {
+    const path = format === 'pdf' ? 'reports/export/pdf' : 'reports/export';
+    return this.http.get(`${this.baseUrl}/${path}`, { params: { type }, responseType: 'blob', observe: 'response' });
   }
 
   getSavedReports(): Observable<any[]> {

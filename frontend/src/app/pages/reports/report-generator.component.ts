@@ -1,6 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpResponse } from '@angular/common/http';
 import { PortalService } from '../../services/portal.service';
+import { AuthService } from '../../services/auth.service';
 import { ReportDefinition } from '../../models/portal.models';
 import { IconComponent } from '../../shared/icon.component';
 
@@ -17,62 +19,29 @@ import { IconComponent } from '../../shared/icon.component';
         </div>
       </div>
 
+      <div *ngIf="exportError" class="error-banner">{{ exportError }}</div>
+
       <!-- Quick Export Cards -->
       <div class="cards-grid">
-        <div class="card export-card">
+        <div class="card export-card" *ngFor="let card of exportCards">
           <div class="export-icon-box">
-            <app-icon name="file-text" [size]="24"></app-icon>
+            <app-icon [name]="card.icon" [size]="24"></app-icon>
           </div>
-          <h3 class="export-title">Fleet Capacity & Utilization</h3>
-          <p class="export-desc">
-            Complete inventory of all managed clusters, total/allocated CPU cores, memory GB, and node counts.
-          </p>
-          <div class="btn-group">
-            <a [href]="portalService.exportReportCsvUrl('FLEET_CAPACITY')" class="btn btn-primary" download>
+          <h3 class="export-title">{{ card.title }}</h3>
+          <p class="export-desc">{{ card.description }}</p>
+          <div class="btn-group" *ngIf="auth.hasRole('OPERATOR'); else exportsNeedOperator">
+            <button class="btn btn-primary" (click)="download(card.type, 'csv')">
               <app-icon name="download" [size]="16"></app-icon> CSV
-            </a>
-            <a [href]="portalService.exportReportPdfUrl('FLEET_CAPACITY')" class="btn btn-secondary" target="_blank">
+            </button>
+            <button class="btn btn-secondary" (click)="download(card.type, 'pdf')">
               <app-icon name="file-text" [size]="16"></app-icon> PDF
-            </a>
-          </div>
-        </div>
-
-        <div class="card export-card">
-          <div class="export-icon-box">
-            <app-icon name="shield-check" [size]="24"></app-icon>
-          </div>
-          <h3 class="export-title">License & Subscription Audit</h3>
-          <p class="export-desc">
-            Detailed breakdown of billable worker cores, bare-metal physical sockets vs virtual machine vCPUs.
-          </p>
-          <div class="btn-group">
-            <a [href]="portalService.exportReportCsvUrl('LICENSE_AUDIT')" class="btn btn-primary" download>
-              <app-icon name="download" [size]="16"></app-icon> CSV
-            </a>
-            <a [href]="portalService.exportReportPdfUrl('LICENSE_AUDIT')" class="btn btn-secondary" target="_blank">
-              <app-icon name="file-text" [size]="16"></app-icon> PDF
-            </a>
-          </div>
-        </div>
-
-        <div class="card export-card">
-          <div class="export-icon-box">
-            <app-icon name="users" [size]="24"></app-icon>
-          </div>
-          <h3 class="export-title">Owner Cost Attribution</h3>
-          <p class="export-desc">
-            Granular mapping of infrastructure capacity and core consumption to business units and cost centers.
-          </p>
-          <div class="btn-group">
-            <a [href]="portalService.exportReportCsvUrl('COST_ATTRIBUTION')" class="btn btn-primary" download>
-              <app-icon name="download" [size]="16"></app-icon> CSV
-            </a>
-            <a [href]="portalService.exportReportPdfUrl('COST_ATTRIBUTION')" class="btn btn-secondary" target="_blank">
-              <app-icon name="file-text" [size]="16"></app-icon> PDF
-            </a>
+            </button>
           </div>
         </div>
       </div>
+      <ng-template #exportsNeedOperator>
+        <p class="export-note">Exports need the operator role.</p>
+      </ng-template>
 
       <!-- Scheduled Reports Table -->
       <div class="card section-margin">
@@ -181,12 +150,49 @@ import { IconComponent } from '../../shared/icon.component';
       color: #6B7280;
       padding: 1.5rem;
     }
+    .export-note {
+      color: #6B7280;
+      font-size: 0.8125rem;
+      font-style: italic;
+    }
+    .error-banner {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #991B1B;
+      padding: 0.75rem 1rem;
+      border-radius: 0.375rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.875rem;
+    }
   `]
 })
 export class ReportGeneratorComponent implements OnInit {
-  portalService = inject(PortalService);
+  private portalService = inject(PortalService);
+  auth = inject(AuthService);
+
+  readonly exportCards = [
+    {
+      type: 'FLEET_CAPACITY',
+      icon: 'file-text',
+      title: 'Fleet Capacity & Utilization',
+      description: 'Complete inventory of all managed clusters, total/allocated CPU cores, memory GB, and node counts.'
+    },
+    {
+      type: 'LICENSE_AUDIT',
+      icon: 'shield-check',
+      title: 'License & Subscription Audit',
+      description: 'Detailed breakdown of billable worker cores, bare-metal physical sockets vs virtual machine vCPUs.'
+    },
+    {
+      type: 'COST_ATTRIBUTION',
+      icon: 'users',
+      title: 'Owner Cost Attribution',
+      description: 'Granular mapping of infrastructure capacity and core consumption to business units and cost centers.'
+    }
+  ];
 
   reports: ReportDefinition[] = [];
+  exportError = '';
 
   ngOnInit(): void {
     this.portalService.getReports().subscribe({
@@ -194,4 +200,26 @@ export class ReportGeneratorComponent implements OnInit {
       error: (err) => console.error('Failed to load reports', err)
     });
   }
+
+  download(type: string, format: 'csv' | 'pdf'): void {
+    this.exportError = '';
+    this.portalService.downloadReport(type, format).subscribe({
+      next: (response) => saveDownload(response, `openshift-${type.toLowerCase()}.${format}`),
+      error: (err) => (this.exportError = `The ${format.toUpperCase()} export failed (HTTP ${err.status}).`)
+    });
+  }
+}
+
+/** Saves a downloaded file under the name the server suggested. */
+function saveDownload(response: HttpResponse<Blob>, fallbackName: string): void {
+  if (!response.body) {
+    return;
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const url = URL.createObjectURL(response.body);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

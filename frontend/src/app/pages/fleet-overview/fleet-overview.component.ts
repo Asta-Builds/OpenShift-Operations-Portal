@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PortalService } from '../../services/portal.service';
+import { AuthService } from '../../services/auth.service';
 import { FleetOverview, ClusterSummary } from '../../models/portal.models';
 import { IconComponent } from '../../shared/icon.component';
 
@@ -16,7 +17,7 @@ import { IconComponent } from '../../shared/icon.component';
           <h1 class="page-title">Fleet Overview</h1>
           <p class="page-subtitle">Real-time capacity, subscription cores, and cluster health across all ACM Hubs</p>
         </div>
-        <div class="actions">
+        <div class="actions" *ngIf="auth.hasRole('OPERATOR')">
           <button class="btn btn-primary" (click)="triggerSnapshotCollection()" [disabled]="collecting">
             <app-icon name="refresh" [size]="16" [className]="collecting ? 'spin' : ''"></app-icon>
             {{ collecting ? 'Collecting Fleet Snapshot...' : 'Trigger Snapshot Collection' }}
@@ -344,6 +345,7 @@ import { IconComponent } from '../../shared/icon.component';
 })
 export class FleetOverviewComponent implements OnInit {
   private portalService = inject(PortalService);
+  auth = inject(AuthService);
 
   overview: FleetOverview | null = null;
   recentClusters: ClusterSummary[] = [];

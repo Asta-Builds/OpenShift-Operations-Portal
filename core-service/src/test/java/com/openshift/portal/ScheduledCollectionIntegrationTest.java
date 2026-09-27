@@ -61,11 +61,11 @@ class ScheduledCollectionIntegrationTest {
         }
     }
 
-    /** Another replica: a separate application context sharing this test's in-memory database. */
+    /** Another replica: a separate web application on a random port, sharing this test's in-memory database. */
     private static ConfigurableApplicationContext startInstance() {
         return new SpringApplicationBuilder(OpenshiftPortalApplication.class)
                 .profiles("dev")
-                .web(WebApplicationType.NONE)
-                .run();
+                .web(WebApplicationType.SERVLET)
+                .run("--server.port=0"); // command-line arguments outrank application.yml
     }
 }

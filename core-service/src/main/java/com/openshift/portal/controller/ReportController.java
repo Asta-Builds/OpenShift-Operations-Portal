@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -69,19 +71,25 @@ public class ReportController {
     }
 
     @GetMapping("/saved")
-    public ResponseEntity<List<SavedReport>> listSavedReports(@RequestParam(defaultValue = "admin") String userId) {
-        return ResponseEntity.ok(savedReportRepository.findByUserId(userId));
+    public ResponseEntity<List<SavedReport>> listSavedReports(Authentication authentication) {
+        return ResponseEntity.ok(savedReportRepository.findByUserId(ownerOf(authentication)));
     }
 
     @PostMapping("/saved")
-    public ResponseEntity<SavedReport> saveReportConfig(@RequestBody SaveReportConfigRequest request) {
+    public ResponseEntity<SavedReport> saveReportConfig(@RequestBody SaveReportConfigRequest request,
+                                                        Authentication authentication) {
         SavedReport saved = SavedReport.builder()
                 .title(request.getTitle())
-                .userId(request.getUserId() != null ? request.getUserId() : "admin")
+                .userId(ownerOf(authentication))
                 .reportType(request.getReportType())
                 .parametersJson(request.getParametersJson())
                 .build();
         return ResponseEntity.ok(savedReportRepository.save(saved));
+    }
+
+    /** Saved reports belong to the token's subject; with security disabled every caller shares one owner. */
+    private static String ownerOf(Authentication authentication) {
+        return authentication instanceof JwtAuthenticationToken token ? token.getToken().getSubject() : "anonymous";
     }
 
     @Data
@@ -95,7 +103,6 @@ public class ReportController {
     @Data
     public static class SaveReportConfigRequest {
         private String title;
-        private String userId;
         private ReportType reportType;
         private String parametersJson;
     }

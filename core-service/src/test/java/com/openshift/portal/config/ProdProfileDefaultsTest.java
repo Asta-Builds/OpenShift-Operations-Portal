@@ -3,6 +3,7 @@ package com.openshift.portal.config;
 import com.openshift.portal.controller.SimulatorController;
 import com.openshift.portal.service.AcmSimulatorService;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -26,9 +27,13 @@ class ProdProfileDefaultsTest {
                 .forEach(source -> environment.getPropertySources().addLast(source));
 
         AcmProperties properties = Binder.get(environment).bind("openshift.portal", AcmProperties.class).get();
+        OAuth2ResourceServerProperties resourceServer = Binder.get(environment)
+                .bind("spring.security.oauth2.resourceserver", OAuth2ResourceServerProperties.class).get();
 
         assertThat(properties.getSecurity().isEnabled()).isTrue();
         assertThat(properties.getSimulator().isEnabled()).isFalse();
+        // Tokens must be minted for this API, not just by the right issuer
+        assertThat(resourceServer.getJwt().getAudiences()).containsExactly("portal-api");
     }
 
     @Test

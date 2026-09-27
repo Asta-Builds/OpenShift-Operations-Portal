@@ -22,7 +22,12 @@ spring:
     oauth2:
       resourceserver:
         jwt:
+          # Issuer exactly as browsers reach Keycloak; tokens carrying any other issuer are rejected.
+          # When the backend cannot reach that URL (e.g. localhost inside Docker), also set
+          # SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI to Keycloak's internal JWKS endpoint.
           issuer-uri: ${KEYCLOAK_ISSUER_URI:}
+          # Only tokens minted for this API (Keycloak audience mapper) are accepted
+          audiences: ${KEYCLOAK_AUDIENCE:portal-api}
 
 openshift:
   portal:
