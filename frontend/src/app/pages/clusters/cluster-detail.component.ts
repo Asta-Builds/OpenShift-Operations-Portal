@@ -10,285 +10,227 @@ import { IconComponent } from '../../shared/icon.component';
   standalone: true,
   imports: [CommonModule, RouterModule, IconComponent],
   template: `
-    <div class="page-container" *ngIf="cluster">
-      <div class="header-nav">
-        <a routerLink="/clusters" class="back-link">
-          &larr; Back to Cluster Inventory
+    <div class="space-y-6" *ngIf="cluster">
+      
+      <!-- Back Navigation Link -->
+      <div>
+        <a routerLink="/clusters" class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+          <app-icon name="chevron-right" [size]="14" className="rotate-180"></app-icon>
+          <span>Back to Cluster Inventory</span>
         </a>
       </div>
 
-      <div class="header-row">
+      <!-- Top Header Row -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-divider">
         <div>
-          <div class="title-with-badge">
-            <h1 class="page-title">{{ cluster.clusterName }}</h1>
-            <span class="badge" [ngClass]="getEnvBadgeClass(cluster.environment)">{{ cluster.environment }}</span>
-            <span class="badge badge-ready">{{ cluster.status }}</span>
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold tracking-tight text-foreground">{{ cluster.clusterName }}</h1>
+            <span class="heroui-badge text-xs" [ngClass]="getEnvBadgeClass(cluster.environment)">
+              {{ cluster.environment }}
+            </span>
+            <span class="heroui-badge bg-success/15 text-success text-xs">
+              {{ cluster.status }}
+            </span>
           </div>
-          <p class="page-subtitle">
-            Connected to Hub: <code>{{ cluster.acmHubName }}</code> | Region: {{ cluster.region || 'Default' }}
+          <div class="flex items-center gap-3 text-xs text-default-500 mt-1">
+            <span>ACM Hub: <code class="px-1.5 py-0.5 rounded bg-content2 text-foreground font-mono text-[11px]">{{ cluster.acmHubName }}</code></span>
+            <span>•</span>
+            <span>Region: <strong class="text-foreground">{{ cluster.region || 'Default' }}</strong></span>
+            <span>•</span>
+            <span>OpenShift <strong class="text-foreground">v{{ cluster.openshiftVersion }}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cluster Metadata Cards (4-Column Grid) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div class="heroui-card p-5 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-default-400">Owner Team</span>
+            <div class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <app-icon name="users" [size]="16"></app-icon>
+            </div>
+          </div>
+          <div class="text-lg font-bold text-foreground">{{ cluster.ownerTeamName }}</div>
+          <div class="text-xs text-default-400">Cost Center: <strong class="text-foreground">{{ cluster.costCenter }}</strong></div>
+        </div>
+
+        <div class="heroui-card p-5 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-default-400">Infrastructure</span>
+            <div class="w-8 h-8 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center">
+              <app-icon [name]="getInfraIcon(cluster.infrastructureType)" [size]="16"></app-icon>
+            </div>
+          </div>
+          <div class="text-lg font-bold text-foreground">{{ cluster.infrastructureType }}</div>
+          <div class="text-xs text-default-400">Platform: OpenShift {{ cluster.openshiftVersion }}</div>
+        </div>
+
+        <div class="heroui-card p-5 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-default-400">License Cores</span>
+            <div class="w-8 h-8 rounded-xl bg-danger/10 text-danger flex items-center justify-center">
+              <app-icon name="shield-check" [size]="16"></app-icon>
+            </div>
+          </div>
+          <div class="text-lg font-bold text-danger">{{ cluster.latestSnapshot?.licenseCoresCount || 0 }} Cores</div>
+          <div class="text-xs text-default-400">{{ cluster.latestSnapshot?.workerNodes || 0 }} Worker Nodes Billable</div>
+        </div>
+
+        <div class="heroui-card p-5 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-default-400">CPU & RAM Allocation</span>
+            <div class="w-8 h-8 rounded-xl bg-warning/10 text-warning flex items-center justify-center">
+              <app-icon name="cpu" [size]="16"></app-icon>
+            </div>
+          </div>
+          <div class="text-lg font-bold text-foreground">
+            {{ cluster.latestSnapshot?.allocatedCpuCores || 0 }} Cores
+          </div>
+          <div class="text-xs text-default-400">{{ cluster.latestSnapshot?.allocatedMemoryGb | number:'1.0-0' }} GB RAM allocated</div>
+        </div>
+
+      </div>
+
+      <!-- Namespace Ownership Table -->
+      <div class="heroui-card p-6 space-y-4">
+        <div>
+          <h3 class="text-base font-bold text-foreground">Namespace Quotas & Team Attribution</h3>
+          <p class="text-xs text-default-400 mt-0.5">
+            Owner attribution resolved via <code>{{ cluster.ownerLabelKey }}</code> namespace label. Namespaces without a recognised owner are marked as Unattributed.
           </p>
         </div>
-      </div>
 
-      <!-- Cluster Metadata Cards -->
-      <div class="metrics-grid">
-        <div class="card">
-          <div class="meta-label">Owner Team & Cost Center</div>
-          <div class="meta-value">{{ cluster.ownerTeamName }}</div>
-          <div class="meta-sub">Cost Center: {{ cluster.costCenter }}</div>
-        </div>
-
-        <div class="card">
-          <div class="meta-label">Infrastructure & Version</div>
-          <div class="meta-value">{{ cluster.infrastructureType }}</div>
-          <div class="meta-sub">OpenShift {{ cluster.openshiftVersion }}</div>
-        </div>
-
-        <div class="card">
-          <div class="meta-label">License Cores (Worker)</div>
-          <div class="meta-value text-red">{{ cluster.latestSnapshot?.licenseCoresCount || 0 }} Cores</div>
-          <div class="meta-sub">{{ cluster.latestSnapshot?.workerNodes || 0 }} Worker Nodes</div>
-        </div>
-
-        <div class="card">
-          <div class="meta-label">Allocation (CPU / Mem / Storage)</div>
-          <div class="meta-value">
-            {{ cluster.latestSnapshot?.allocatedCpuCores || 0 }} Cores / {{ cluster.latestSnapshot?.allocatedMemoryGb || 0 }} GB
-          </div>
-          <div class="meta-sub">
-            Storage: {{ cluster.latestSnapshot?.allocatedStorageGb || 0 }} / {{ cluster.latestSnapshot?.totalStorageGb || 0 }} GB
-          </div>
-        </div>
-      </div>
-
-      <!-- Namespace ownership (owner-aware reporting) -->
-      <div class="card section-margin">
-        <h2 class="card-title">Namespaces and ownership</h2>
-        <p class="card-note">
-          Owners come from each namespace's <code>{{ cluster.ownerLabelKey }}</code> label. Namespaces without a recognised
-          owner are <strong>Unattributed</strong>; they are not charged to the cluster owner ({{ cluster.ownerTeamName }}).
-          <a routerLink="/attribution">Team attribution &rarr;</a>
-        </p>
-        <div class="table-container">
-          <table>
+        <div class="w-full overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
             <thead>
-              <tr>
-                <th>Namespace</th>
-                <th>Owner team</th>
-                <th>Owner label</th>
-                <th>Cost center</th>
-                <th class="num">CPU req.</th>
-                <th class="num">CPU used</th>
-                <th class="num">Mem req.</th>
-                <th class="num">Mem used</th>
-                <th class="num">PVC req.</th>
+              <tr class="border-b border-divider text-default-400 uppercase tracking-wider text-[10px]">
+                <th class="py-3 px-3">Namespace</th>
+                <th class="py-3 px-3">Owner Team</th>
+                <th class="py-3 px-3">Owner Label</th>
+                <th class="py-3 px-3">Cost Center</th>
+                <th class="py-3 px-3 text-right">CPU Req.</th>
+                <th class="py-3 px-3 text-right">CPU Used</th>
+                <th class="py-3 px-3 text-right">Mem Req.</th>
+                <th class="py-3 px-3 text-right">Mem Used</th>
               </tr>
             </thead>
-            <tbody>
-              <tr *ngFor="let ns of cluster.namespaces" [class.deleted-row]="ns.deletedAt">
-                <td>
-                  <code>{{ ns.namespaceName }}</code>
-                  <span class="badge badge-gone" *ngIf="ns.deletedAt" [title]="'Gone since ' + ns.deletedAt">deleted</span>
+            <tbody class="divide-y divide-divider/40">
+              <tr *ngFor="let ns of cluster.namespaces" class="hover:bg-content2/50 transition-colors">
+                <td class="py-3 px-3">
+                  <code class="px-2 py-0.5 rounded bg-content2 text-foreground font-mono text-xs">{{ ns.namespaceName }}</code>
                 </td>
-                <td>
-                  <span *ngIf="ns.attributed">{{ ns.ownerTeamName }}</span>
-                  <span *ngIf="!ns.attributed" class="badge badge-staging">Unattributed</span>
+                <td class="py-3 px-3">
+                  <span *ngIf="ns.attributed" class="font-medium text-foreground">{{ ns.ownerTeamName }}</span>
+                  <span *ngIf="!ns.attributed" class="heroui-badge bg-warning/15 text-warning text-[10px]">Unattributed</span>
                 </td>
-                <td>
-                  <code *ngIf="ns.ownerLabelValue">{{ ns.ownerLabelValue }}</code>
-                  <span class="muted" *ngIf="!ns.ownerLabelValue && ns.labelsCollected">no label</span>
-                  <span class="muted" *ngIf="!ns.labelsCollected" title="The hub has no ACM Search endpoint, or Search has not answered yet">labels not read</span>
-                  <span class="muted hint" *ngIf="ns.ownerLabelValue && !ns.attributed">matches no team</span>
+                <td class="py-3 px-3">
+                  <code *ngIf="ns.ownerLabelValue" class="text-default-500 font-mono text-[11px]">{{ ns.ownerLabelValue }}</code>
+                  <span *ngIf="!ns.ownerLabelValue" class="text-default-400 text-[11px]">none</span>
                 </td>
-                <td>
-                  <span class="badge badge-dev" *ngIf="ns.costCenter">{{ ns.costCenter }}</span>
-                  <span class="muted hint" *ngIf="ns.costCenterSource === 'TEAM'">from team</span>
+                <td class="py-3 px-3">
+                  <span *ngIf="ns.costCenter" class="heroui-badge bg-primary/10 text-primary text-[10px]">{{ ns.costCenter }}</span>
+                  <span *ngIf="!ns.costCenter" class="text-default-400 text-[11px]">N/A</span>
                 </td>
-                <td class="num">{{ ns.cpuRequestCores | number: '1.2-2' }}</td>
-                <td class="num">{{ ns.cpuUsageCores !== null ? (ns.cpuUsageCores | number: '1.2-2') : 'n/a' }}</td>
-                <td class="num">{{ ns.memoryRequestGb | number: '1.2-2' }} GB</td>
-                <td class="num">{{ ns.memoryUsageGb !== null ? (ns.memoryUsageGb | number: '1.2-2') + ' GB' : 'n/a' }}</td>
-                <td class="num">{{ ns.pvcRequestGb !== null ? (ns.pvcRequestGb | number: '1.0-0') + ' GB' : 'n/a' }}</td>
+                <td class="py-3 px-3 text-right font-medium">{{ ns.cpuRequestCores | number:'1.2-2' }} Cores</td>
+                <td class="py-3 px-3 text-right text-default-500">{{ ns.cpuUsageCores !== null ? (ns.cpuUsageCores | number:'1.2-2') : 'n/a' }}</td>
+                <td class="py-3 px-3 text-right font-medium">{{ ns.memoryRequestGb | number:'1.2-2' }} GB</td>
+                <td class="py-3 px-3 text-right text-default-500">{{ ns.memoryUsageGb !== null ? (ns.memoryUsageGb | number:'1.2-2') + ' GB' : 'n/a' }}</td>
               </tr>
               <tr *ngIf="!cluster.namespaces || cluster.namespaces.length === 0">
-                <td colspan="9" class="text-center py-4">No namespace data has been collected for this cluster.</td>
+                <td colspan="8" class="text-center py-6 text-default-400 text-xs">No namespace data recorded for this cluster.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Node Breakdown Table (Underlying Infrastructure Correlation) -->
-      <div class="card section-margin">
-        <h2 class="card-title">Node Inventory & Hypervisor Correlation (spec.providerID)</h2>
-        <div class="table-container">
-          <table>
+      <!-- Node Inventory & ProviderID Hypervisor Correlation -->
+      <div class="heroui-card p-6 space-y-4">
+        <div>
+          <h3 class="text-base font-bold text-foreground">Node Topology & Hypervisor Correlation (spec.providerID)</h3>
+          <p class="text-xs text-default-400 mt-0.5">
+            Decodes underlying hardware sockets, ESXi/AWS host IDs, and worker vs. master subscription eligibility
+          </p>
+        </div>
+
+        <div class="w-full overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
             <thead>
-              <tr>
-                <th>Node Name</th>
-                <th>Role</th>
-                <th>Host Type</th>
-                <th>CPU Cores</th>
-                <th>Memory</th>
-                <th>Hypervisor / VM Host</th>
-                <th>Provider ID</th>
+              <tr class="border-b border-divider text-default-400 uppercase tracking-wider text-[10px]">
+                <th class="py-3 px-3">Node Name</th>
+                <th class="py-3 px-3">Role</th>
+                <th class="py-3 px-3">Host Type</th>
+                <th class="py-3 px-3">CPU Cores</th>
+                <th class="py-3 px-3">Memory</th>
+                <th class="py-3 px-3">Hypervisor / Underlying Host</th>
+                <th class="py-3 px-3">Provider ID</th>
               </tr>
             </thead>
-            <tbody>
-              <tr *ngFor="let node of cluster.nodeMetrics">
-                <td><code>{{ node.nodeName }}</code></td>
-                <td>
-                  <span class="badge" [ngClass]="node.role === 'WORKER' ? 'badge-dev' : 'badge-staging'">
+            <tbody class="divide-y divide-divider/40">
+              <tr *ngFor="let node of cluster.nodeMetrics" class="hover:bg-content2/50 transition-colors">
+                <td class="py-3 px-3 font-mono font-bold text-foreground">{{ node.nodeName }}</td>
+                <td class="py-3 px-3">
+                  <span class="heroui-badge text-[10px]" [ngClass]="node.role === 'WORKER' ? 'bg-primary/15 text-primary' : 'bg-content3 text-default-600'">
                     {{ node.role }}
                   </span>
                 </td>
-                <td>{{ node.hostType }}</td>
-                <td>{{ node.cpuCores }}</td>
-                <td>{{ node.memoryGb }} GB</td>
-                <td><strong>{{ node.hypervisorHost || node.underlyingHostId || 'N/A' }}</strong></td>
-                <td><code class="provider-id">{{ node.providerId || 'N/A' }}</code></td>
+                <td class="py-3 px-3 text-default-600 font-medium">{{ node.hostType }}</td>
+                <td class="py-3 px-3 font-bold text-foreground">{{ node.cpuCores }} Cores</td>
+                <td class="py-3 px-3 text-default-600">{{ node.memoryGb }} GB</td>
+                <td class="py-3 px-3 font-semibold text-foreground">{{ node.hypervisorHost || node.underlyingHostId || 'N/A' }}</td>
+                <td class="py-3 px-3">
+                  <code class="text-[11px] text-default-500 font-mono">{{ node.providerId || 'N/A' }}</code>
+                </td>
               </tr>
               <tr *ngIf="cluster.nodeMetrics.length === 0">
-                <td colspan="7" class="text-center py-4">No node metrics recorded for this cluster.</td>
+                <td colspan="7" class="text-center py-6 text-default-400 text-xs">No node metrics recorded.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Snapshot History Table -->
-      <div class="card section-margin">
-        <h2 class="card-title">Historical Snapshots</h2>
-        <div class="table-container">
-          <table>
+      <!-- Historical Snapshots Table -->
+      <div class="heroui-card p-6 space-y-4">
+        <div>
+          <h3 class="text-base font-bold text-foreground">Recent Telemetry Snapshots</h3>
+          <p class="text-xs text-default-400 mt-0.5">Chronological record of capacity metrics captured from ACM Hub</p>
+        </div>
+
+        <div class="w-full overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
             <thead>
-              <tr>
-                <th>Snapshot Time</th>
-                <th>Total Cores</th>
-                <th>Allocated Cores</th>
-                <th>Total Mem (GB)</th>
-                <th>Allocated Mem (GB)</th>
-                <th>License Cores</th>
-                <th>Total Nodes</th>
+              <tr class="border-b border-divider text-default-400 uppercase tracking-wider text-[10px]">
+                <th class="py-3 px-3">Timestamp</th>
+                <th class="py-3 px-3">Total Cores</th>
+                <th class="py-3 px-3">Allocated Cores</th>
+                <th class="py-3 px-3">Total RAM</th>
+                <th class="py-3 px-3">Allocated RAM</th>
+                <th class="py-3 px-3">License Cores</th>
+                <th class="py-3 px-3">Total Nodes</th>
               </tr>
             </thead>
-            <tbody>
-              <tr *ngFor="let snap of cluster.recentSnapshots">
-                <td>{{ snap.snapshotTimestamp }}</td>
-                <td>{{ snap.totalCpuCores }}</td>
-                <td>{{ snap.allocatedCpuCores }}</td>
-                <td>{{ snap.totalMemoryGb }}</td>
-                <td>{{ snap.allocatedMemoryGb }}</td>
-                <td><strong>{{ snap.licenseCoresCount }}</strong></td>
-                <td>{{ snap.totalNodes }} ({{ snap.workerNodes }} workers)</td>
+            <tbody class="divide-y divide-divider/40">
+              <tr *ngFor="let snap of cluster.recentSnapshots" class="hover:bg-content2/50 transition-colors">
+                <td class="py-3 px-3 text-default-500 font-mono text-[11px]">{{ snap.snapshotTimestamp }}</td>
+                <td class="py-3 px-3 font-bold text-foreground">{{ snap.totalCpuCores }}</td>
+                <td class="py-3 px-3 text-default-600">{{ snap.allocatedCpuCores }}</td>
+                <td class="py-3 px-3 text-default-600">{{ snap.totalMemoryGb | number:'1.0-0' }} GB</td>
+                <td class="py-3 px-3 text-default-600">{{ snap.allocatedMemoryGb | number:'1.0-0' }} GB</td>
+                <td class="py-3 px-3">
+                  <span class="px-2 py-0.5 rounded bg-content3 text-foreground font-mono font-bold text-xs">{{ snap.licenseCoresCount }}</span>
+                </td>
+                <td class="py-3 px-3 text-default-500">{{ snap.totalNodes }} ({{ snap.workerNodes }} workers)</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
+
     </div>
-  `,
-  styles: [`
-    .page-container {
-      padding: 1.5rem 2rem;
-    }
-    .card-note {
-      font-size: 0.8125rem;
-      color: #6B7280;
-      margin: -0.5rem 0 1rem;
-    }
-    .card-note a {
-      color: #0066CC;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .num {
-      text-align: right;
-      white-space: nowrap;
-    }
-    .muted {
-      color: #9CA3AF;
-      font-size: 0.8125rem;
-    }
-    .hint {
-      display: block;
-      font-size: 0.75rem;
-    }
-    .deleted-row td {
-      color: #9CA3AF;
-    }
-    .badge-gone {
-      background-color: #F3F4F6;
-      color: #6B7280;
-      margin-left: 0.375rem;
-    }
-    .header-nav {
-      margin-bottom: 1rem;
-    }
-    .back-link {
-      color: #0066CC;
-      font-size: 0.875rem;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .title-with-badge {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .page-title {
-      font-size: 1.75rem;
-      color: #111827;
-    }
-    .page-subtitle {
-      color: #6B7280;
-      font-size: 0.875rem;
-      margin-top: 0.25rem;
-    }
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1.25rem;
-      margin-top: 1.25rem;
-    }
-    .meta-label {
-      font-size: 0.75rem;
-      color: #6B7280;
-      text-transform: uppercase;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-    }
-    .meta-value {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #111827;
-      margin-top: 0.25rem;
-    }
-    .meta-sub {
-      font-size: 0.8125rem;
-      color: #6B7280;
-      margin-top: 0.25rem;
-    }
-    .text-red {
-      color: #EE0000;
-    }
-    .section-margin {
-      margin-top: 1.5rem;
-    }
-    .card-title {
-      font-size: 1.125rem;
-      margin-bottom: 1rem;
-      color: #111827;
-    }
-    code {
-      background: #F3F4F6;
-      padding: 0.2rem 0.4rem;
-      border-radius: 0.25rem;
-      font-size: 0.8125rem;
-    }
-    .text-center { text-align: center; }
-    .py-4 { padding: 1.5rem; color: #6B7280; }
-  `]
+  `
 })
 export class ClusterDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
@@ -301,17 +243,26 @@ export class ClusterDetailComponent implements OnInit {
     if (id) {
       this.portalService.getClusterById(id).subscribe({
         next: (res) => (this.cluster = res),
-        error: (err) => console.error('Failed to load cluster details', err)
+        error: (err) => console.error('Failed to load cluster detail', err)
       });
     }
   }
 
   getEnvBadgeClass(env: string): string {
     switch (env?.toUpperCase()) {
-      case 'PRODUCTION': return 'badge-prod';
-      case 'STAGING': return 'badge-staging';
-      case 'DEVELOPMENT': return 'badge-dev';
-      default: return 'badge-ready';
+      case 'PRODUCTION': return 'bg-danger/15 text-danger border border-danger/25';
+      case 'STAGING': return 'bg-warning/15 text-warning border border-warning/25';
+      case 'DEVELOPMENT': return 'bg-primary/15 text-primary border border-primary/25';
+      default: return 'bg-success/15 text-success border border-success/25';
+    }
+  }
+
+  getInfraIcon(infra: string): string {
+    switch (infra?.toUpperCase()) {
+      case 'BARE_METAL': return 'server';
+      case 'VMWARE': return 'database';
+      case 'AWS': return 'cloud';
+      default: return 'layers';
     }
   }
 }
