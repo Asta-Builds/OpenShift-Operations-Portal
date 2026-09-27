@@ -1,14 +1,13 @@
 # Stage 1: Build the Application
-FROM eclipse-temurin:17-jdk-alpine AS builder
+FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 WORKDIR /workspace
 
 # Copy build descriptor and source code
 COPY pom.xml .
 COPY src src
 
-# Run offline/cached build
-RUN apk add --no-cache maven && \
-    mvn clean package -DskipTests
+# Run build
+RUN mvn clean package -DskipTests
 
 # Stage 2: Lightweight, Air-Gapped Production Runtime
 FROM eclipse-temurin:17-jre-alpine

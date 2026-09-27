@@ -13,15 +13,22 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/openshift-portal}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:}
 
 openshift:
   portal:
     security:
-      enabled: true
+      enabled: ${OPENSHIFT_PORTAL_SECURITY_ENABLED:false}
     simulator:
-      enabled: false
+      enabled: ${OPENSHIFT_PORTAL_SIMULATOR_ENABLED:true}
+    rabbitmq:
+      enabled: ${OPENSHIFT_PORTAL_RABBITMQ_ENABLED:true}

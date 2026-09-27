@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database for Snapshots & Historical Metrics
   postgres:
@@ -30,10 +28,11 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
 
   # Keycloak IAM with LDAP Federation Support
   keycloak:
@@ -62,7 +61,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/openshift_portal
       SPRING_DATASOURCE_USERNAME: portal_user
       SPRING_DATASOURCE_PASSWORD: portal_secret
-      KEYCLOAK_ISSUER_URI: http://keycloak:8081/realms/openshift-portal
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      OPENSHIFT_PORTAL_SECURITY_ENABLED: "false"
+      OPENSHIFT_PORTAL_SIMULATOR_ENABLED: "true"
+      OPENSHIFT_PORTAL_RABBITMQ_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
