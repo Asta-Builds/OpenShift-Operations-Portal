@@ -62,9 +62,10 @@ spec:
         - name: CONTEXT_DIR
           value: core-service
         - name: GOALS
-          - clean
-          - test
-          - -Dspring.profiles.active=dev
+          value:
+            - clean
+            - test
+            - -Dspring.profiles.active=dev
 
     # -------------------------------------------------------------------------
     # 3. Frontend Angular Unit Tests
