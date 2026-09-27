@@ -31,6 +31,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return error(HttpStatus.BAD_GATEWAY, "ACM Hub Communication Failure", ex.getMessage());
     }
 
+    @ExceptionHandler(InventoryImportException.class)
+    public ResponseEntity<Map<String, Object>> handleInventoryImport(InventoryImportException ex) {
+        Map<String, Object> body = errorBody(HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage());
+        body.put("errors", ex.getErrors());
+        return ResponseEntity.badRequest().body(body);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         return error(HttpStatus.FORBIDDEN, "Forbidden", "Access denied.");

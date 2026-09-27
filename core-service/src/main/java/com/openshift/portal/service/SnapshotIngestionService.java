@@ -25,7 +25,7 @@ public class SnapshotIngestionService {
     private final ClusterSnapshotRepository snapshotRepository;
     private final NodeMetricsSnapshotRepository nodeMetricsRepository;
     private final LicensingService licensingService;
-    private final ProviderIdParserService providerIdParser;
+    private final NodeCorrelationService nodeCorrelationService;
     private final NamespaceIngestionService namespaceIngestionService;
 
     /**
@@ -36,6 +36,7 @@ public class SnapshotIngestionService {
         List<NodeMetricsSnapshot> nodes = observation.nodes().stream()
                 .map(node -> toNodeSnapshot(cluster, node, timestamp))
                 .toList();
+        nodeCorrelationService.correlate(nodes);
 
         ClusterSnapshot snapshot = snapshotRepository.save(ClusterSnapshot.builder()
                 .cluster(cluster)
@@ -60,8 +61,7 @@ public class SnapshotIngestionService {
         return snapshot;
     }
 
-    private NodeMetricsSnapshot toNodeSnapshot(Cluster cluster, NodeObservation node, LocalDateTime timestamp) {
-        var providerInfo = providerIdParser.parseProviderId(node.providerId());
+    private static NodeMetricsSnapshot toNodeSnapshot(Cluster cluster, NodeObservation node, LocalDateTime timestamp) {
         return NodeMetricsSnapshot.builder()
                 .cluster(cluster)
                 .snapshotTimestamp(timestamp)
@@ -70,10 +70,7 @@ public class SnapshotIngestionService {
                 .hostType(cluster.getInfrastructureType().name())
                 .cpuCores(node.cpuCores())
                 .memoryGb(node.memoryGb())
-                .underlyingHostId(providerInfo.getInstanceId())
                 .providerId(node.providerId())
-                .hypervisorHost(providerInfo.getHypervisorHost())
-                .sockets(node.sockets())
                 .build();
     }
 }

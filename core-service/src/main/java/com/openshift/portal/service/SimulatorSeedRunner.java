@@ -12,7 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 /**
- * Seeds the simulated fleet, and the team aliases its namespaces use, at startup. With several replicas only the one holding the lock seeds; the others
+ * Seeds the simulated fleet, the team aliases its namespaces use and its simulated inventory, at startup. With several replicas only the one holding the lock seeds; the others
  * skip and find the fleet already there.
  */
 @Component
@@ -22,12 +22,15 @@ public class SimulatorSeedRunner implements ApplicationRunner {
 
     private final AcmSimulatorService simulatorService;
     private final LockingTaskExecutor lockingTaskExecutor;
+    private final NodeCorrelationService nodeCorrelationService;
 
     @Override
     public void run(ApplicationArguments args) {
         lockingTaskExecutor.executeWithLock((Runnable) () -> {
                     simulatorService.seedInitialFleetIfEmpty();
                     simulatorService.ensureSimulatorAliases();
+                    simulatorService.ensureSimulatorInventory();
+                    nodeCorrelationService.recorrelateLatest();
                 },
                 new LockConfiguration(Instant.now(), "simulator-seed", Duration.ofMinutes(5), Duration.ZERO));
     }

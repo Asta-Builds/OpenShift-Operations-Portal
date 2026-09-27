@@ -1,0 +1,26 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: ocp-portal-unit-tests-run-
+  namespace: openshift-operations-portal
+  labels:
+    tekton.dev/pipeline: ocp-portal-unit-tests-pipeline
+spec:
+  pipelineRef:
+    name: ocp-portal-unit-tests-pipeline
+  params:
+    - name: git-url
+      value: https://github.com/Asta-Builds/OpenShift-Operations-Portal.git
+    - name: git-revision
+      value: dev
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+    - name: maven-cache
+      emptyDir: {}

@@ -1,0 +1,87 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ocp-portal-unit-tests-pipeline
+  namespace: openshift-operations-portal
+  labels:
+    app.kubernetes.io/name: openshift-operations-portal
+    app.kubernetes.io/component: ci-pipeline
+spec:
+  description: >-
+    Continuous Integration pipeline for OpenShift Operations Portal.
+    Executes unit tests and code coverage for Core Service (Spring Boot)
+    and Frontend (Angular) in an air-gapped OpenShift environment.
+  params:
+    - name: git-url
+      type: string
+      description: The Git repository URL to clone
+      default: https://github.com/Asta-Builds/OpenShift-Operations-Portal.git
+    - name: git-revision
+      type: string
+      description: The Git branch or commit revision
+      default: dev
+  workspaces:
+    - name: shared-workspace
+      description: Shared PVC volume storing source code and build artifacts
+    - name: maven-cache
+      description: Maven repository cache PVC volume
+  tasks:
+    # -------------------------------------------------------------------------
+    # 1. Clone Source Repository
+    # -------------------------------------------------------------------------
+    - name: fetch-repository
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+        - name: depth
+          value: "1"
+
+    # -------------------------------------------------------------------------
+    # 2. Core Service Unit Tests & JaCoCo Report
+    # -------------------------------------------------------------------------
+    - name: backend-unit-tests
+      runAfter:
+        - fetch-repository
+      taskRef:
+        name: maven
+        kind: ClusterTask
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: maven-settings
+          workspace: maven-cache
+      params:
+        - name: CONTEXT_DIR
+          value: core-service
+        - name: GOALS
+          - clean
+          - test
+          - -Dspring.profiles.active=dev
+
+    # -------------------------------------------------------------------------
+    # 3. Frontend Angular Unit Tests
+    # -------------------------------------------------------------------------
+    - name: frontend-unit-tests
+      runAfter:
+        - fetch-repository
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      taskSpec:
+        workspaces:
+          - name: source
+        steps:
+          - name: run-ng-test
+            image: node:20-alpine
+            workingDir: $(workspaces.source.path)/frontend
+            script: |
+              npm ci
+              npm run build -- --configuration production

@@ -146,12 +146,13 @@ import { IconComponent } from '../../shared/icon.component';
         </div>
       </div>
 
-      <!-- Node Inventory & ProviderID Hypervisor Correlation -->
+      <!-- Nodes and where they run (infrastructure correlation) -->
       <div class="heroui-card p-6 space-y-4">
         <div>
-          <h3 class="text-base font-bold text-foreground">Node Topology & Hypervisor Correlation (spec.providerID)</h3>
+          <h3 class="text-base font-bold text-foreground">Nodes and where they run</h3>
           <p class="text-xs text-default-400 mt-0.5">
-            Decodes underlying hardware sockets, ESXi/AWS host IDs, and worker vs. master subscription eligibility
+            Platform and instance from each node's <code>spec.providerID</code>; host and hardware only from the infrastructure inventory.
+            <a routerLink="/infrastructure" class="text-primary hover:underline">Infrastructure view &rarr;</a>
           </p>
         </div>
 
@@ -159,13 +160,12 @@ import { IconComponent } from '../../shared/icon.component';
           <table class="w-full text-left text-xs border-collapse">
             <thead>
               <tr class="border-b border-divider text-default-400 uppercase tracking-wider text-[10px]">
-                <th class="py-3 px-3">Node Name</th>
+                <th class="py-3 px-3">Node</th>
                 <th class="py-3 px-3">Role</th>
-                <th class="py-3 px-3">Host Type</th>
-                <th class="py-3 px-3">CPU Cores</th>
-                <th class="py-3 px-3">Memory</th>
-                <th class="py-3 px-3">Hypervisor / Underlying Host</th>
-                <th class="py-3 px-3">Provider ID</th>
+                <th class="py-3 px-3">CPU / Memory</th>
+                <th class="py-3 px-3">Platform</th>
+                <th class="py-3 px-3">Instance</th>
+                <th class="py-3 px-3">Runs on</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-divider/40">
@@ -176,16 +176,31 @@ import { IconComponent } from '../../shared/icon.component';
                     {{ node.role }}
                   </span>
                 </td>
-                <td class="py-3 px-3 text-default-600 font-medium">{{ node.hostType }}</td>
-                <td class="py-3 px-3 font-bold text-foreground">{{ node.cpuCores }} Cores</td>
-                <td class="py-3 px-3 text-default-600">{{ node.memoryGb }} GB</td>
-                <td class="py-3 px-3 font-semibold text-foreground">{{ node.hypervisorHost || node.underlyingHostId || 'N/A' }}</td>
+                <td class="py-3 px-3 text-default-600">{{ node.cpuCores }} vCPU · {{ node.memoryGb }} GB</td>
+                <td class="py-3 px-3 text-default-600">
+                  {{ node.providerType || '—' }}<span class="text-default-400" *ngIf="node.providerZone"> · {{ node.providerZone }}</span>
+                </td>
                 <td class="py-3 px-3">
-                  <code class="text-[11px] text-default-500 font-mono">{{ node.providerId || 'N/A' }}</code>
+                  <code class="text-[11px] text-default-500 font-mono break-all" [title]="node.providerId || ''">{{ node.underlyingHostId || '—' }}</code>
+                </td>
+                <td class="py-3 px-3" [ngSwitch]="node.correlationStatus">
+                  <ng-container *ngSwitchCase="'MATCHED'">
+                    <div class="font-semibold text-foreground">
+                      {{ node.hypervisorHost || 'physical machine' }}
+                      <span class="heroui-badge text-[10px] bg-content3 text-default-600 ml-1" *ngIf="node.inventorySource === 'SIMULATOR'">simulated</span>
+                    </div>
+                    <div class="text-[11px] text-default-400">
+                      {{ [node.hypervisorCluster, node.datacenter].filter(isSet).join(' · ') }}
+                      <span *ngIf="node.sockets"> · {{ node.sockets }} sockets</span><span *ngIf="node.physicalCores"> · {{ node.physicalCores }} cores</span>
+                    </div>
+                  </ng-container>
+                  <span *ngSwitchCase="'CLOUD'" class="text-default-500">provider-managed</span>
+                  <span *ngSwitchCase="'NOT_IN_INVENTORY'" class="heroui-badge text-[10px] bg-warning/15 text-warning">not in inventory</span>
+                  <span *ngSwitchDefault class="heroui-badge text-[10px] bg-content3 text-default-600">no providerID</span>
                 </td>
               </tr>
               <tr *ngIf="cluster.nodeMetrics.length === 0">
-                <td colspan="7" class="text-center py-6 text-default-400 text-xs">No node metrics recorded.</td>
+                <td colspan="6" class="text-center py-6 text-default-400 text-xs">No node data has been collected for this cluster.</td>
               </tr>
             </tbody>
           </table>
@@ -237,6 +252,11 @@ export class ClusterDetailComponent implements OnInit {
   private portalService = inject(PortalService);
 
   cluster: ClusterDetail | null = null;
+
+  /** Keeps non-empty values when joining optional labels. */
+  isSet(value: string | null): boolean {
+    return !!value;
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');

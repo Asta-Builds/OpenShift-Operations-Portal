@@ -3,6 +3,8 @@ package com.openshift.portal.dto;
 import com.openshift.portal.domain.enums.Environment;
 import com.openshift.portal.domain.enums.InfrastructureType;
 import com.openshift.portal.domain.enums.NodeRole;
+import com.openshift.portal.domain.enums.ProviderType;
+import com.openshift.portal.service.NodeCorrelationService;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -64,10 +66,21 @@ public class ClusterDetailDto {
         private String hostType;
         private Integer cpuCores;
         private Double memoryGb;
+        /** Instance key parsed from the providerID. */
         private String underlyingHostId;
         private String providerId;
+        private ProviderType providerType;
+        private String providerZone;
+        /** MATCHED, CLOUD, NOT_IN_INVENTORY or NO_PROVIDER_ID. */
+        private NodeCorrelationService.Status correlationStatus;
+        // From the matched inventory row only
+        private String inventorySource;
         private String hypervisorHost;
+        private String hypervisorCluster;
+        private String datacenter;
         private Integer sockets;
+        private Integer physicalCores;
+        private Integer threadsPerCore;
     }
 
     @Data

@@ -32,6 +32,11 @@ export interface ClusterSummary {
   lastSnapshotTime: string;
 }
 
+export type ProviderType = 'VSPHERE' | 'AWS' | 'AZURE' | 'GCP' | 'OPENSTACK' | 'BAREMETAL' | 'OVIRT' | 'KUBEVIRT' | 'KIND' | 'OTHER' | 'UNKNOWN';
+
+/** MATCHED: an inventory row describes the machine. CLOUD: provider-owned hardware. */
+export type CorrelationStatus = 'MATCHED' | 'CLOUD' | 'NOT_IN_INVENTORY' | 'NO_PROVIDER_ID';
+
 export interface NodeMetric {
   id: number;
   nodeName: string;
@@ -39,10 +44,20 @@ export interface NodeMetric {
   hostType: string;
   cpuCores: number;
   memoryGb: number;
-  underlyingHostId: string;
-  providerId?: string;
-  hypervisorHost?: string;
-  sockets?: number;
+  /** Instance key parsed from the providerID. */
+  underlyingHostId: string | null;
+  providerId?: string | null;
+  providerType: ProviderType | null;
+  providerZone: string | null;
+  correlationStatus: CorrelationStatus;
+  /** The fields below come only from a matched inventory row. */
+  inventorySource: string | null;
+  hypervisorHost?: string | null;
+  hypervisorCluster: string | null;
+  datacenter: string | null;
+  sockets?: number | null;
+  physicalCores: number | null;
+  threadsPerCore: number | null;
 }
 
 export interface SnapshotDetail {
@@ -268,4 +283,65 @@ export interface Team {
   contactEmail: string | null;
   aliases: string[];
   namespaceCount: number;
+}
+
+export interface TopologyNode {
+  clusterId: string;
+  clusterName: string;
+  nodeName: string;
+  role: 'WORKER' | 'MASTER' | 'INFRA';
+  cpuCores: number;
+  memoryGb: number;
+  providerType: ProviderType | null;
+  instanceKey: string | null;
+  zone: string | null;
+  status: CorrelationStatus;
+  inventorySource: string | null;
+  sockets: number | null;
+  physicalCores: number | null;
+  threadsPerCore: number | null;
+}
+
+export interface InfrastructureTopology {
+  summary: { nodes: number; matched: number; cloud: number; notInInventory: number; noProviderId: number };
+  hypervisorClusters: {
+    datacenter: string | null;
+    hypervisorCluster: string | null;
+    hosts: {
+      hypervisorHost: string;
+      sockets: number | null;
+      physicalCores: number | null;
+      threadsPerCore: number | null;
+      inventorySource: string | null;
+      nodes: TopologyNode[];
+    }[];
+  }[];
+  bareMetal: { datacenter: string | null; nodes: TopologyNode[] }[];
+  cloud: { providerType: ProviderType; zone: string | null; nodes: TopologyNode[] }[];
+  notInInventory: TopologyNode[];
+  noProviderId: TopologyNode[];
+}
+
+export interface InventoryRow {
+  id: number;
+  source: string;
+  providerType: ProviderType;
+  instanceKey: string;
+  hypervisorHost: string | null;
+  hypervisorCluster: string | null;
+  datacenter: string | null;
+  physicalSockets: number | null;
+  physicalCores: number | null;
+  threadsPerCore: number | null;
+  syncedAt: string;
+}
+
+export interface InventoryImportResult {
+  source: string;
+  rows: number;
+  inserted: number;
+  updated: number;
+  removed: number;
+  /** Nodes of the latest snapshots now matched to an inventory row, from any source. */
+  matchedNodes: number;
 }

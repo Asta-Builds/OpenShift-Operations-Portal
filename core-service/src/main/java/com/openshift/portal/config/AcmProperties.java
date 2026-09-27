@@ -12,6 +12,17 @@ public class AcmProperties {
     private Security security = new Security();
     private Acm acm = new Acm();
     private Attribution attribution = new Attribution();
+    private Inventory inventory = new Inventory();
+
+    /**
+     * Scheduled inventory import from a mounted folder: each {@code <source>.csv} (for example {@code cmdb.csv})
+     * replaces that source's rows. Disabled while {@code importDir} is empty.
+     */
+    @Data
+    public static class Inventory {
+        private String importDir = "";
+        private String importCron = "0 0 * * * *";
+    }
 
     /** Namespace label keys that name the owning team and the cost center (plan decision D4). */
     @Data

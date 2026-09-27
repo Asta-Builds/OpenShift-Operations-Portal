@@ -15,7 +15,10 @@ import {
   SimulatorStatus,
   AttributionReport,
   Environment,
-  Team
+  Team,
+  InfrastructureTopology,
+  InventoryRow,
+  InventoryImportResult
 } from '../models/portal.models';
 
 @Injectable({
@@ -89,6 +92,22 @@ export class PortalService {
 
   createTeam(name: string, costCenter?: string): Observable<Team> {
     return this.http.post<Team>(`${this.baseUrl}/teams`, { name, costCenter: costCenter || null });
+  }
+
+  getInfrastructureTopology(): Observable<InfrastructureTopology> {
+    return this.http.get<InfrastructureTopology>(`${this.baseUrl}/infrastructure/topology`);
+  }
+
+  getInventory(): Observable<InventoryRow[]> {
+    return this.http.get<InventoryRow[]>(`${this.baseUrl}/inventory`);
+  }
+
+  /** Admin only. With replace, the file is a full export of the source and rows missing from it are removed. */
+  importInventory(csv: string, source: string, replace: boolean): Observable<InventoryImportResult> {
+    return this.http.post<InventoryImportResult>(`${this.baseUrl}/inventory/import`, csv, {
+      params: { source, replace },
+      headers: { 'Content-Type': 'text/csv' }
+    });
   }
 
   getReports(): Observable<ReportDefinition[]> {

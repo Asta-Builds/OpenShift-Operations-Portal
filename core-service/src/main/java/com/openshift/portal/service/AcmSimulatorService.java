@@ -41,6 +41,8 @@ public class AcmSimulatorService {
     private final LicenseWatermarkRepository watermarkRepository;
     private final SnapshotIngestionService ingestionService;
     private final AcmProperties properties;
+    private final InfrastructureInventoryRepository inventoryRepository;
+    private final ProviderIdParserService providerIdParser;
 
     /**
      * Namespaces every simulated cluster runs, with their share of the cluster's requests. Owner values cover each
@@ -299,7 +301,7 @@ public class AcmSimulatorService {
      */
     private ClusterObservation simulateObservation(Cluster cluster, LocalDateTime timestamp, int growthDays) {
         boolean bareMetal = cluster.getInfrastructureType() == InfrastructureType.BARE_METAL;
-        int workerCount = (bareMetal ? 8 : 6) + growthDays / 10;
+        int workerCount = baseWorkers(cluster) + growthDays / 10;
         int coresPerWorker = bareMetal ? 32 : 16;
         int memGbPerWorker = bareMetal ? 128 : 64;
 
@@ -307,13 +309,13 @@ public class AcmSimulatorService {
         // Master nodes
         for (int m = 1; m <= 3; m++) {
             nodes.add(new NodeObservation(String.format("%s-master-%d", cluster.getClusterName(), m), NodeRole.MASTER,
-                    8, BigDecimal.valueOf(32), generateProviderId(cluster.getInfrastructureType(), "master", m), 2));
+                    8, BigDecimal.valueOf(32), providerId(cluster, "master", m)));
         }
         // Worker nodes
         for (int w = 1; w <= workerCount; w++) {
             nodes.add(new NodeObservation(String.format("%s-worker-%02d", cluster.getClusterName(), w), NodeRole.WORKER,
                     coresPerWorker, BigDecimal.valueOf(memGbPerWorker),
-                    generateProviderId(cluster.getInfrastructureType(), "worker", w), bareMetal ? 2 : 1));
+                    providerId(cluster, "worker", w)));
         }
 
         int totalCores = (workerCount * coresPerWorker) + (3 * 8);
@@ -399,14 +401,81 @@ public class AcmSimulatorService {
         return value.multiply(BigDecimal.valueOf(fraction)).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private String generateProviderId(InfrastructureType type, String role, int index) {
-        return switch (type) {
-            case VMWARE -> String.format("vsphere://421a7192-%s-%04d-4f33-1996d9eb74ca", role, index);
-            case AWS -> String.format("aws:///us-east-1a/i-%s%08d", role, index);
-            case BARE_METAL -> String.format("baremetal://d407ad32-%s-%04d-bb173f4e2468", role, index);
-            case AZURE -> String.format("azure:///subscriptions/sub-01/resourceGroups/rg-ocp/providers/Microsoft.Compute/virtualMachines/%s-%02d", role, index);
-            default -> String.format("custom://host-%s-%02d", role, index);
+    /** Workers the cluster had when it was seeded; the growth model adds more over time. */
+    private static int baseWorkers(Cluster cluster) {
+        return cluster.getInfrastructureType() == InfrastructureType.BARE_METAL ? 8 : 6;
+    }
+
+    /**
+     * A providerID in the format the platform really uses, stable for a given node so inventory rows can match it.
+     * Clusters on other platforms get none, like UPI installs.
+     */
+    static String providerId(Cluster cluster, String role, int index) {
+        String node = String.format("%s-%s-%02d", cluster.getClusterName(), role, index);
+        UUID uuid = UUID.nameUUIDFromBytes(node.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String region = cluster.getRegion() != null ? cluster.getRegion() : "us-east-1";
+        return switch (cluster.getInfrastructureType()) {
+            case VMWARE -> "vsphere://" + uuid;
+            case AWS -> String.format("aws:///%s%c/i-0%s", region, (char) ('a' + index % 3),
+                    uuid.toString().replace("-", "").substring(0, 16));
+            case BARE_METAL -> String.format("baremetalhost:///openshift-machine-api/%s/%s", node, uuid);
+            case AZURE -> String.format("azure:///subscriptions/%s/resourceGroups/%s-rg/providers/Microsoft.Compute/virtualMachines/%s",
+                    UUID.nameUUIDFromBytes(cluster.getClusterName().getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                    cluster.getClusterName(), node);
+            case GCP -> String.format("gce://%s-project/%s-%c/%s", cluster.getClusterName(), region, (char) ('a' + index % 3), node);
+            case OPENSTACK -> "openstack:///" + uuid;
+            default -> "";
         };
+    }
+
+    /**
+     * Loads a simulated asset inventory for the simulated fleet, under its own SIMULATOR source so it is never taken
+     * for a real CMDB. It covers the nodes clusters were seeded with; workers added later by the growth model are
+     * left out, as happens when a CMDB lags behind.
+     */
+    @Transactional
+    public void ensureSimulatorInventory() {
+        if (inventoryRepository.countBySource(InfrastructureInventory.SOURCE_SIMULATOR) > 0) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        List<InfrastructureInventory> rows = new ArrayList<>();
+        for (Cluster cluster : clusterRepository.findAll()) {
+            boolean bareMetal = cluster.getInfrastructureType() == InfrastructureType.BARE_METAL;
+            if (!bareMetal && cluster.getInfrastructureType() != InfrastructureType.VMWARE) {
+                continue; // clouds need no inventory
+            }
+            String datacenter = "dc-" + (cluster.getRegion() != null ? cluster.getRegion() : "main");
+            for (String role : List.of("master", "worker")) {
+                int count = role.equals("master") ? 3 : baseWorkers(cluster);
+                for (int i = 1; i <= count; i++) {
+                    var ref = providerIdParser.parse(providerId(cluster, role, i));
+                    InfrastructureInventory.InfrastructureInventoryBuilder row = InfrastructureInventory.builder()
+                            .source(InfrastructureInventory.SOURCE_SIMULATOR)
+                            .providerType(ref.type())
+                            .instanceKey(ref.instanceKey())
+                            .datacenter(datacenter)
+                            .syncedAt(now);
+                    if (bareMetal) {
+                        // The node is the machine: 8 logical CPUs on masters, 32 on workers
+                        row.physicalSockets(role.equals("master") ? 1 : 2)
+                                .physicalCores(role.equals("master") ? 4 : 16)
+                                .threadsPerCore(2);
+                    } else {
+                        // VMs spread over a shared vSphere cluster of six dual-socket hosts
+                        row.hypervisorCluster("vsan-" + cluster.getRegion())
+                                .hypervisorHost(String.format("esx-%02d.%s.corp.internal", (i + (role.equals("master") ? 0 : 3)) % 6 + 1,
+                                        cluster.getRegion()))
+                                .physicalSockets(2)
+                                .physicalCores(48)
+                                .threadsPerCore(2);
+                    }
+                    rows.add(row.build());
+                }
+            }
+        }
+        inventoryRepository.saveAll(rows);
+        log.info("Loaded {} simulated inventory rows", rows.size());
     }
 
 }

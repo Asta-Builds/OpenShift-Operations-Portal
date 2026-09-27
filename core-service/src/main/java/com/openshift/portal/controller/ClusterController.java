@@ -14,6 +14,7 @@ import com.openshift.portal.exception.ResourceNotFoundException;
 import com.openshift.portal.repository.*;
 import com.openshift.portal.service.AcmCollectorService;
 import com.openshift.portal.service.AttributionService;
+import com.openshift.portal.service.NodeCorrelationService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -100,8 +101,16 @@ public class ClusterController {
                         .memoryGb(n.getMemoryGb() != null ? n.getMemoryGb().doubleValue() : 0.0)
                         .underlyingHostId(n.getUnderlyingHostId())
                         .providerId(n.getProviderId())
+                        .providerType(n.getProviderType())
+                        .providerZone(n.getProviderZone())
+                        .correlationStatus(NodeCorrelationService.status(n))
+                        .inventorySource(n.getInventorySource())
                         .hypervisorHost(n.getHypervisorHost())
+                        .hypervisorCluster(n.getHypervisorCluster())
+                        .datacenter(n.getDatacenter())
                         .sockets(n.getSockets())
+                        .physicalCores(n.getPhysicalCores())
+                        .threadsPerCore(n.getThreadsPerCore())
                         .build())
                 .toList();
 

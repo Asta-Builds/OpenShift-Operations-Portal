@@ -120,6 +120,11 @@ class SecurityAccessMatrixTest {
                 arguments(POST, "/teams", Caller.OPERATOR, 403),
                 arguments(POST, "/teams/00000000-0000-0000-0000-000000000000/aliases", Caller.OPERATOR, 403),
                 arguments(DELETE, "/teams/00000000-0000-0000-0000-000000000000/aliases/x", Caller.ADMIN, 404),
+                // Infrastructure is read by viewers; inventory changes are admin only
+                arguments(GET, "/infrastructure/topology", Caller.VIEWER, 200),
+                arguments(GET, "/inventory", Caller.VIEWER, 200),
+                arguments(POST, "/inventory/import", Caller.OPERATOR, 403),
+                arguments(DELETE, "/inventory?source=CMDB", Caller.OPERATOR, 403),
                 // Hub registration is admin only
                 arguments(POST, "/hubs", Caller.OPERATOR, 403),
                 arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.OPERATOR, 403),

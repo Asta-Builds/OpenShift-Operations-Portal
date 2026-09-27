@@ -1,0 +1,129 @@
+name: Unit Tests & Code Coverage Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'core-service/**'
+      - 'frontend/**'
+      - '.github/workflows/unit-tests.yml'
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =========================================================================
+  # 1. Spring Boot Core Service Unit Tests & JaCoCo Coverage
+  # =========================================================================
+  backend-unit-tests:
+    name: Backend Unit Tests (Core Service)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Eclipse Temurin JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Grant Execute Permission to Maven Wrapper
+        run: chmod +x ./core-service/mvnw
+
+      - name: Run Maven Unit Tests & Generate JaCoCo Coverage
+        working-directory: ./core-service
+        run: |
+          ./mvnw clean test -Dspring.profiles.active=dev
+
+      - name: Upload Surefire Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-surefire-test-results
+          path: ./core-service/target/surefire-reports/
+          retention-days: 14
+
+      - name: Upload JaCoCo Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jacoco-coverage-report
+          path: ./core-service/target/site/jacoco/
+          retention-days: 14
+
+      - name: Publish Test Summary to GitHub Actions
+        if: always()
+        run: |
+          echo "### Backend Unit Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -d "./core-service/target/surefire-reports" ]; then
+            echo "- **Status:** Tests executed successfully." >> $GITHUB_STEP_SUMMARY
+            TOTAL_TESTS=$(grep -h "tests=" ./core-service/target/surefire-reports/*.xml 2>/dev/null | sed -E 's/.*tests="([0-9]+)".*/\1/' | awk '{s+=$1} END {print s}')
+            FAILURES=$(grep -h "failures=" ./core-service/target/surefire-reports/*.xml 2>/dev/null | sed -E 's/.*failures="([0-9]+)".*/\1/' | awk '{s+=$1} END {print s}')
+            ERRORS=$(grep -h "errors=" ./core-service/target/surefire-reports/*.xml 2>/dev/null | sed -E 's/.*errors="([0-9]+)".*/\1/' | awk '{s+=$1} END {print s}')
+            echo "- **Total Tests Run:** ${TOTAL_TESTS:-0}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failures:** ${FAILURES:-0}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Errors:** ${ERRORS:-0}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # =========================================================================
+  # 2. Angular Operations Portal Unit Tests & Build Verification
+  # =========================================================================
+  frontend-unit-tests:
+    name: Frontend Unit Tests & Build (Angular)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run Angular Unit Tests (Headless Chrome)
+        working-directory: ./frontend
+        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
+
+      - name: Verify Production Bundle Build
+        working-directory: ./frontend
+        run: npm run build -- --configuration production
+
+      - name: Upload Frontend Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-report
+          path: ./frontend/coverage/
+          retention-days: 14
+
+  # =========================================================================
+  # 3. Aggregated Pipeline Verification
+  # =========================================================================
+  pipeline-success:
+    name: Pipeline Verification Gate
+    needs: [backend-unit-tests, frontend-unit-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Final Quality Gate
+        run: |
+          echo "All unit tests and builds for Core Service and Frontend passed the CI Quality Gate!" >> $GITHUB_STEP_SUMMARY

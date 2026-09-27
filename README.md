@@ -133,6 +133,18 @@ Both extra endpoints are optional:
 
 To try this without an ACM hub, [hub-lab/README.md](hub-lab/README.md) builds a local Open Cluster Management hub with two managed clusters and stand-ins for Observability and Search.
 
+### Infrastructure inventory
+
+Which hypervisor host, cluster and datacenter run a node, and the sockets, cores and threads of that machine, come only from the infrastructure inventory; the portal never derives them from a providerID. Each node's `spec.providerID` is parsed into a platform and an instance key (vSphere BIOS UUID, AWS instance id, Azure resource id, GCP project/zone/name, OpenStack server UUID, Metal3 `namespace/host`, ...), and matched to inventory rows with the same key. Nodes without a row are shown as "not in inventory"; public cloud instances need none.
+
+Load the inventory as CSV, from a CMDB export or an asset database, either as an ADMIN with `POST /api/v1/inventory/import?source=CMDB&replace=true` (body `text/csv`) or by dropping `<source>.csv` files into `openshift.portal.inventory.import-dir`, which is read every hour. Columns (header row): `provider_id`, or `provider_type` and `instance_key`, then optionally `hypervisor_host`, `hypervisor_cluster`, `datacenter`, `physical_sockets`, `physical_cores`, `threads_per_core`. A file with any error is rejected whole. For vSphere, use the VM's BIOS UUID as it appears in the node's providerID.
+
+```csv
+provider_id,hypervisor_host,hypervisor_cluster,datacenter,physical_sockets,physical_cores,threads_per_core
+vsphere://4237c5f4-2a4b-d3c9-1b6e-6e1f2d3a4b5c,esx-07.fra.corp,vsan-prod,dc-frankfurt,2,48,2
+baremetalhost:///openshift-machine-api/rack3-host7/5d1a8b3c-7e2f-4a6b-9c0d-1e2f3a4b5c6d,,,dc-frankfurt,2,32,2
+```
+
 ### Owner attribution
 
 Each namespace's owner comes from its `openshift.io/owner-team` label and its cost center from `cost-center` (set `openshift.portal.attribution.owner-label` and `cost-center-label` to use your own keys; an organisation-owned prefix is recommended). An owner value maps to a team when it equals the team's name with case and punctuation ignored (`payments-platform` matches "Payments Platform"), or one of the team's aliases. Admins add aliases on the Cost Attribution page or with `POST /api/v1/teams/{id}/aliases`; namespaces carrying the value move to the team immediately.
@@ -163,6 +175,10 @@ Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OP
 | `GET` | `/api/v1/teams` | VIEWER | Teams with their aliases and namespace counts |
 | `POST` | `/api/v1/teams` | ADMIN | Create a team (name, cost center, contact email) |
 | `POST`/`DELETE` | `/api/v1/teams/{id}/aliases` | ADMIN | Map another owner label value to a team, or remove the mapping (`DELETE .../aliases/{alias}`) |
+| `GET` | `/api/v1/infrastructure/topology` | VIEWER | Nodes of the latest snapshots grouped by hypervisor cluster and host, bare-metal machine and cloud zone, with unmatched nodes listed |
+| `GET` | `/api/v1/inventory` | VIEWER | Infrastructure inventory rows |
+| `POST` | `/api/v1/inventory/import?source=&replace=` | ADMIN | Import inventory CSV (`text/csv`); `replace=true` removes the source's rows missing from the file |
+| `DELETE` | `/api/v1/inventory?source=` | ADMIN | Remove every row of one source |
 | `GET` | `/api/v1/licensing/audit` | VIEWER | Core counting and subscription compliance audit |
 | `GET` | `/api/v1/forecasting/projection?horizonDays=30` | VIEWER | Predictive resource growth projection (30/60/90 days) |
 | `GET` | `/api/v1/reports/export?type=FLEET_CAPACITY` | OPERATOR | Export CSV report (`FLEET_CAPACITY`, `LICENSE_AUDIT`, `COST_ATTRIBUTION`); `/export/pdf` for PDF |
