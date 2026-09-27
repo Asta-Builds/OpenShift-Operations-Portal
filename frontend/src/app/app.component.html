@@ -1,93 +1,292 @@
-<div class="layout-wrapper">
-  <!-- Top Global Header -->
-  <header class="top-header">
-    <div class="brand">
-      <div class="logo-accent"></div>
-      <div class="brand-text">
-        <span class="brand-title">OpenShift Operations Portal</span>
-        <span class="brand-sub">Multi-Cluster ACM Hub Fleet Management</span>
+<div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200">
+  
+  <!-- HeroUI Glassmorphic Top Header -->
+  <header class="sticky top-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-divider px-6 py-3 flex items-center justify-between transition-colors">
+    <!-- Left: Brand identity & Workspace switcher -->
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-red-600 via-rose-500 to-amber-500 flex items-center justify-center shadow-lg shadow-red-500/25">
+          <app-icon name="layers" [size]="20" className="text-white"></app-icon>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base tracking-tight text-foreground">OpenShift Operations</span>
+            <span class="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-content2 text-default-500 border border-divider">
+              Portal
+            </span>
+          </div>
+          <span class="text-xs text-default-400 block -mt-0.5">Multi-Cluster Fleet Engine</span>
+        </div>
       </div>
     </div>
 
-    <div class="header-right">
-      <div class="hub-status-pill" *ngIf="hubs.length > 0">
-        <span class="status-dot" [class.degraded]="activeHubCount < hubs.length"></span>
-        <span>{{ activeHubCount }} of {{ hubs.length }} ACM Hubs Active</span>
+    <!-- Center: Quick Command Palette Trigger -->
+    <div class="hidden md:flex items-center">
+      <button 
+        type="button" 
+        (click)="openSearch()"
+        class="flex items-center gap-3 w-80 px-3.5 py-1.5 rounded-xl bg-content2/70 hover:bg-content2 border border-divider text-xs text-default-400 hover:text-foreground transition-all duration-150 cursor-pointer text-left"
+      >
+        <app-icon name="search" [size]="15" className="text-default-400"></app-icon>
+        <span class="flex-1">Search clusters, nodes, namespaces...</span>
+        <kbd class="px-1.5 py-0.5 rounded bg-content3 text-[10px] font-mono text-default-500 border border-divider">Ctrl K</kbd>
+      </button>
+    </div>
+
+    <!-- Right Actions: Live ACM Status, Theme Switcher, User Profile -->
+    <div class="flex items-center gap-3">
+      <!-- ACM Hubs Live Status Pill -->
+      <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-content2 border border-divider text-xs font-medium">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" [ngClass]="activeHubCount === hubs.length ? 'bg-success' : 'bg-warning'"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2" [ngClass]="activeHubCount === hubs.length ? 'bg-success' : 'bg-warning'"></span>
+        </span>
+        <span class="text-default-600">
+          <strong class="text-foreground">{{ activeHubCount }}</strong> of {{ hubs.length || 2 }} ACM Hubs
+        </span>
       </div>
 
-      <div class="user-profile" *ngIf="auth.user() as user">
-        <app-icon name="users" [size]="16"></app-icon>
-        <span class="user-name">{{ user.name || user.username }}</span>
-        <span class="role-badge">{{ roleLabel(user) }}</span>
-        <button class="sign-out" (click)="auth.logout()">Sign out</button>
+      <!-- Theme Switcher Button (Dark / Light) -->
+      <button
+        type="button"
+        (click)="toggleTheme()"
+        [attr.title]="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+        class="w-9 h-9 rounded-xl flex items-center justify-center bg-content2 hover:bg-content3 border border-divider text-default-600 hover:text-foreground transition-colors cursor-pointer"
+      >
+        <app-icon *ngIf="isDark" name="sun" [size]="17"></app-icon>
+        <app-icon *ngIf="!isDark" name="moon" [size]="17"></app-icon>
+      </button>
+
+      <!-- User Profile Dropdown / Card -->
+      <div class="flex items-center gap-2 pl-2 border-l border-divider" *ngIf="auth.user() as user">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-xs font-bold">
+          {{ (user.name || user.username).substring(0, 1).toUpperCase() }}
+        </div>
+        <div class="hidden lg:block text-left">
+          <span class="block text-xs font-semibold text-foreground leading-tight">{{ user.name || user.username }}</span>
+          <span class="block text-[10px] text-default-400">{{ roleLabel(user) }}</span>
+        </div>
+        <button
+          type="button"
+          (click)="auth.logout()"
+          title="Sign out"
+          class="p-1.5 rounded-lg text-default-400 hover:text-danger hover:bg-danger/10 transition-colors ml-1 cursor-pointer"
+        >
+          <app-icon name="log-out" [size]="15"></app-icon>
+        </button>
       </div>
     </div>
   </header>
 
-  <div class="body-layout">
-    <!-- Left Sidebar Navigation -->
-    <aside class="sidebar">
-      <nav class="nav-menu">
-        <a routerLink="/overview" routerLinkActive="active" class="nav-item">
-          <app-icon name="dashboard" [size]="18"></app-icon>
-          <span>Fleet Overview</span>
-        </a>
+  <!-- Body Layout: Sidebar + Main Canvas -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- HeroUI Left Sidebar Navigation -->
+    <aside class="w-64 border-r border-divider bg-background flex flex-col justify-between p-4 flex-shrink-0">
+      <div class="space-y-6">
+        
+        <!-- Workspace Pill -->
+        <div class="p-3 rounded-2xl bg-content1 border border-divider flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <app-icon name="cloud" [size]="16"></app-icon>
+            </div>
+            <div>
+              <span class="block text-xs font-bold text-foreground">Global Fleet</span>
+              <span class="block text-[10px] text-default-400">OpenShift 4.14+</span>
+            </div>
+          </div>
+          <span class="w-2 h-2 rounded-full bg-success"></span>
+        </div>
 
-        <a routerLink="/clusters" routerLinkActive="active" class="nav-item">
-          <app-icon name="server" [size]="18"></app-icon>
-          <span>Cluster Inventory</span>
-        </a>
+        <!-- Navigation Sections -->
+        <nav class="space-y-5">
+          <div>
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-default-400 px-3 block mb-2">
+              Fleet Overview
+            </span>
+            <div class="space-y-1">
+              <a 
+                routerLink="/overview" 
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
+                [routerLinkActiveOptions]="{exact: true}"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+              >
+                <app-icon name="dashboard" [size]="17"></app-icon>
+                <span>Fleet Dashboard</span>
+              </a>
 
-        <a routerLink="/attribution" routerLinkActive="active" class="nav-item">
-          <app-icon name="users" [size]="18"></app-icon>
-          <span>Cost Attribution</span>
-        </a>
+              <a 
+                routerLink="/clusters" 
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+              >
+                <app-icon name="server" [size]="17"></app-icon>
+                <span>Cluster Inventory</span>
+              </a>
 
-        <a routerLink="/licensing" routerLinkActive="active" class="nav-item">
-          <app-icon name="shield-check" [size]="18"></app-icon>
-          <span>Licensing & Cores</span>
-        </a>
+              <a 
+                routerLink="/attribution" 
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+              >
+                <app-icon name="users" [size]="17"></app-icon>
+                <span>Cost Attribution</span>
+              </a>
+            </div>
+          </div>
 
-        <a routerLink="/forecasting" routerLinkActive="active" class="nav-item">
-          <app-icon name="trending-up" [size]="18"></app-icon>
-          <span>Growth Forecast</span>
-        </a>
+          <div>
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-default-400 px-3 block mb-2">
+              Operations & Audit
+            </span>
+            <div class="space-y-1">
+              <a 
+                routerLink="/licensing" 
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+              >
+                <app-icon name="shield-check" [size]="17"></app-icon>
+                <span>Licensing & Cores</span>
+              </a>
 
-        <a routerLink="/reports" routerLinkActive="active" class="nav-item">
-          <app-icon name="file-text" [size]="18"></app-icon>
-          <span>Reports & Dispatch</span>
-        </a>
+              <a 
+                routerLink="/forecasting" 
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+              >
+                <app-icon name="trending-up" [size]="17"></app-icon>
+                <span>Growth Forecast</span>
+              </a>
 
-        <ng-container *ngIf="simulatorAvailable">
-          <div class="nav-separator"></div>
+              <a 
+                routerLink="/reports" 
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+              >
+                <app-icon name="file-text" [size]="17"></app-icon>
+                <span>Reports & Dispatch</span>
+              </a>
+            </div>
+          </div>
 
-          <a routerLink="/simulator" routerLinkActive="active" class="nav-item">
-            <app-icon name="activity" [size]="18"></app-icon>
-            <span>ACM Simulator</span>
-          </a>
-        </ng-container>
-      </nav>
+          <!-- Simulator Tab (Visible if available) -->
+          <div *ngIf="simulatorAvailable">
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-default-400 px-3 block mb-2">
+              Simulation Sandbox
+            </span>
+            <div class="space-y-1">
+              <a 
+                routerLink="/simulator" 
+                routerLinkActive="bg-secondary text-white shadow-lg shadow-secondary/30"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+              >
+                <app-icon name="activity" [size]="17"></app-icon>
+                <span>ACM Simulator</span>
+              </a>
+            </div>
+          </div>
+        </nav>
+      </div>
 
-      <div class="sidebar-footer">
-        <div class="version-tag">
-          <app-icon name="layers" [size]="14"></app-icon>
-          <span>Air-Gapped Edition v1.0</span>
+      <!-- Sidebar Footer Mini Widget -->
+      <div class="p-3.5 rounded-2xl bg-content1 border border-divider space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-default-400 font-medium">Compliance</span>
+          <span class="text-xs font-bold text-success flex items-center gap-1">
+            <app-icon name="check-circle" [size]="13"></app-icon>
+            Active
+          </span>
+        </div>
+        <div class="w-full h-1.5 rounded-full bg-content3 overflow-hidden">
+          <div class="h-full bg-primary rounded-full" style="width: 79.9%;"></div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-default-400">
+          <span>79.9% Core Alloc.</span>
+          <span>1,256 Cores</span>
         </div>
       </div>
     </aside>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-      <div class="no-role" *ngIf="auth.user()?.roles?.length === 0; else portal">
-        <h1>No portal access</h1>
-        <p>
-          You are signed in as <strong>{{ auth.user()?.username }}</strong>, but your account is not in any portal group.
-          Ask an administrator to add you to <code>portal-viewer</code>, <code>portal-operator</code> or <code>portal-admin</code>.
+    <!-- Main Content Canvas -->
+    <main class="flex-1 overflow-y-auto p-6 md:p-8 bg-background">
+      <div *ngIf="auth.user()?.roles?.length === 0; else portalOutlet" class="max-w-md mx-auto mt-20 p-8 rounded-3xl bg-content1 border border-divider text-center">
+        <div class="w-12 h-12 rounded-2xl bg-danger/10 text-danger flex items-center justify-center mx-auto mb-4">
+          <app-icon name="alert-triangle" [size]="24"></app-icon>
+        </div>
+        <h2 class="text-lg font-bold text-foreground mb-2">No Portal Access Assigned</h2>
+        <p class="text-xs text-default-500 leading-relaxed mb-6">
+          Your account is signed in, but no portal groups were detected. Please contact your OpenShift cluster administrator.
         </p>
+        <button (click)="auth.logout()" class="heroui-btn bg-content2 hover:bg-content3 text-foreground text-xs font-semibold w-full">
+          Sign In with Another Account
+        </button>
       </div>
-      <ng-template #portal>
+
+      <ng-template #portalOutlet>
         <router-outlet></router-outlet>
       </ng-template>
     </main>
   </div>
+
+  <!-- Command Palette Modal -->
+  <div *ngIf="isSearchOpen" class="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+    <div class="w-full max-w-xl rounded-2xl bg-content1 border border-divider shadow-2xl overflow-hidden" (click)="$event.stopPropagation()">
+      <div class="p-4 border-b border-divider flex items-center gap-3">
+        <app-icon name="search" [size]="18" className="text-default-400"></app-icon>
+        <input 
+          type="text" 
+          [(ngModel)]="searchQuery"
+          placeholder="Search clusters, view reports, or navigate..." 
+          class="w-full bg-transparent text-sm text-foreground placeholder:text-default-400 outline-none"
+          autofocus
+        />
+        <button (click)="closeSearch()" class="text-default-400 hover:text-foreground text-xs px-2 py-1 rounded bg-content2">
+          ESC
+        </button>
+      </div>
+
+      <div class="p-2 max-h-80 overflow-y-auto space-y-1">
+        <div class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-default-400">
+          Navigation
+        </div>
+        <button (click)="executeQuickSearch('/overview')" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
+          <span class="flex items-center gap-2.5">
+            <app-icon name="dashboard" [size]="15" className="text-primary"></app-icon>
+            Fleet Dashboard Overview
+          </span>
+          <app-icon name="chevron-right" [size]="14" className="text-default-400"></app-icon>
+        </button>
+        <button (click)="executeQuickSearch('/clusters')" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
+          <span class="flex items-center gap-2.5">
+            <app-icon name="server" [size]="15" className="text-primary"></app-icon>
+            Cluster Inventory & Nodes
+          </span>
+          <app-icon name="chevron-right" [size]="14" className="text-default-400"></app-icon>
+        </button>
+        <button (click)="executeQuickSearch('/licensing')" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
+          <span class="flex items-center gap-2.5">
+            <app-icon name="shield-check" [size]="15" className="text-primary"></app-icon>
+            Licensing Audit & Watermarks
+          </span>
+          <app-icon name="chevron-right" [size]="14" className="text-default-400"></app-icon>
+        </button>
+        <button (click)="executeQuickSearch('/forecasting')" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
+          <span class="flex items-center gap-2.5">
+            <app-icon name="trending-up" [size]="15" className="text-primary"></app-icon>
+            Capacity Runway Depletion Forecast
+          </span>
+          <app-icon name="chevron-right" [size]="14" className="text-default-400"></app-icon>
+        </button>
+        <button (click)="executeQuickSearch('/reports')" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
+          <span class="flex items-center gap-2.5">
+            <app-icon name="file-text" [size]="15" className="text-primary"></app-icon>
+            Reports Export (PDF & CSV)
+          </span>
+          <app-icon name="chevron-right" [size]="14" className="text-default-400"></app-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>

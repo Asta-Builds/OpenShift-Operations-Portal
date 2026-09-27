@@ -11,39 +11,59 @@ import { IconComponent } from '../../shared/icon.component';
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, IconComponent],
   template: `
-    <div class="page-container">
-      <div class="header-row">
+    <div class="space-y-6">
+      
+      <!-- Top Header Row -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 class="page-title">Cluster Inventory</h1>
-          <p class="page-subtitle">Full catalog of all OpenShift clusters managed via ACM Hubs</p>
+          <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold tracking-tight text-foreground">Cluster Inventory</h1>
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary border border-primary/20">
+              {{ filteredClusters.length }} Clusters
+            </span>
+          </div>
+          <p class="text-xs text-default-500 mt-1">Full catalog of all OpenShift clusters managed via ACM Hubs</p>
         </div>
+
         <div>
-          <button class="btn btn-primary" (click)="loadClusters()">
-            <app-icon name="refresh" [size]="16"></app-icon> Refresh
+          <button
+            type="button"
+            (click)="loadClusters()"
+            class="heroui-btn bg-content2 hover:bg-content3 border border-divider text-foreground text-xs font-semibold px-4 py-2"
+          >
+            <app-icon name="refresh" [size]="15"></app-icon>
+            <span>Refresh Inventory</span>
           </button>
         </div>
       </div>
 
-      <!-- Filters Toolbar -->
-      <div class="card filter-card">
-        <div class="filter-group">
+      <!-- HeroUI Filters Toolbar -->
+      <div class="heroui-card p-4 flex flex-col md:flex-row items-stretch md:items-center gap-3">
+        <div class="flex-1 relative">
+          <app-icon name="search" [size]="16" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-default-400"></app-icon>
           <input
             type="text"
-            class="input-search"
-            placeholder="Search by cluster name or owner team..."
+            class="w-full pl-10 pr-4 py-2 rounded-xl bg-content2 border border-divider text-xs text-foreground placeholder:text-default-400 outline-none focus:border-primary transition-colors"
+            placeholder="Search by cluster name, hub, or owner team..."
             [(ngModel)]="searchQuery"
           />
         </div>
-        <div class="filter-group">
-          <select class="select-filter" [(ngModel)]="selectedEnv">
+
+        <div class="flex items-center gap-3">
+          <select
+            [(ngModel)]="selectedEnv"
+            class="px-3 py-2 rounded-xl bg-content2 border border-divider text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+          >
             <option value="">All Environments</option>
             <option value="PRODUCTION">Production</option>
             <option value="STAGING">Staging</option>
             <option value="DEVELOPMENT">Development</option>
           </select>
-        </div>
-        <div class="filter-group">
-          <select class="select-filter" [(ngModel)]="selectedInfra">
+
+          <select
+            [(ngModel)]="selectedInfra"
+            class="px-3 py-2 rounded-xl bg-content2 border border-divider text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+          >
             <option value="">All Infrastructures</option>
             <option value="BARE_METAL">Bare Metal</option>
             <option value="VMWARE">VMware vSphere</option>
@@ -52,139 +72,100 @@ import { IconComponent } from '../../shared/icon.component';
         </div>
       </div>
 
-      <!-- Clusters Table -->
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Cluster Name</th>
-              <th>ACM Hub</th>
-              <th>Environment</th>
-              <th>Owner Team</th>
-              <th>Infrastructure</th>
-              <th>OpenShift Ver</th>
-              <th>Cores (Alloc / Total)</th>
-              <th>Memory (Alloc / Total)</th>
-              <th>License Cores</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let cluster of filteredClusters">
-              <td>
-                <a [routerLink]="['/clusters', cluster.id]" class="cluster-link">{{ cluster.clusterName }}</a>
-              </td>
-              <td>
-                <span class="hub-text">{{ cluster.acmHubName }}</span>
-              </td>
-              <td>
-                <span class="badge" [ngClass]="getEnvBadgeClass(cluster.environment)">{{ cluster.environment }}</span>
-              </td>
-              <td>{{ cluster.ownerTeamName }}</td>
-              <td>
-                <span class="infra-badge">{{ cluster.infrastructureType }}</span>
-              </td>
-              <td>{{ cluster.openshiftVersion || 'N/A' }}</td>
-              <td>{{ cluster.allocatedCores }} / {{ cluster.totalCores }}</td>
-              <td>{{ cluster.allocatedMemoryGb }} / {{ cluster.totalMemoryGb }} GB</td>
-              <td><strong>{{ cluster.licenseCores }}</strong></td>
-              <td>
-                <span class="badge badge-ready">{{ cluster.status }}</span>
-              </td>
-              <td>
-                <a [routerLink]="['/clusters', cluster.id]" class="btn btn-secondary btn-sm">Details</a>
-              </td>
-            </tr>
-            <tr *ngIf="filteredClusters.length === 0">
-              <td colspan="11" class="text-center py-4">No clusters match your current search and filter criteria.</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Clusters HeroUI Data Table -->
+      <div class="heroui-card p-5 overflow-hidden">
+        <div class="w-full overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-divider text-default-400 uppercase tracking-wider text-[10px]">
+                <th class="py-3 px-3">Cluster Name</th>
+                <th class="py-3 px-3">ACM Hub</th>
+                <th class="py-3 px-3">Environment</th>
+                <th class="py-3 px-3">Owner Team</th>
+                <th class="py-3 px-3">Infrastructure</th>
+                <th class="py-3 px-3">Version</th>
+                <th class="py-3 px-3">Cores (Alloc / Total)</th>
+                <th class="py-3 px-3">Memory (Alloc / Total)</th>
+                <th class="py-3 px-3">License Cores</th>
+                <th class="py-3 px-3">Status</th>
+                <th class="py-3 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-divider/40">
+              <tr *ngFor="let cluster of filteredClusters" class="hover:bg-content2/50 transition-colors">
+                <td class="py-3.5 px-3">
+                  <a [routerLink]="['/clusters', cluster.id]" class="font-bold text-primary hover:underline flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-success"></span>
+                    {{ cluster.clusterName }}
+                  </a>
+                </td>
+                <td class="py-3.5 px-3 text-default-500 font-medium">
+                  {{ cluster.acmHubName }}
+                </td>
+                <td class="py-3.5 px-3">
+                  <span class="heroui-badge text-[10px]" [ngClass]="getEnvBadgeClass(cluster.environment)">
+                    {{ cluster.environment }}
+                  </span>
+                </td>
+                <td class="py-3.5 px-3 text-default-600 font-medium">
+                  {{ cluster.ownerTeamName }}
+                </td>
+                <td class="py-3.5 px-3">
+                  <span class="inline-flex items-center gap-1.5 text-default-600 font-medium">
+                    <app-icon [name]="getInfraIcon(cluster.infrastructureType)" [size]="13" className="text-default-400"></app-icon>
+                    {{ cluster.infrastructureType }}
+                  </span>
+                </td>
+                <td class="py-3.5 px-3 text-default-500 font-mono text-[11px]">
+                  {{ cluster.openshiftVersion || 'N/A' }}
+                </td>
+                <td class="py-3.5 px-3">
+                  <span class="font-bold text-foreground">{{ cluster.allocatedCores }}</span>
+                  <span class="text-default-400"> / {{ cluster.totalCores }}</span>
+                </td>
+                <td class="py-3.5 px-3">
+                  <span class="font-bold text-foreground">{{ cluster.allocatedMemoryGb | number:'1.0-0' }}</span>
+                  <span class="text-default-400"> / {{ cluster.totalMemoryGb | number:'1.0-0' }} GB</span>
+                </td>
+                <td class="py-3.5 px-3">
+                  <span class="px-2 py-0.5 rounded-md bg-content3 text-foreground font-mono font-bold text-xs">
+                    {{ cluster.licenseCores }}
+                  </span>
+                </td>
+                <td class="py-3.5 px-3">
+                  <span class="heroui-badge bg-success/15 text-success text-[10px]">
+                    {{ cluster.status }}
+                  </span>
+                </td>
+                <td class="py-3.5 px-3 text-right">
+                  <a
+                    [routerLink]="['/clusters', cluster.id]"
+                    class="heroui-btn bg-content2 hover:bg-content3 text-foreground text-xs font-semibold px-2.5 py-1 border border-divider"
+                  >
+                    Details
+                  </a>
+                </td>
+              </tr>
+              <tr *ngIf="filteredClusters.length === 0">
+                <td colspan="11" class="text-center py-8 text-default-400 text-xs">
+                  No clusters match your current search and filter criteria.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+
     </div>
-  `,
-  styles: [`
-    .page-container {
-      padding: 1.5rem 2rem;
-    }
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-    .page-title {
-      font-size: 1.75rem;
-      color: #111827;
-      margin-bottom: 0.25rem;
-    }
-    .page-subtitle {
-      color: #6B7280;
-      font-size: 0.875rem;
-    }
-    .filter-card {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-      padding: 0.875rem 1.25rem;
-      align-items: center;
-    }
-    .input-search {
-      padding: 0.5rem 0.75rem;
-      border: 1px solid #D1D5DB;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      min-width: 280px;
-    }
-    .select-filter {
-      padding: 0.5rem 0.75rem;
-      border: 1px solid #D1D5DB;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      background: white;
-    }
-    .cluster-link {
-      font-weight: 600;
-      color: #0066CC;
-      text-decoration: none;
-    }
-    .cluster-link:hover {
-      text-decoration: underline;
-    }
-    .hub-text {
-      color: #4B5563;
-      font-family: monospace;
-      font-size: 0.8125rem;
-    }
-    .infra-badge {
-      background: #F3F4F6;
-      padding: 0.2rem 0.5rem;
-      border-radius: 0.25rem;
-      font-size: 0.75rem;
-      font-weight: 500;
-    }
-    .btn-sm {
-      padding: 0.25rem 0.625rem;
-      font-size: 0.75rem;
-    }
-    .text-center {
-      text-align: center;
-    }
-    .py-4 {
-      padding-top: 1.5rem;
-      padding-bottom: 1.5rem;
-      color: #6B7280;
-    }
-  `]
+  `
 })
 export class ClusterInventoryComponent implements OnInit {
   private portalService = inject(PortalService);
 
   clusters: ClusterSummary[] = [];
-  searchQuery = '';
-  selectedEnv = '';
-  selectedInfra = '';
+  searchQuery: string = '';
+  selectedEnv: string = '';
+  selectedInfra: string = '';
 
   ngOnInit(): void {
     this.loadClusters();
@@ -199,22 +180,34 @@ export class ClusterInventoryComponent implements OnInit {
 
   get filteredClusters(): ClusterSummary[] {
     return this.clusters.filter((c) => {
-      const matchesSearch =
+      const matchQuery =
         !this.searchQuery ||
-        c.clusterName.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-        c.ownerTeamName.toLowerCase().includes(this.searchQuery.toLowerCase());
-      const matchesEnv = !this.selectedEnv || c.environment === this.selectedEnv;
-      const matchesInfra = !this.selectedInfra || c.infrastructureType === this.selectedInfra;
-      return matchesSearch && matchesEnv && matchesInfra;
+        c.clusterName?.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+        c.ownerTeamName?.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+        c.acmHubName?.toLowerCase().includes(this.searchQuery.toLowerCase());
+
+      const matchEnv = !this.selectedEnv || c.environment === this.selectedEnv;
+      const matchInfra = !this.selectedInfra || c.infrastructureType === this.selectedInfra;
+
+      return matchQuery && matchEnv && matchInfra;
     });
   }
 
   getEnvBadgeClass(env: string): string {
     switch (env?.toUpperCase()) {
-      case 'PRODUCTION': return 'badge-prod';
-      case 'STAGING': return 'badge-staging';
-      case 'DEVELOPMENT': return 'badge-dev';
-      default: return 'badge-ready';
+      case 'PRODUCTION': return 'bg-danger/15 text-danger border border-danger/25';
+      case 'STAGING': return 'bg-warning/15 text-warning border border-warning/25';
+      case 'DEVELOPMENT': return 'bg-primary/15 text-primary border border-primary/25';
+      default: return 'bg-success/15 text-success border border-success/25';
+    }
+  }
+
+  getInfraIcon(infra: string): string {
+    switch (infra?.toUpperCase()) {
+      case 'BARE_METAL': return 'server';
+      case 'VMWARE': return 'database';
+      case 'AWS': return 'cloud';
+      default: return 'layers';
     }
   }
 }
