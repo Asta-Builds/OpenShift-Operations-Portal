@@ -112,6 +112,13 @@ class SecurityAccessMatrixTest {
                 arguments(GET, "/simulator/status", Caller.ADMIN, 200),
                 arguments(POST, "/simulator/fault?fail=false", Caller.ADMIN, 200),
                 arguments(GET, "/actuator/metrics", Caller.ADMIN, 200),
+                // Attribution is read by viewers; teams and aliases are changed by admins only
+                arguments(GET, "/attribution/teams", Caller.VIEWER, 200),
+                arguments(GET, "/attribution/teams", Caller.NO_PORTAL_ROLE, 403),
+                arguments(GET, "/teams", Caller.VIEWER, 200),
+                arguments(POST, "/teams", Caller.OPERATOR, 403),
+                arguments(POST, "/teams/00000000-0000-0000-0000-000000000000/aliases", Caller.OPERATOR, 403),
+                arguments(DELETE, "/teams/00000000-0000-0000-0000-000000000000/aliases/x", Caller.ADMIN, 404),
                 // Hub registration is admin only
                 arguments(POST, "/hubs", Caller.OPERATOR, 403),
                 arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.OPERATOR, 403),
@@ -150,6 +157,28 @@ class SecurityAccessMatrixTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"bad\",\"apiUrl\":\"ftp://x\",\"credentialsSecretRef\":\"../etc\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void adminManagesTeamsAndAliases() throws Exception {
+        String created = mockMvc.perform(post("/teams").with(token("alice-id", "portal-admin"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Matrix Team\",\"costCenter\":\"CC-MTX\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Matrix Team"))
+                .andReturn().getResponse().getContentAsString();
+        String id = com.jayway.jsonpath.JsonPath.read(created, "$.id");
+
+        mockMvc.perform(post("/teams/{id}/aliases", id).with(token("alice-id", "portal-admin"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"alias\":\"Matrix_Squad\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.aliases[0]").value("matrix-squad"));
+        // One value names one team, as a name or an alias
+        mockMvc.perform(post("/teams").with(token("alice-id", "portal-admin"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"matrix squad\"}"))
+                .andExpect(status().isConflict());
+        mockMvc.perform(request(DELETE, "/teams/{id}/aliases/{alias}", id, "matrix-squad").with(token("alice-id", "portal-admin")))
+                .andExpect(status().isNoContent());
     }
 
     @Test

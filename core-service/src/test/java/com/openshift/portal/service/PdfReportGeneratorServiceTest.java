@@ -26,11 +26,14 @@ class PdfReportGeneratorServiceTest {
     @Mock
     private ClusterSnapshotRepository snapshotRepository;
 
+    @Mock
+    private AttributionService attributionService;
+
     private PdfReportGeneratorService pdfService;
 
     @BeforeEach
     void setUp() {
-        pdfService = new PdfReportGeneratorService(snapshotRepository);
+        pdfService = new PdfReportGeneratorService(snapshotRepository, attributionService);
     }
 
     @Test

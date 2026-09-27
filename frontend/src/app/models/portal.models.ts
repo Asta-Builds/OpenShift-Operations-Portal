@@ -63,10 +63,23 @@ export interface SnapshotDetail {
 export interface NamespaceSummary {
   id: string;
   namespaceName: string;
+  /** The owning team, or "Unattributed"; never the cluster's owner by default. */
   ownerTeamName: string;
-  costCenter: string;
+  attributed: boolean;
+  /** Raw owner label value, kept even when it matches no team. */
+  ownerLabelValue: string | null;
+  /** False until the namespace's labels have been read (no ACM Search endpoint yet). */
+  labelsCollected: boolean;
+  costCenter: string | null;
+  /** LABEL: the namespace's own cost-center label; TEAM: the owning team's cost center. */
+  costCenterSource: 'LABEL' | 'TEAM' | null;
   cpuRequestCores: number;
   memoryRequestGb: number;
+  cpuUsageCores: number | null;
+  memoryUsageGb: number | null;
+  pvcRequestGb: number | null;
+  lastSeenAt: string | null;
+  deletedAt: string | null;
 }
 
 export interface ClusterDetail {
@@ -82,6 +95,8 @@ export interface ClusterDetail {
   status: string;
   latestSnapshot?: SnapshotDetail;
   nodeMetrics: NodeMetric[];
+  /** The namespace label that names the owning team. */
+  ownerLabelKey: string;
   namespaces: NamespaceSummary[];
   recentSnapshots: SnapshotDetail[];
 }
@@ -145,6 +160,10 @@ export interface AcmHubSummary {
   id: string;
   name: string;
   apiUrl: string;
+  credentialsSecretRef: string | null;
+  observabilityUrl: string | null;
+  /** ACM Search endpoint; namespace ownership is only read when it is set. */
+  searchUrl: string | null;
   status: 'ACTIVE' | 'UNREACHABLE' | 'DEGRADED' | 'ERROR';
   lastSyncTimestamp: string | null;
   consecutiveFailures: number;
@@ -200,4 +219,53 @@ export interface SavedReport {
   reportType: string;
   parametersJson?: string;
   createdAt: string;
+}
+
+export type Environment = ClusterSummary['environment'];
+
+export interface AttributionRow {
+  /** Null for the Unattributed and total rows. */
+  teamId: string | null;
+  teamName: string;
+  costCenter: string | null;
+  namespaceCount: number;
+  clusterCount: number;
+  cpuRequestCores: number;
+  memoryRequestGb: number;
+  /** Null when no namespace in the row has usage data. */
+  cpuUsageCores: number | null;
+  memoryUsageGb: number | null;
+  pvcRequestGb: number | null;
+  cpuSharePercent: number;
+}
+
+/** Averages over the period's collections, by team and cost center. */
+export interface AttributionReport {
+  from: string;
+  to: string;
+  environment: Environment | null;
+  ownerLabelKey: string;
+  costCenterLabelKey: string;
+  teams: AttributionRow[];
+  unattributed: AttributionRow;
+  total: AttributionRow;
+  clusterCpuRequestCores: number;
+  clusterMemoryRequestGb: number;
+  /** Namespace CPU requests as a share of cluster requests over the same collections; 100 when they reconcile. */
+  cpuCoveragePercent: number | null;
+  /** Cluster snapshots in the period, and how many carried namespace data (the ones averaged over). */
+  collections: number;
+  collectionsWithNamespaceData: number;
+  unmappedOwners: { ownerLabelValue: string; namespaceCount: number }[];
+  namespacesWithoutOwnerLabel: number;
+  namespacesWithoutLabels: number;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  costCenter: string | null;
+  contactEmail: string | null;
+  aliases: string[];
+  namespaceCount: number;
 }

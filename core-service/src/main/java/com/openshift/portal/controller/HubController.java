@@ -44,6 +44,7 @@ public class HubController {
                 .apiUrl(request.getApiUrl())
                 .credentialsSecretRef(request.getCredentialsSecretRef())
                 .observabilityUrl(request.getObservabilityUrl())
+                .searchUrl(request.getSearchUrl())
                 .build());
         return ResponseEntity.status(HttpStatus.CREATED).body(toSummary(hub));
     }
@@ -64,6 +65,7 @@ public class HubController {
                 .apiUrl(hub.getApiUrl())
                 .credentialsSecretRef(hub.getCredentialsSecretRef())
                 .observabilityUrl(hub.getObservabilityUrl())
+                .searchUrl(hub.getSearchUrl())
                 .status(hub.getStatus())
                 .lastSyncTimestamp(hub.getLastSyncTimestamp())
                 .consecutiveFailures(hub.getConsecutiveFailures())

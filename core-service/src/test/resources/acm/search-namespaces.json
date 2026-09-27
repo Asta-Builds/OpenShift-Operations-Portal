@@ -1,0 +1,60 @@
+{
+  "data": {
+    "searchResult": [
+      {
+        "items": [
+          {
+            "_uid": "prod-east/5c1b2a50-0d3e-4a55-9a51-1f1c7f5a0001",
+            "apiversion": "v1",
+            "cluster": "prod-east",
+            "created": "2026-03-02T09:14:11Z",
+            "kind": "Namespace",
+            "label": "cost-center=CC-FIN-104; kubernetes.io/metadata.name=payments; openshift.io/owner-team=payments-platform",
+            "name": "payments",
+            "status": "Active"
+          },
+          {
+            "_uid": "prod-east/5c1b2a50-0d3e-4a55-9a51-1f1c7f5a0002",
+            "apiversion": "v1",
+            "cluster": "prod-east",
+            "created": "2026-03-02T09:15:40Z",
+            "kind": "Namespace",
+            "label": "kubernetes.io/metadata.name=web; openshift.io/owner-team=Digital-Channels",
+            "name": "web",
+            "status": "Active"
+          },
+          {
+            "_uid": "prod-east/5c1b2a50-0d3e-4a55-9a51-1f1c7f5a0003",
+            "apiversion": "v1",
+            "cluster": "prod-east",
+            "created": "2026-04-18T16:02:09Z",
+            "kind": "Namespace",
+            "label": "kubernetes.io/metadata.name=batch; openshift.io/owner-team=core-banking",
+            "name": "batch",
+            "status": "Active"
+          },
+          {
+            "_uid": "prod-east/5c1b2a50-0d3e-4a55-9a51-1f1c7f5a0004",
+            "apiversion": "v1",
+            "cluster": "prod-east",
+            "created": "2026-01-10T08:00:00Z",
+            "kind": "Namespace",
+            "label": "kubernetes.io/metadata.name=kube-system",
+            "name": "kube-system",
+            "status": "Active"
+          },
+          {
+            "_uid": "prod-east/5c1b2a50-0d3e-4a55-9a51-1f1c7f5a0005",
+            "apiversion": "v1",
+            "cluster": "prod-east",
+            "created": "2026-09-01T12:30:00Z",
+            "kind": "Namespace",
+            "label": "kubernetes.io/metadata.name=idle; openshift.io/owner-team=payments-platform",
+            "name": "idle",
+            "status": "Active"
+          }
+        ]
+      }
+    ]
+  }
+}

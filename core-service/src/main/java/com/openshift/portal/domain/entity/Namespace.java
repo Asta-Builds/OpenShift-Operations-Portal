@@ -34,8 +34,25 @@ public class Namespace {
     @JoinColumn(name = "owner_team_id")
     private Team ownerTeam;
 
+    /** Raw value of the configured owner label; kept even when it matches no team. */
+    @Column(name = "owner_label_value")
+    private String ownerLabelValue;
+
+    /** Raw value of the configured cost-center label; when absent the owning team's cost center applies. */
     @Column(name = "cost_center")
     private String costCenter;
+
+    /** False until the namespace's labels have been read once; ownership is unknown rather than missing until then. */
+    @Column(name = "labels_collected", nullable = false)
+    @Builder.Default
+    private boolean labelsCollected = false;
+
+    @Column(name = "last_seen_at")
+    private LocalDateTime lastSeenAt;
+
+    /** Set when the namespace no longer exists on its cluster; cleared if it reappears. */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @Column(name = "created_at", updatable = false)
     @Builder.Default

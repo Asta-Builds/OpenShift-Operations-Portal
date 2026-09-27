@@ -12,7 +12,10 @@ import {
   SnapshotTriggerResult,
   ReportDefinition,
   AcmHubSummary,
-  SimulatorStatus
+  SimulatorStatus,
+  AttributionReport,
+  Environment,
+  Team
 } from '../models/portal.models';
 
 @Injectable({
@@ -60,6 +63,32 @@ export class PortalService {
       url += `&clusterId=${clusterId}`;
     }
     return this.http.get<ForecastingProjection>(url);
+  }
+
+  /** Dates are inclusive ISO days (yyyy-MM-dd); the backend defaults to the last 30 days. */
+  getAttribution(from?: string, to?: string, environment?: Environment | ''): Observable<AttributionReport> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (environment) params['environment'] = environment;
+    return this.http.get<AttributionReport>(`${this.baseUrl}/attribution/teams`, { params });
+  }
+
+  getTeams(): Observable<Team[]> {
+    return this.http.get<Team[]>(`${this.baseUrl}/teams`);
+  }
+
+  /** Admin only: maps an owner label value to the team; matching namespaces move right away. */
+  addTeamAlias(teamId: string, alias: string): Observable<Team> {
+    return this.http.post<Team>(`${this.baseUrl}/teams/${teamId}/aliases`, { alias });
+  }
+
+  removeTeamAlias(teamId: string, alias: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/teams/${teamId}/aliases/${encodeURIComponent(alias)}`);
+  }
+
+  createTeam(name: string, costCenter?: string): Observable<Team> {
+    return this.http.post<Team>(`${this.baseUrl}/teams`, { name, costCenter: costCenter || null });
   }
 
   getReports(): Observable<ReportDefinition[]> {

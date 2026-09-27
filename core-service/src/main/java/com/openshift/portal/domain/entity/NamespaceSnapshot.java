@@ -25,6 +25,11 @@ public class NamespaceSnapshot {
     @JoinColumn(name = "namespace_id", nullable = false)
     private Namespace namespace;
 
+    /** The cluster snapshot collected together with this one. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cluster_snapshot_id")
+    private ClusterSnapshot clusterSnapshot;
+
     @Column(name = "snapshot_timestamp", nullable = false)
     private LocalDateTime snapshotTimestamp;
 
@@ -33,16 +38,24 @@ public class NamespaceSnapshot {
     private BigDecimal cpuRequestCores = BigDecimal.ZERO;
 
     @Column(name = "cpu_limit_cores", precision = 8, scale = 2)
-    @Builder.Default
-    private BigDecimal cpuLimitCores = BigDecimal.ZERO;
+    private BigDecimal cpuLimitCores;
 
     @Column(name = "memory_request_gb", precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal memoryRequestGb = BigDecimal.ZERO;
 
     @Column(name = "memory_limit_gb", precision = 10, scale = 2)
-    @Builder.Default
-    private BigDecimal memoryLimitGb = BigDecimal.ZERO;
+    private BigDecimal memoryLimitGb;
+
+    /** Actual consumption; null when the source does not provide it. */
+    @Column(name = "cpu_usage_cores", precision = 8, scale = 2)
+    private BigDecimal cpuUsageCores;
+
+    @Column(name = "memory_usage_gb", precision = 10, scale = 2)
+    private BigDecimal memoryUsageGb;
+
+    @Column(name = "pvc_request_gb", precision = 12, scale = 2)
+    private BigDecimal pvcRequestGb;
 
     @Column(name = "created_at", updatable = false)
     @Builder.Default

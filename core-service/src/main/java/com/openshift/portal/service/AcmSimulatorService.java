@@ -1,7 +1,10 @@
 package com.openshift.portal.service;
 
 import com.openshift.portal.acm.ClusterObservation;
+import com.openshift.portal.acm.NamespaceInventory;
+import com.openshift.portal.acm.NamespaceObservation;
 import com.openshift.portal.acm.NodeObservation;
+import com.openshift.portal.config.AcmProperties;
 import com.openshift.portal.domain.entity.*;
 import com.openshift.portal.domain.enums.Environment;
 import com.openshift.portal.domain.enums.HubStatus;
@@ -34,10 +37,31 @@ public class AcmSimulatorService {
     private final AcmHubRepository acmHubRepository;
     private final TeamRepository teamRepository;
     private final ClusterRepository clusterRepository;
-    private final NamespaceRepository namespaceRepository;
-    private final NamespaceSnapshotRepository namespaceSnapshotRepository;
+    private final TeamAliasRepository teamAliasRepository;
     private final LicenseWatermarkRepository watermarkRepository;
     private final SnapshotIngestionService ingestionService;
+    private final AcmProperties properties;
+
+    /**
+     * Namespaces every simulated cluster runs, with their share of the cluster's requests. Owner values cover each
+     * matching rule: a team name slug, an alias, a team that does not exist, and no owner label at all.
+     */
+    private static final List<SimulatedNamespace> SIMULATED_NAMESPACES = List.of(
+            new SimulatedNamespace("payments-engine", "payments-platform", "CC-FIN-104", 5, Integer.MAX_VALUE),
+            new SimulatedNamespace("api-gateway", "digital-channels", "CC-DIG-205", 4, Integer.MAX_VALUE),
+            new SimulatedNamespace("frontend-ui", "digital-channels", null, 3, Integer.MAX_VALUE),
+            new SimulatedNamespace("data-pipeline", "data-science", "CC-AI-900", 3, Integer.MAX_VALUE),
+            new SimulatedNamespace("legacy-batch", "core-banking", "CC-FIN-001", 2, Integer.MAX_VALUE),
+            new SimulatedNamespace("openshift-monitoring", null, null, 2, Integer.MAX_VALUE),
+            new SimulatedNamespace("sandbox-tmp", null, null, 1, Integer.MAX_VALUE),
+            // Removed from every cluster 20 days into the growth curve, so seeded history shows a deleted namespace
+            new SimulatedNamespace("migration-2025", "payments-platform", null, 1, 20));
+
+    /** Owner values the simulated namespaces use that differ from a team name. */
+    private static final Map<String, String> SIMULATED_ALIASES = Map.of("data-science", "Data & AI Analytics");
+
+    private record SimulatedNamespace(String name, String owner, String costCenter, int weight, int removedAfterDays) {
+    }
 
     private volatile boolean failNextCall = false;
     private final Set<String> hubOutages = ConcurrentHashMap.newKeySet();
@@ -124,6 +148,8 @@ public class AcmSimulatorService {
                 .contactEmail("data-platform@enterprise.internal")
                 .build());
 
+        ensureSimulatorAliases();
+
         // 2. ACM Hubs
         AcmHub primaryHub = acmHubRepository.save(AcmHub.builder()
                 .name("acm-hub-primary-eu")
@@ -200,9 +226,6 @@ public class AcmSimulatorService {
         int totalPeakWorkerCores = 0;
 
         for (Cluster cluster : savedClusters) {
-            // Seed Namespaces for owner-aware namespace level attribution
-            seedNamespacesForCluster(cluster);
-
             // Generate 3 history points: 30 days ago, 15 days ago, and today (only today's keeps its node rows)
             for (int daysAgo : List.of(30, 15, 0)) {
                 LocalDateTime snapshotTime = now.minusDays(daysAgo);
@@ -224,6 +247,21 @@ public class AcmSimulatorService {
 
         log.info("Fleet seeding complete with {} clusters and historical snapshots.", savedClusters.size());
         return true;
+    }
+
+    /**
+     * Adds the aliases the simulated namespaces rely on, for teams that exist and aliases not yet defined. Runs at
+     * every start so fleets seeded before aliases existed get them too.
+     */
+    @Transactional
+    public void ensureSimulatorAliases() {
+        SIMULATED_ALIASES.forEach((alias, teamName) -> teamRepository.findByName(teamName).ifPresent(team -> {
+            String normalized = OwnerResolver.normalize(alias);
+            if (teamAliasRepository.findByAlias(normalized).isEmpty()) {
+                teamAliasRepository.save(TeamAlias.builder().team(team).alias(normalized).build());
+                log.info("Added simulator alias {} for team {}", normalized, teamName);
+            }
+        }));
     }
 
     /**
@@ -282,19 +320,74 @@ public class AcmSimulatorService {
         BigDecimal totalMem = BigDecimal.valueOf((workerCount * memGbPerWorker) + (3 * 32));
         BigDecimal totalStorage = BigDecimal.valueOf(totalCores * 40.0);
 
+        int allocatedCores = (int) Math.round(totalCores * growthFraction(0.65, 0.005, growthDays));
+        BigDecimal allocatedMem = scaleBy(totalMem, growthFraction(0.60, 0.004, growthDays));
+        BigDecimal allocatedStorage = scaleBy(totalStorage, growthFraction(0.55, 0.003, growthDays));
+
         return new ClusterObservation(
                 cluster.getClusterName(),
                 totalCores,
-                (int) Math.round(totalCores * growthFraction(0.65, 0.005, growthDays)),
+                allocatedCores,
                 totalMem,
-                scaleBy(totalMem, growthFraction(0.60, 0.004, growthDays)),
+                allocatedMem,
                 totalStorage,
-                scaleBy(totalStorage, growthFraction(0.55, 0.003, growthDays)),
+                allocatedStorage,
                 nodes,
+                simulateNamespaces(growthDays, BigDecimal.valueOf(allocatedCores), allocatedMem, allocatedStorage),
                 String.format("{\"cluster\": \"%s\", \"simulated\": true, \"timestamp\": \"%s\"}",
                         cluster.getClusterName(), timestamp),
                 null,
                 null);
+    }
+
+    /**
+     * Splits the cluster's requests across its namespaces by weight, to the hundredth, so namespace requests always
+     * add up exactly to the cluster's. Usage is a fixed fraction of each namespace's requests.
+     */
+    private NamespaceInventory simulateNamespaces(int growthDays, BigDecimal cpuRequests, BigDecimal memoryRequests,
+                                                  BigDecimal pvcRequests) {
+        List<SimulatedNamespace> present = SIMULATED_NAMESPACES.stream()
+                .filter(ns -> growthDays < ns.removedAfterDays())
+                .toList();
+        List<BigDecimal> cpu = splitByWeight(cpuRequests, present);
+        List<BigDecimal> memory = splitByWeight(memoryRequests, present);
+        List<BigDecimal> storage = splitByWeight(pvcRequests, present);
+
+        String ownerLabel = properties.getAttribution().getOwnerLabel();
+        String costCenterLabel = properties.getAttribution().getCostCenterLabel();
+        List<NamespaceObservation> namespaces = new ArrayList<>();
+        for (int i = 0; i < present.size(); i++) {
+            SimulatedNamespace ns = present.get(i);
+            Map<String, String> labels = new HashMap<>();
+            labels.put("kubernetes.io/metadata.name", ns.name());
+            if (ns.owner() != null) {
+                labels.put(ownerLabel, ns.owner());
+            }
+            if (ns.costCenter() != null) {
+                labels.put(costCenterLabel, ns.costCenter());
+            }
+            namespaces.add(new NamespaceObservation(ns.name(), labels, cpu.get(i), memory.get(i),
+                    scaleBy(cpu.get(i), 0.45 + 0.05 * (i % 5)),
+                    scaleBy(memory.get(i), 0.70 + 0.04 * (i % 5)),
+                    storage.get(i)));
+        }
+        return new NamespaceInventory(namespaces, true);
+    }
+
+    /** Shares of {@code total} in proportion to the weights, rounded down to the hundredth, the rest to the last. */
+    private static List<BigDecimal> splitByWeight(BigDecimal total, List<SimulatedNamespace> namespaces) {
+        long hundredths = total.movePointRight(2).setScale(0, RoundingMode.DOWN).longValueExact();
+        int weights = namespaces.stream().mapToInt(SimulatedNamespace::weight).sum();
+        List<BigDecimal> shares = new ArrayList<>();
+        long assigned = 0;
+        for (int i = 0; i < namespaces.size(); i++) {
+            long share = i == namespaces.size() - 1
+                    ? hundredths - assigned
+                    : hundredths * namespaces.get(i).weight() / weights;
+            assigned += share;
+            shares.add(BigDecimal.valueOf(share, 2));
+        }
+        return shares;
     }
 
     /** Share of capacity in use after {@code growthDays}, capped below full. */
@@ -304,27 +397,6 @@ public class AcmSimulatorService {
 
     private static BigDecimal scaleBy(BigDecimal value, double fraction) {
         return value.multiply(BigDecimal.valueOf(fraction)).setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private void seedNamespacesForCluster(Cluster cluster) {
-        List<String> nsNames = List.of("frontend-ui", "api-gateway", "data-pipeline", "payments-engine");
-        for (String name : nsNames) {
-            Namespace ns = namespaceRepository.save(Namespace.builder()
-                    .cluster(cluster)
-                    .namespaceName(name)
-                    .ownerTeam(cluster.getOwnerTeam())
-                    .costCenter(cluster.getOwnerTeam() != null ? cluster.getOwnerTeam().getCostCenter() : "CC-GEN-001")
-                    .build());
-
-            namespaceSnapshotRepository.save(NamespaceSnapshot.builder()
-                    .namespace(ns)
-                    .snapshotTimestamp(LocalDateTime.now())
-                    .cpuRequestCores(BigDecimal.valueOf(8.00))
-                    .cpuLimitCores(BigDecimal.valueOf(16.00))
-                    .memoryRequestGb(BigDecimal.valueOf(32.00))
-                    .memoryLimitGb(BigDecimal.valueOf(64.00))
-                    .build());
-        }
     }
 
     private String generateProviderId(InfrastructureType type, String role, int index) {

@@ -6,6 +6,7 @@ import com.lowagie.text.pdf.*;
 import com.openshift.portal.domain.entity.Cluster;
 import com.openshift.portal.domain.entity.ClusterSnapshot;
 import com.openshift.portal.domain.enums.ReportType;
+import com.openshift.portal.dto.AttributionReportDto;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.List;
 public class PdfReportGeneratorService {
 
     private final ClusterSnapshotRepository snapshotRepository;
+    private final AttributionService attributionService;
 
     @Transactional(readOnly = true)
     public byte[] generatePdfReport(ReportType type) {
@@ -50,7 +53,21 @@ public class PdfReportGeneratorService {
 
             // Table Header setup
             PdfPTable table;
-            if (type == ReportType.LICENSE_AUDIT) {
+            if (type == ReportType.COST_ATTRIBUTION) {
+                AttributionReportDto report = attributionService.attribute(LocalDate.now().minusDays(29), LocalDate.now(), null);
+                Paragraph period = new Paragraph(AttributionTable.period(report), subFont);
+                period.setSpacingAfter(8);
+                document.add(period);
+                table = new PdfPTable(AttributionTable.HEADER.length);
+                table.setWidthPercentage(100);
+                table.setWidths(new float[]{2.4f, 1.4f, 1.1f, 1.0f, 1.3f, 1.3f, 1.2f, 1.2f, 1.2f, 1.0f});
+                addHeaderCells(table, AttributionTable.HEADER);
+                for (String[] row : AttributionTable.rows(report)) {
+                    for (int i = 0; i < row.length; i++) {
+                        table.addCell(createCell(row[i], i >= 2));
+                    }
+                }
+            } else if (type == ReportType.LICENSE_AUDIT) {
                 table = new PdfPTable(7);
                 table.setWidthPercentage(100);
                 table.setWidths(new float[]{2.5f, 1.5f, 2.0f, 1.5f, 1.2f, 1.5f, 2.0f});
@@ -87,9 +104,12 @@ public class PdfReportGeneratorService {
 
             document.add(table);
 
-            // How license cores are counted (no subscription rules are applied yet)
+            // How license cores, or attribution, are counted
             Font footerFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8, Color.GRAY);
-            Paragraph note = new Paragraph("\n* License cores count the CPU cores of worker nodes only; control-plane and infrastructure "
+            Paragraph note = type == ReportType.COST_ATTRIBUTION
+                    ? new Paragraph("\n* Namespaces are attributed from their owner label; namespaces without a recognised owner are "
+                    + "Unattributed and never assigned to the cluster's owner. Values are averages over the period's collections.", footerFont)
+                    : new Paragraph("\n* License cores count the CPU cores of worker nodes only; control-plane and infrastructure "
                     + "nodes are excluded. Hyperthreading and socket-pair subscription rules are not applied yet, so verify "
                     + "these figures against your Red Hat subscription terms before using them for compliance.", footerFont);
             document.add(note);

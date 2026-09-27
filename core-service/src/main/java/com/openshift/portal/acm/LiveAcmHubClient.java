@@ -18,12 +18,19 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 /**
- * Reads managed clusters from a real ACM hub: inventory and capacity from {@code ManagedCluster} resources on the
- * hub API server, and requested CPU, memory and storage from ACM Observability when the hub has an endpoint for it.
+ * Reads managed clusters from a real ACM hub:
+ * <ul>
+ *   <li>inventory and capacity from {@code ManagedCluster} resources on the hub API server;</li>
+ *   <li>per-namespace requests, usage and PVC requests from ACM Observability, when the hub has an endpoint for it.
+ *       A cluster's requested CPU, memory and storage are the sums over its namespaces;</li>
+ *   <li>namespace labels, and so ownership, from ACM Search, when the hub has an endpoint for it.</li>
+ * </ul>
  * Node inventory is not read yet (plan decision D2), so license cores cannot be counted for live clusters.
  */
 @Component
@@ -44,26 +51,17 @@ public class LiveAcmHubClient implements AcmHubClient {
 
     private final HubCredentialsResolver credentialsResolver;
     private final ObservabilityMetricsClient metricsClient;
+    private final SearchApiClient searchClient;
     private final AcmProperties properties;
 
     @Override
     public List<ClusterObservation> fetchClusters(AcmHub hub) {
         HubCredentialsResolver.HubCredentials credentials = credentialsResolver.resolve(hub);
         List<ManagedClusterMapper.ManagedClusterState> clusters = listManagedClusters(hub, credentials);
+        Metrics metrics = readMetrics(hub, credentials);
+        Map<String, Map<String, Map<String, String>>> labels = readLabels(hub, credentials);
 
-        Metrics metrics = Metrics.EMPTY;
-        if (hub.getObservabilityUrl() != null && !hub.getObservabilityUrl().isBlank()) {
-            metrics = new Metrics(
-                    metricsClient.query(hub.getObservabilityUrl(), credentials, ObservabilityMetricsClient.CPU_REQUESTS),
-                    metricsClient.query(hub.getObservabilityUrl(), credentials, ObservabilityMetricsClient.MEMORY_REQUESTS),
-                    metricsClient.query(hub.getObservabilityUrl(), credentials, ObservabilityMetricsClient.PV_CAPACITY),
-                    metricsClient.query(hub.getObservabilityUrl(), credentials, ObservabilityMetricsClient.PVC_REQUESTS));
-        } else {
-            log.warn("ACM Hub {} has no Observability endpoint; allocation metrics are not collected", hub.getName());
-        }
-
-        Metrics collected = metrics;
-        return clusters.stream().map(cluster -> toObservation(cluster, collected)).toList();
+        return clusters.stream().map(cluster -> toObservation(cluster, metrics, labels)).toList();
     }
 
     private List<ManagedClusterMapper.ManagedClusterState> listManagedClusters(
@@ -88,31 +86,130 @@ public class LiveAcmHubClient implements AcmHubClient {
         }
     }
 
-    private static ClusterObservation toObservation(ManagedClusterMapper.ManagedClusterState cluster, Metrics metrics) {
+    private Metrics readMetrics(AcmHub hub, HubCredentialsResolver.HubCredentials credentials) {
+        String url = hub.getObservabilityUrl();
+        if (url == null || url.isBlank()) {
+            log.warn("ACM Hub {} has no Observability endpoint; requests and usage are not collected", hub.getName());
+            return null;
+        }
+        AcmProperties.Queries queries = properties.getAcm().getQueries();
+        return new Metrics(
+                metricsClient.queryByNamespace(url, credentials, queries.getNamespaceCpuRequests()),
+                metricsClient.queryByNamespace(url, credentials, queries.getNamespaceMemoryRequests()),
+                metricsClient.queryByNamespace(url, credentials, queries.getNamespaceCpuUsage()),
+                metricsClient.queryByNamespace(url, credentials, queries.getNamespaceMemoryUsage()),
+                metricsClient.queryByNamespace(url, credentials, queries.getNamespacePvcRequests()),
+                metricsClient.queryByCluster(url, credentials, queries.getClusterPvCapacity()));
+    }
+
+    /**
+     * Labels from ACM Search, or null when the hub has no Search endpoint or Search failed. Search only feeds
+     * ownership, so its failure does not fail the hub: ownership recorded earlier is kept until it answers again.
+     */
+    private Map<String, Map<String, Map<String, String>>> readLabels(AcmHub hub,
+                                                                     HubCredentialsResolver.HubCredentials credentials) {
+        String url = hub.getSearchUrl();
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        try {
+            return searchClient.namespaceLabels(url, credentials);
+        } catch (RuntimeException e) {
+            log.warn("ACM Search of hub {} failed, namespace ownership is not refreshed this cycle: {}",
+                    hub.getName(), e.getMessage());
+            return null;
+        }
+    }
+
+    private static ClusterObservation toObservation(ManagedClusterMapper.ManagedClusterState cluster, Metrics metrics,
+                                                    Map<String, Map<String, Map<String, String>>> labels) {
         if (!cluster.available()) {
             return ClusterObservation.failed(cluster.name(),
                     "ManagedCluster " + cluster.name() + " is not available on its hub");
         }
+        NamespaceInventory namespaces = namespaces(cluster.name(), metrics, labels);
+        BigDecimal cpuRequests = BigDecimal.ZERO;
+        BigDecimal memoryRequests = BigDecimal.ZERO;
+        BigDecimal pvcRequests = BigDecimal.ZERO;
+        if (namespaces != null) {
+            for (NamespaceObservation namespace : namespaces.namespaces()) {
+                cpuRequests = cpuRequests.add(namespace.cpuRequestCores());
+                memoryRequests = memoryRequests.add(namespace.memoryRequestGb());
+                pvcRequests = pvcRequests.add(namespace.pvcRequestGb() != null ? namespace.pvcRequestGb() : BigDecimal.ZERO);
+            }
+        }
         return new ClusterObservation(
                 cluster.name(),
                 cluster.cpuCores(),
-                metrics.cpuRequests().getOrDefault(cluster.name(), BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP).intValue(),
+                cpuRequests.setScale(0, RoundingMode.HALF_UP).intValue(),
                 cluster.memoryGb(),
-                gigabytes(metrics.memoryRequests().get(cluster.name())),
-                gigabytes(metrics.pvCapacity().get(cluster.name())),
-                gigabytes(metrics.pvcRequests().get(cluster.name())),
+                memoryRequests,
+                metrics != null ? gigabytes(metrics.pvCapacity().get(cluster.name())) : BigDecimal.ZERO,
+                pvcRequests,
                 List.of(),
+                namespaces,
                 cluster.rawJson(),
                 cluster.metadata(),
                 null);
+    }
+
+    /**
+     * The cluster's namespaces from whichever sources the hub has. Search lists every namespace, so its list is
+     * complete; metrics only show namespaces with pods or claims. Null when neither source is configured.
+     */
+    private static NamespaceInventory namespaces(String clusterName, Metrics metrics,
+                                                 Map<String, Map<String, Map<String, String>>> labels) {
+        if (metrics == null && labels == null) {
+            return null;
+        }
+        Map<String, Map<String, String>> clusterLabels = labels != null ? labels.get(clusterName) : null;
+        TreeSet<String> names = new TreeSet<>();
+        if (clusterLabels != null) {
+            names.addAll(clusterLabels.keySet());
+        }
+        if (metrics != null) {
+            names.addAll(metrics.cpuRequests().getOrDefault(clusterName, Map.of()).keySet());
+            names.addAll(metrics.memoryRequests().getOrDefault(clusterName, Map.of()).keySet());
+            names.addAll(metrics.pvcRequests().getOrDefault(clusterName, Map.of()).keySet());
+        }
+
+        List<NamespaceObservation> namespaces = new ArrayList<>();
+        for (String name : names) {
+            namespaces.add(new NamespaceObservation(
+                    name,
+                    clusterLabels != null ? clusterLabels.get(name) : null,
+                    metrics != null ? cores(value(metrics.cpuRequests(), clusterName, name), BigDecimal.ZERO) : BigDecimal.ZERO,
+                    metrics != null ? gigabytes(value(metrics.memoryRequests(), clusterName, name)) : BigDecimal.ZERO,
+                    metrics != null ? cores(value(metrics.cpuUsage(), clusterName, name), null) : null,
+                    metrics != null ? gigabytesOrNull(value(metrics.memoryUsage(), clusterName, name)) : null,
+                    metrics != null ? gigabytesOrNull(value(metrics.pvcRequests(), clusterName, name)) : null));
+        }
+        // An empty Search result for a cluster usually means Search does not index it, not that it has no namespaces
+        boolean complete = clusterLabels != null && !clusterLabels.isEmpty();
+        return new NamespaceInventory(namespaces, complete);
+    }
+
+    private static BigDecimal value(Map<String, Map<String, BigDecimal>> byCluster, String cluster, String namespace) {
+        return byCluster.getOrDefault(cluster, Map.of()).get(namespace);
+    }
+
+    private static BigDecimal cores(BigDecimal value, BigDecimal whenMissing) {
+        return value == null ? whenMissing : value.setScale(2, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal gigabytes(BigDecimal bytes) {
         return bytes == null ? BigDecimal.ZERO : bytes.divide(BYTES_PER_GB, 2, RoundingMode.HALF_UP);
     }
 
-    private record Metrics(Map<String, BigDecimal> cpuRequests, Map<String, BigDecimal> memoryRequests,
-                           Map<String, BigDecimal> pvCapacity, Map<String, BigDecimal> pvcRequests) {
-        static final Metrics EMPTY = new Metrics(Map.of(), Map.of(), Map.of(), Map.of());
+    private static BigDecimal gigabytesOrNull(BigDecimal bytes) {
+        return bytes == null ? null : gigabytes(bytes);
+    }
+
+    private record Metrics(Map<String, Map<String, BigDecimal>> cpuRequests,
+                           Map<String, Map<String, BigDecimal>> memoryRequests,
+                           Map<String, Map<String, BigDecimal>> cpuUsage,
+                           Map<String, Map<String, BigDecimal>> memoryUsage,
+                           Map<String, Map<String, BigDecimal>> pvcRequests,
+                           Map<String, BigDecimal> pvCapacity) {
     }
 }

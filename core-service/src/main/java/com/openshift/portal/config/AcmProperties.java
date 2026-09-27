@@ -11,6 +11,14 @@ public class AcmProperties {
     private Licensing licensing = new Licensing();
     private Security security = new Security();
     private Acm acm = new Acm();
+    private Attribution attribution = new Attribution();
+
+    /** Namespace label keys that name the owning team and the cost center (plan decision D4). */
+    @Data
+    public static class Attribution {
+        private String ownerLabel = "openshift.io/owner-team";
+        private String costCenterLabel = "cost-center";
+    }
 
     @Data
     public static class Acm {
@@ -19,6 +27,28 @@ public class AcmProperties {
          * {@code token} and, for a private CA, {@code ca.crt}.
          */
         private String credentialsDir = "/var/run/secrets/acm-hubs";
+
+        /** PromQL sent to ACM Observability; metric names vary between versions, so each query can be replaced. */
+        private Queries queries = new Queries();
+    }
+
+    /**
+     * Namespace queries must return one series per {@code cluster} and {@code namespace} label; the cluster query
+     * one series per {@code cluster}. Requests use recording rules that only count running and pending pods.
+     */
+    @Data
+    public static class Queries {
+        private String namespaceCpuRequests =
+                "sum by (cluster, namespace) (namespace_cpu:kube_pod_container_resource_requests:sum)";
+        private String namespaceMemoryRequests =
+                "sum by (cluster, namespace) (namespace_memory:kube_pod_container_resource_requests:sum)";
+        private String namespaceCpuUsage =
+                "sum by (cluster, namespace) (node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)";
+        private String namespaceMemoryUsage =
+                "sum by (cluster, namespace) (container_memory_working_set_bytes{container!=\"\"})";
+        private String namespacePvcRequests =
+                "sum by (cluster, namespace) (kube_persistentvolumeclaim_resource_requests_storage_bytes)";
+        private String clusterPvCapacity = "sum by (cluster) (kube_persistentvolume_capacity_bytes)";
     }
 
     @Data

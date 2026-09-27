@@ -36,6 +36,10 @@ public class AcmHub {
     @Column(name = "observability_url", length = 512)
     private String observabilityUrl;
 
+    /** ACM Search GraphQL endpoint; without it namespace labels, and so namespace ownership, are not collected. */
+    @Column(name = "search_url", length = 512)
+    private String searchUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

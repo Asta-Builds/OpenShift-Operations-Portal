@@ -9,7 +9,7 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 * **Decoupled Snapshot Ingestion:** Collects periodic cluster snapshots without continuously querying or degrading production clusters.
 * **Red Hat Licensing Core Counting:** Automates vCPU vs. physical socket/core calculation, worker vs. master node distinction, and compliance auditing.
 * **Predictive Resource Forecasting:** Rolling 30, 60, and 90-day linear regression models projecting future core and memory consumption.
-* **Owner-Aware Reporting:** Maps infrastructure and namespaces to enterprise teams and cost centers for granular cost attribution.
+* **Owner-Aware Reporting:** Attributes namespace requests and usage to teams and cost centers from namespace owner labels; namespaces without a recognised owner stay "Unattributed" and are never charged to the cluster owner.
 * **Resilient ACM Polling:** A circuit breaker and exponential-backoff retry per hub, sync-run history, and scheduler locks so one failing hub never stops the others.
 * **Enterprise Sign-in:** Keycloak (OIDC, authorization code + PKCE) federating LDAP / Active Directory; directory groups map to the ADMIN, OPERATOR and VIEWER roles.
 * **Air-Gapped by Design:** Zero runtime external dependencies or CDN calls; packaged for offline enterprise data centers.
@@ -121,10 +121,21 @@ With the simulator off (`OPENSHIFT_PORTAL_SIMULATOR_ENABLED=false`, the `prod` d
 
 ```powershell
 curl.exe -X POST http://localhost:4200/api/v1/hubs -H "Authorization: Bearer <token>" -H "Content-Type: application/json" `
-  -d '{"name":"hub-east","apiUrl":"https://api.hub-east.example.com:6443","credentialsSecretRef":"hub-east-credentials","observabilityUrl":"https://rbac-query-proxy-open-cluster-management-observability.apps.hub-east.example.com"}'
+  -d '{"name":"hub-east","apiUrl":"https://api.hub-east.example.com:6443","credentialsSecretRef":"hub-east-credentials","observabilityUrl":"https://rbac-query-proxy-open-cluster-management-observability.apps.hub-east.example.com","searchUrl":"https://search-api-open-cluster-management.apps.hub-east.example.com/searchapi/graphql"}'
 ```
 
-The next collection registers every `ManagedCluster` it finds. It reads capacity, platform, version and region from the cluster's status and ClusterClaims, and the environment from its `environment` label. When `observabilityUrl` is set, requested CPU, memory and storage come from ACM Observability. Clusters that are not Available are recorded as failed for that run. Node inventory is not read yet, so live clusters show no nodes or license cores.
+The next collection registers every `ManagedCluster` it finds. It reads capacity, platform, version and region from the cluster's status and ClusterClaims, and the environment from its `environment` label. Clusters that are not Available are recorded as failed for that run. Node inventory is not read yet, so live clusters show no nodes or license cores.
+
+Both extra endpoints are optional:
+
+* **`observabilityUrl`** (ACM Observability, `rbac-query-proxy` route): per-namespace CPU and memory requests, usage and PVC requests. A cluster's requested CPU, memory and storage are the sums over its namespaces, so team attribution always reconciles with cluster totals. Requests come from the `namespace_cpu:` / `namespace_memory:kube_pod_container_resource_requests:sum` recording rules, which count running and pending pods only. Metric names differ between ACM versions, so every query can be replaced under `openshift.portal.acm.queries.*`; add any metric your hub does not keep to the `observability-metrics-custom-allowlist` ConfigMap.
+* **`searchUrl`** (ACM Search GraphQL API; expose the `search-search-api` service with a route): namespace labels, and so ownership. Without it namespaces are still measured but stay Unattributed. If Search fails during a collection, the ownership recorded earlier is kept.
+
+### Owner attribution
+
+Each namespace's owner comes from its `openshift.io/owner-team` label and its cost center from `cost-center` (set `openshift.portal.attribution.owner-label` and `cost-center-label` to use your own keys; an organisation-owned prefix is recommended). An owner value maps to a team when it equals the team's name with case and punctuation ignored (`payments-platform` matches "Payments Platform"), or one of the team's aliases. Admins add aliases on the Cost Attribution page or with `POST /api/v1/teams/{id}/aliases`; namespaces carrying the value move to the team immediately.
+
+Attribution values are averages over a period's collections that carried namespace data. A namespace that existed for only part of the period counts for that part, and deleted namespaces are kept with the time they disappeared.
 
 ### Roles
 
@@ -140,11 +151,15 @@ Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OP
 | `GET` | `/api/v1/auth/me` | signed in | Current user and portal roles |
 | `GET` | `/api/v1/fleet/overview` | VIEWER | Aggregated fleet cores, memory, utilization %, and cluster distributions |
 | `GET` | `/api/v1/hubs` | VIEWER | ACM hubs with status, failures in a row, circuit breaker state and latest sync run |
-| `POST` | `/api/v1/hubs` | ADMIN | Register an ACM hub (name, API URL, credentials Secret name, optional Observability URL) |
+| `POST` | `/api/v1/hubs` | ADMIN | Register an ACM hub (name, API URL, credentials Secret name, optional Observability and Search URLs) |
 | `DELETE` | `/api/v1/hubs/{id}` | ADMIN | Remove a hub with its clusters and snapshots |
 | `GET` | `/api/v1/clusters` | VIEWER | List all registered clusters with latest metrics and owner details |
 | `GET` | `/api/v1/clusters/{id}` | VIEWER | Detailed cluster breakdown, node inventory, and historical snapshot trend |
 | `POST` | `/api/v1/clusters/collect` | OPERATOR | Trigger immediate snapshot collection across all ACM Hubs |
+| `GET` | `/api/v1/attribution/teams?from=&to=&environment=` | VIEWER | Requests and usage by team and cost center over inclusive days (default: last 30), with the Unattributed bucket and the cluster-level totals they reconcile with |
+| `GET` | `/api/v1/teams` | VIEWER | Teams with their aliases and namespace counts |
+| `POST` | `/api/v1/teams` | ADMIN | Create a team (name, cost center, contact email) |
+| `POST`/`DELETE` | `/api/v1/teams/{id}/aliases` | ADMIN | Map another owner label value to a team, or remove the mapping (`DELETE .../aliases/{alias}`) |
 | `GET` | `/api/v1/licensing/audit` | VIEWER | Core counting and subscription compliance audit |
 | `GET` | `/api/v1/forecasting/projection?horizonDays=30` | VIEWER | Predictive resource growth projection (30/60/90 days) |
 | `GET` | `/api/v1/reports/export?type=FLEET_CAPACITY` | OPERATOR | Export CSV report (`FLEET_CAPACITY`, `LICENSE_AUDIT`, `COST_ATTRIBUTION`); `/export/pdf` for PDF |

@@ -38,7 +38,11 @@ export class AuthService {
     this.oauthService.setupAutomaticSilentRefresh();
 
     const returnTo = window.location.pathname + window.location.search;
-    await this.oauthService.loadDiscoveryDocumentAndLogin({ state: returnTo });
+    const signedIn = await this.oauthService.loadDiscoveryDocumentAndLogin({ state: returnTo });
+    if (!signedIn) {
+      // The browser is on its way to Keycloak: keep the app from starting and calling the API without a token
+      return new Promise<void>(() => {});
+    }
     // Back from Keycloak on the redirect URI: restore the page the user asked for before the router starts
     const requested = decodeURIComponent(this.oauthService.state ?? '');
     if (requested.startsWith('/') && !requested.startsWith('//')) {

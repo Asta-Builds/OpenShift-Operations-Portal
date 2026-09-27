@@ -61,30 +61,57 @@ import { IconComponent } from '../../shared/icon.component';
         </div>
       </div>
 
-      <!-- Namespace Breakdown Table (Owner-Aware Reporting) -->
+      <!-- Namespace ownership (owner-aware reporting) -->
       <div class="card section-margin">
-        <h2 class="card-title">Namespace-Level Ownership & Quota Allocation</h2>
+        <h2 class="card-title">Namespaces and ownership</h2>
+        <p class="card-note">
+          Owners come from each namespace's <code>{{ cluster.ownerLabelKey }}</code> label. Namespaces without a recognised
+          owner are <strong>Unattributed</strong>; they are not charged to the cluster owner ({{ cluster.ownerTeamName }}).
+          <a routerLink="/attribution">Team attribution &rarr;</a>
+        </p>
         <div class="table-container">
           <table>
             <thead>
               <tr>
                 <th>Namespace</th>
-                <th>Owner Team</th>
-                <th>Cost Center</th>
-                <th>CPU Request (Cores)</th>
-                <th>Memory Request (GB)</th>
+                <th>Owner team</th>
+                <th>Owner label</th>
+                <th>Cost center</th>
+                <th class="num">CPU req.</th>
+                <th class="num">CPU used</th>
+                <th class="num">Mem req.</th>
+                <th class="num">Mem used</th>
+                <th class="num">PVC req.</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let ns of cluster.namespaces">
-                <td><code>{{ ns.namespaceName }}</code></td>
-                <td>{{ ns.ownerTeamName }}</td>
-                <td><span class="badge badge-dev">{{ ns.costCenter }}</span></td>
-                <td>{{ ns.cpuRequestCores }} Cores</td>
-                <td>{{ ns.memoryRequestGb }} GB</td>
+              <tr *ngFor="let ns of cluster.namespaces" [class.deleted-row]="ns.deletedAt">
+                <td>
+                  <code>{{ ns.namespaceName }}</code>
+                  <span class="badge badge-gone" *ngIf="ns.deletedAt" [title]="'Gone since ' + ns.deletedAt">deleted</span>
+                </td>
+                <td>
+                  <span *ngIf="ns.attributed">{{ ns.ownerTeamName }}</span>
+                  <span *ngIf="!ns.attributed" class="badge badge-staging">Unattributed</span>
+                </td>
+                <td>
+                  <code *ngIf="ns.ownerLabelValue">{{ ns.ownerLabelValue }}</code>
+                  <span class="muted" *ngIf="!ns.ownerLabelValue && ns.labelsCollected">no label</span>
+                  <span class="muted" *ngIf="!ns.labelsCollected" title="The hub has no ACM Search endpoint, or Search has not answered yet">labels not read</span>
+                  <span class="muted hint" *ngIf="ns.ownerLabelValue && !ns.attributed">matches no team</span>
+                </td>
+                <td>
+                  <span class="badge badge-dev" *ngIf="ns.costCenter">{{ ns.costCenter }}</span>
+                  <span class="muted hint" *ngIf="ns.costCenterSource === 'TEAM'">from team</span>
+                </td>
+                <td class="num">{{ ns.cpuRequestCores | number: '1.2-2' }}</td>
+                <td class="num">{{ ns.cpuUsageCores !== null ? (ns.cpuUsageCores | number: '1.2-2') : 'n/a' }}</td>
+                <td class="num">{{ ns.memoryRequestGb | number: '1.2-2' }} GB</td>
+                <td class="num">{{ ns.memoryUsageGb !== null ? (ns.memoryUsageGb | number: '1.2-2') + ' GB' : 'n/a' }}</td>
+                <td class="num">{{ ns.pvcRequestGb !== null ? (ns.pvcRequestGb | number: '1.0-0') + ' GB' : 'n/a' }}</td>
               </tr>
               <tr *ngIf="!cluster.namespaces || cluster.namespaces.length === 0">
-                <td colspan="5" class="text-center py-4">No namespaces recorded for this cluster.</td>
+                <td colspan="9" class="text-center py-4">No namespace data has been collected for this cluster.</td>
               </tr>
             </tbody>
           </table>
@@ -164,6 +191,36 @@ import { IconComponent } from '../../shared/icon.component';
   styles: [`
     .page-container {
       padding: 1.5rem 2rem;
+    }
+    .card-note {
+      font-size: 0.8125rem;
+      color: #6B7280;
+      margin: -0.5rem 0 1rem;
+    }
+    .card-note a {
+      color: #0066CC;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .num {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .muted {
+      color: #9CA3AF;
+      font-size: 0.8125rem;
+    }
+    .hint {
+      display: block;
+      font-size: 0.75rem;
+    }
+    .deleted-row td {
+      color: #9CA3AF;
+    }
+    .badge-gone {
+      background-color: #F3F4F6;
+      color: #6B7280;
+      margin-left: 0.375rem;
     }
     .header-nav {
       margin-bottom: 1rem;

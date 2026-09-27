@@ -24,6 +24,10 @@ openshift:
     simulator:
       enabled: true
       default-clusters: 5
+    # Namespace labels naming the owning team and cost center; an organisation-owned prefix is recommended
+    attribution:
+      owner-label: openshift.io/owner-team
+      cost-center-label: cost-center
     licensing:
       default-core-multiplier: 1.0
       bare-metal-socket-factor: 16

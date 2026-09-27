@@ -1,10 +1,10 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpResponse } from '@angular/common/http';
 import { PortalService } from '../../services/portal.service';
 import { AuthService } from '../../services/auth.service';
 import { ReportDefinition } from '../../models/portal.models';
 import { IconComponent } from '../../shared/icon.component';
+import { saveDownload } from '../../shared/download';
 
 @Component({
   selector: 'app-report-generator',
@@ -208,18 +208,4 @@ export class ReportGeneratorComponent implements OnInit {
       error: (err) => (this.exportError = `The ${format.toUpperCase()} export failed (HTTP ${err.status}).`)
     });
   }
-}
-
-/** Saves a downloaded file under the name the server suggested. */
-function saveDownload(response: HttpResponse<Blob>, fallbackName: string): void {
-  if (!response.body) {
-    return;
-  }
-  const disposition = response.headers.get('Content-Disposition') ?? '';
-  const url = URL.createObjectURL(response.body);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

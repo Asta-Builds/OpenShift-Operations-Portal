@@ -5,6 +5,7 @@ import com.openshift.portal.domain.entity.Cluster;
 import com.openshift.portal.domain.entity.ClusterSnapshot;
 import com.openshift.portal.domain.entity.ReportDefinition;
 import com.openshift.portal.domain.enums.ReportType;
+import com.openshift.portal.dto.AttributionReportDto;
 import com.openshift.portal.repository.ClusterRepository;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
 import com.openshift.portal.repository.ReportDefinitionRepository;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -28,6 +30,7 @@ public class ReportingService {
     private final ClusterRepository clusterRepository;
     private final ClusterSnapshotRepository snapshotRepository;
     private final ReportDefinitionRepository reportRepository;
+    private final AttributionService attributionService;
 
     @Transactional(readOnly = true)
     public byte[] generateCsvReport(ReportType type) {
@@ -55,19 +58,11 @@ public class ReportingService {
                     }
                 }
                 case COST_ATTRIBUTION -> {
-                    writer.writeNext(new String[]{"Owner Team", "Cost Center", "Cluster Name", "Environment", "Total Cores", "Allocated Cores", "Allocated Mem (GB)"});
-                    for (ClusterSnapshot snap : latestSnapshots) {
-                        Cluster c = snap.getCluster();
-                        writer.writeNext(new String[]{
-                                c.getOwnerTeam() != null ? c.getOwnerTeam().getName() : "Unassigned",
-                                c.getOwnerTeam() != null ? c.getOwnerTeam().getCostCenter() : "N/A",
-                                c.getClusterName(),
-                                c.getEnvironment() != null ? c.getEnvironment().name() : "N/A",
-                                String.valueOf(snap.getTotalCpuCores()),
-                                String.valueOf(snap.getAllocatedCpuCores()),
-                                snap.getAllocatedMemoryGb() != null ? snap.getAllocatedMemoryGb().toString() : "0.00"
-                        });
-                    }
+                    // Namespace-level attribution over the last 30 days; the cluster owner is never used
+                    AttributionReportDto report = attributionService.attribute(
+                            LocalDate.now().minusDays(29), LocalDate.now(), null);
+                    writer.writeNext(AttributionTable.HEADER);
+                    AttributionTable.rows(report).forEach(writer::writeNext);
                 }
                 default -> { // FLEET_CAPACITY
                     writer.writeNext(new String[]{"Cluster Name", "Environment", "OpenShift Version", "Total Cores", "Allocated Cores", "Total Mem (GB)", "Allocated Mem (GB)", "Total Nodes", "Collected At"});

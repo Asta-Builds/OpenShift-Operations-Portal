@@ -33,4 +33,8 @@ public class RegisterHubRequest {
     /** Optional ACM Observability query endpoint (rbac-query-proxy route). */
     @Pattern(regexp = "https?://.+", message = "must be an http(s) URL")
     private String observabilityUrl;
+
+    /** Optional ACM Search GraphQL endpoint; namespace ownership is read from it. */
+    @Pattern(regexp = "https?://.+", message = "must be an http(s) URL")
+    private String searchUrl;
 }

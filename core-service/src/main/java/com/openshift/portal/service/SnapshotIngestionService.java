@@ -26,9 +26,10 @@ public class SnapshotIngestionService {
     private final NodeMetricsSnapshotRepository nodeMetricsRepository;
     private final LicensingService licensingService;
     private final ProviderIdParserService providerIdParser;
+    private final NamespaceIngestionService namespaceIngestionService;
 
     /**
-     * Stores one cluster's snapshot, and optionally its nodes, in a single short transaction.
+     * Stores one cluster's snapshot, its namespaces and optionally its nodes, in a single short transaction.
      */
     @Transactional
     public ClusterSnapshot ingest(Cluster cluster, ClusterObservation observation, LocalDateTime timestamp, boolean withNodes) {
@@ -55,6 +56,7 @@ public class SnapshotIngestionService {
             nodes.forEach(node -> node.setSnapshot(snapshot));
             nodeMetricsRepository.saveAll(nodes);
         }
+        namespaceIngestionService.ingest(cluster, snapshot, observation.namespaces(), timestamp);
         return snapshot;
     }
 
