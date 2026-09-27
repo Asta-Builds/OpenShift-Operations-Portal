@@ -10,6 +10,16 @@ public class AcmProperties {
     private Simulator simulator = new Simulator();
     private Licensing licensing = new Licensing();
     private Security security = new Security();
+    private Acm acm = new Acm();
+
+    @Data
+    public static class Acm {
+        /**
+         * Where hub Secrets are mounted: each hub's {@code credentials_secret_ref} is a directory here holding
+         * {@code token} and, for a private CA, {@code ca.crt}.
+         */
+        private String credentialsDir = "/var/run/secrets/acm-hubs";
+    }
 
     @Data
     public static class Collector {

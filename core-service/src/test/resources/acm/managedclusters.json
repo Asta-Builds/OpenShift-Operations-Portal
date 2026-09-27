@@ -1,0 +1,57 @@
+{
+  "apiVersion": "cluster.open-cluster-management.io/v1",
+  "kind": "ManagedClusterList",
+  "metadata": { "resourceVersion": "4711" },
+  "items": [
+    {
+      "apiVersion": "cluster.open-cluster-management.io/v1",
+      "kind": "ManagedCluster",
+      "metadata": {
+        "name": "prod-east",
+        "labels": { "cloud": "Amazon", "vendor": "OpenShift", "environment": "production", "name": "prod-east" }
+      },
+      "spec": { "hubAcceptsClient": true, "leaseDurationSeconds": 60 },
+      "status": {
+        "capacity": {
+          "cpu": "48",
+          "memory": "196438216Ki",
+          "core_worker": "24",
+          "socket_worker": "3"
+        },
+        "allocatable": { "cpu": "45500m", "memory": "190000000Ki" },
+        "clusterClaims": [
+          { "name": "id.k8s.io", "value": "prod-east" },
+          { "name": "platform.open-cluster-management.io", "value": "AWS" },
+          { "name": "product.open-cluster-management.io", "value": "OpenShift" },
+          { "name": "region.open-cluster-management.io", "value": "us-east-1" },
+          { "name": "version.openshift.io", "value": "4.14.28" }
+        ],
+        "conditions": [
+          { "type": "HubAcceptedManagedCluster", "status": "True", "reason": "HubClusterAdminAccepted" },
+          { "type": "ManagedClusterJoined", "status": "True", "reason": "ManagedClusterJoined" },
+          { "type": "ManagedClusterConditionAvailable", "status": "True", "reason": "ManagedClusterAvailable" }
+        ],
+        "version": { "kubernetes": "v1.27.13+048520e" }
+      }
+    },
+    {
+      "apiVersion": "cluster.open-cluster-management.io/v1",
+      "kind": "ManagedCluster",
+      "metadata": {
+        "name": "edge-lab",
+        "labels": { "cloud": "BareMetal", "vendor": "OpenShift" }
+      },
+      "spec": { "hubAcceptsClient": true },
+      "status": {
+        "capacity": { "cpu": "16", "memory": "65536Mi" },
+        "clusterClaims": [
+          { "name": "platform.open-cluster-management.io", "value": "BareMetal" },
+          { "name": "version.openshift.io", "value": "4.15.10" }
+        ],
+        "conditions": [
+          { "type": "ManagedClusterConditionAvailable", "status": "Unknown", "reason": "ManagedClusterLeaseUpdateStopped" }
+        ]
+      }
+    }
+  ]
+}

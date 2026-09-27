@@ -1,6 +1,7 @@
 package com.openshift.portal.service;
 
 import com.openshift.portal.acm.AcmHubClient;
+import com.openshift.portal.acm.ClusterMetadata;
 import com.openshift.portal.acm.ClusterObservation;
 import com.openshift.portal.acm.HubResilience;
 import com.openshift.portal.config.AcmProperties;
@@ -78,7 +79,7 @@ class AcmCollectorServiceTest {
                 RetryRegistry.of(Map.of(HubResilience.CONFIG, retryConfig)));
 
         collectorService = new AcmCollectorService(acmHubRepository, clusterRepository, syncRunRepository,
-                ingestionService, hubClientProvider, hubResilience, new AcmProperties());
+                ingestionService, new ClusterDiscovery(), hubClientProvider, hubResilience, new AcmProperties());
 
         hub = AcmHub.builder().id(UUID.randomUUID()).name("hub-test").apiUrl("https://hub.example.com").build();
         clusterA = cluster("ocp-a");
@@ -176,6 +177,30 @@ class AcmCollectorServiceTest {
     }
 
     @Test
+    void clusterReportedWithMetadata_isRegisteredAndCollected() {
+        when(hubClientProvider.getIfAvailable()).thenReturn(hubClient);
+        when(acmHubRepository.findAll(any(Sort.class))).thenReturn(List.of(hub));
+        when(clusterRepository.findByAcmHubId(hub.getId())).thenReturn(List.of());
+        when(clusterRepository.save(any(Cluster.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(syncRunRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        ClusterObservation discovered = new ClusterObservation("prod-east", 48, 30, BigDecimal.valueOf(187),
+                BigDecimal.valueOf(100), BigDecimal.ZERO, BigDecimal.ZERO, List.of(), "{}",
+                new ClusterMetadata("production", "AWS", "4.14.28", "us-east-1"), null);
+        when(hubClient.fetchClusters(hub)).thenReturn(List.of(discovered));
+
+        collectorService.triggerCollection();
+
+        ArgumentCaptor<Cluster> registered = ArgumentCaptor.forClass(Cluster.class);
+        verify(clusterRepository).save(registered.capture());
+        assertThat(registered.getValue().getClusterName()).isEqualTo("prod-east");
+        assertThat(registered.getValue().getAcmHub()).isSameAs(hub);
+        assertThat(registered.getValue().getEnvironment()).isEqualTo(Environment.PRODUCTION);
+        assertThat(registered.getValue().getInfrastructureType()).isEqualTo(InfrastructureType.AWS);
+        verify(ingestionService).ingest(eq(registered.getValue()), eq(discovered), any(), eq(true));
+        assertThat(savedRun().getStatus()).isEqualTo(SyncStatus.SUCCESS);
+    }
+
+    @Test
     void missingClient_skipsCollection() {
         when(hubClientProvider.getIfAvailable()).thenReturn(null);
 
@@ -211,6 +236,6 @@ class AcmCollectorServiceTest {
 
     private static ClusterObservation observation(String clusterName) {
         return new ClusterObservation(clusterName, 100, 60, BigDecimal.valueOf(400), BigDecimal.valueOf(240),
-                BigDecimal.valueOf(4000), BigDecimal.valueOf(2000), List.of(), "{}", null);
+                BigDecimal.valueOf(4000), BigDecimal.valueOf(2000), List.of(), "{}", null, null);
     }
 }

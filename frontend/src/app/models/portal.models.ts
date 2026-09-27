@@ -19,9 +19,9 @@ export interface ClusterSummary {
   id: string;
   clusterName: string;
   acmHubName: string;
-  environment: 'PRODUCTION' | 'STAGING' | 'DEVELOPMENT' | 'QA';
+  environment: 'PRODUCTION' | 'STAGING' | 'DEVELOPMENT' | 'QA' | 'UNKNOWN';
   ownerTeamName: string;
-  infrastructureType: 'BARE_METAL' | 'VMWARE' | 'OPENSTACK' | 'AWS' | 'AZURE' | 'GCP';
+  infrastructureType: 'BARE_METAL' | 'VMWARE' | 'OPENSTACK' | 'AWS' | 'AZURE' | 'GCP' | 'OTHER';
   openshiftVersion: string;
   status: string;
   totalCores: number;

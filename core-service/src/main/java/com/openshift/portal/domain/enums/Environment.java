@@ -4,5 +4,7 @@ public enum Environment {
     PRODUCTION,
     STAGING,
     DEVELOPMENT,
-    QA
+    QA,
+    /** Discovered cluster without a recognised environment label. */
+    UNKNOWN
 }

@@ -32,6 +32,10 @@ public class AcmHub {
     @Column(name = "credentials_secret_ref")
     private String credentialsSecretRef;
 
+    /** ACM Observability query endpoint (rbac-query-proxy route); without it, allocation metrics are not collected. */
+    @Column(name = "observability_url", length = 512)
+    private String observabilityUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

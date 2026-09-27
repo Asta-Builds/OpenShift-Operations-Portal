@@ -6,5 +6,7 @@ public enum InfrastructureType {
     OPENSTACK,
     AWS,
     AZURE,
-    GCP
+    GCP,
+    /** Discovered cluster on a platform the portal does not model. */
+    OTHER
 }

@@ -293,6 +293,7 @@ public class AcmSimulatorService {
                 nodes,
                 String.format("{\"cluster\": \"%s\", \"simulated\": true, \"timestamp\": \"%s\"}",
                         cluster.getClusterName(), timestamp),
+                null,
                 null);
     }
 

@@ -40,6 +40,7 @@ public class AcmCollectorService {
     private final ClusterRepository clusterRepository;
     private final HubSyncRunRepository syncRunRepository;
     private final SnapshotIngestionService ingestionService;
+    private final ClusterDiscovery clusterDiscovery;
     private final ObjectProvider<AcmHubClient> hubClientProvider;
     private final HubResilience hubResilience;
     private final AcmProperties properties;
@@ -143,9 +144,16 @@ public class AcmCollectorService {
 
         for (ClusterObservation observation : observations) {
             Cluster cluster = clustersByName.get(observation.clusterName());
+            if (cluster == null && observation.metadata() != null) {
+                cluster = clusterRepository.save(clusterDiscovery.newCluster(hub, observation.clusterName(), observation.metadata()));
+                log.info("Registered cluster {} discovered on ACM Hub {}", cluster.getClusterName(), hub.getName());
+            } else if (cluster != null && observation.metadata() != null
+                    && clusterDiscovery.refresh(cluster, observation.metadata())) {
+                cluster = clusterRepository.save(cluster);
+            }
             if (cluster == null) {
-                // Registering newly discovered clusters comes with live ACM ingestion; until then only known ones are stored
-                log.warn("ACM Hub {} reported unknown cluster {}; skipping it", hub.getName(), observation.clusterName());
+                log.warn("ACM Hub {} reported unknown cluster {} without metadata; skipping it", hub.getName(),
+                        observation.clusterName());
                 continue;
             }
             if (observation.isFailed()) {

@@ -110,6 +110,21 @@ curl.exe -d grant_type=password -d client_id=portal-cli -d username=bob -d passw
 
 To run the sandbox without sign-in, set `OPENSHIFT_PORTAL_SECURITY_ENABLED: "false"` on `core-service` in `docker-compose.yml`. The `dev` profile (sections 1 and 2) runs without sign-in by default.
 
+### Connecting a real ACM hub
+
+With the simulator off (`OPENSHIFT_PORTAL_SIMULATOR_ENABLED=false`, the `prod` default) the portal reads hubs through the Kubernetes API:
+
+1. Create a read-only token on the hub (it must be able to list `managedclusters`) and put it in a Kubernetes Secret with key `token` (plus `ca.crt` if the hub uses a private CA).
+2. Mount the Secret into the portal at `/var/run/secrets/acm-hubs/<secret-name>/` (directory configurable with `openshift.portal.acm.credentials-dir`).
+3. Register the hub as an ADMIN:
+
+```powershell
+curl.exe -X POST http://localhost:4200/api/v1/hubs -H "Authorization: Bearer <token>" -H "Content-Type: application/json" `
+  -d '{"name":"hub-east","apiUrl":"https://api.hub-east.example.com:6443","credentialsSecretRef":"hub-east-credentials","observabilityUrl":"https://rbac-query-proxy-open-cluster-management-observability.apps.hub-east.example.com"}'
+```
+
+The next collection registers every `ManagedCluster` it finds. It reads capacity, platform, version and region from the cluster's status and ClusterClaims, and the environment from its `environment` label. When `observabilityUrl` is set, requested CPU, memory and storage come from ACM Observability. Clusters that are not Available are recorded as failed for that run. Node inventory is not read yet, so live clusters show no nodes or license cores.
+
 ### Roles
 
 Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OPERATOR everything a VIEWER can. In Keycloak they are the realm roles `portal-admin`, `portal-operator` and `portal-viewer`; the sandbox realm maps LDAP groups of the same names to them. Tokens must be issued for the `portal-api` audience.
@@ -124,6 +139,8 @@ Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OP
 | `GET` | `/api/v1/auth/me` | signed in | Current user and portal roles |
 | `GET` | `/api/v1/fleet/overview` | VIEWER | Aggregated fleet cores, memory, utilization %, and cluster distributions |
 | `GET` | `/api/v1/hubs` | VIEWER | ACM hubs with status, failures in a row, circuit breaker state and latest sync run |
+| `POST` | `/api/v1/hubs` | ADMIN | Register an ACM hub (name, API URL, credentials Secret name, optional Observability URL) |
+| `DELETE` | `/api/v1/hubs/{id}` | ADMIN | Remove a hub with its clusters and snapshots |
 | `GET` | `/api/v1/clusters` | VIEWER | List all registered clusters with latest metrics and owner details |
 | `GET` | `/api/v1/clusters/{id}` | VIEWER | Detailed cluster breakdown, node inventory, and historical snapshot trend |
 | `POST` | `/api/v1/clusters/collect` | OPERATOR | Trigger immediate snapshot collection across all ACM Hubs |

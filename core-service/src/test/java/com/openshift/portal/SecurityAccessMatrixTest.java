@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -110,7 +111,11 @@ class SecurityAccessMatrixTest {
                 arguments(POST, "/reports", Caller.ADMIN, 200),
                 arguments(GET, "/simulator/status", Caller.ADMIN, 200),
                 arguments(POST, "/simulator/fault?fail=false", Caller.ADMIN, 200),
-                arguments(GET, "/actuator/metrics", Caller.ADMIN, 200)
+                arguments(GET, "/actuator/metrics", Caller.ADMIN, 200),
+                // Hub registration is admin only
+                arguments(POST, "/hubs", Caller.OPERATOR, 403),
+                arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.OPERATOR, 403),
+                arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.ADMIN, 404)
         );
     }
 
@@ -126,6 +131,25 @@ class SecurityAccessMatrixTest {
         }
 
         mockMvc.perform(request).andExpect(status().is(expectedStatus));
+    }
+
+    @Test
+    void adminRegistersHubsByNameAndSecretReference() throws Exception {
+        String hub = "{\"name\":\"hub-matrix\",\"apiUrl\":\"https://api.hub-matrix.example.com:6443\","
+                + "\"credentialsSecretRef\":\"hub-matrix-credentials\"}";
+
+        mockMvc.perform(post("/hubs").with(token("alice-id", "portal-admin"))
+                        .contentType(MediaType.APPLICATION_JSON).content(hub))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("hub-matrix"))
+                .andExpect(jsonPath("$.credentialsSecretRef").value("hub-matrix-credentials"));
+        mockMvc.perform(post("/hubs").with(token("alice-id", "portal-admin"))
+                        .contentType(MediaType.APPLICATION_JSON).content(hub))
+                .andExpect(status().isConflict());
+        mockMvc.perform(post("/hubs").with(token("alice-id", "portal-admin"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"bad\",\"apiUrl\":\"ftp://x\",\"credentialsSecretRef\":\"../etc\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

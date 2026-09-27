@@ -18,6 +18,8 @@ public class AcmHubSummaryDto {
     private UUID id;
     private String name;
     private String apiUrl;
+    private String credentialsSecretRef;
+    private String observabilityUrl;
     private HubStatus status;
     private LocalDateTime lastSyncTimestamp;
     private int consecutiveFailures;
