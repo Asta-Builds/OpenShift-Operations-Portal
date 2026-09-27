@@ -3,9 +3,12 @@ package com.openshift.portal.service;
 import com.openshift.portal.config.AcmProperties;
 import com.openshift.portal.domain.entity.AcmHub;
 import com.openshift.portal.domain.entity.Cluster;
+import com.openshift.portal.domain.entity.ClusterSnapshot;
+import com.openshift.portal.domain.entity.NodeMetricsSnapshot;
 import com.openshift.portal.domain.enums.Environment;
 import com.openshift.portal.domain.enums.HubStatus;
 import com.openshift.portal.domain.enums.InfrastructureType;
+import com.openshift.portal.domain.enums.NodeRole;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
@@ -14,14 +17,17 @@ import com.openshift.portal.repository.NodeMetricsSnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,17 +81,36 @@ class AcmCollectorServiceTest {
                 .environment(Environment.PRODUCTION)
                 .infrastructureType(InfrastructureType.BARE_METAL)
                 .build();
-        hub.setClusters(List.of(cluster));
+
+        NodeMetricsSnapshot master = NodeMetricsSnapshot.builder().cluster(cluster).nodeName("master-1").role(NodeRole.MASTER).cpuCores(8).build();
+        NodeMetricsSnapshot worker = NodeMetricsSnapshot.builder().cluster(cluster).nodeName("worker-1").role(NodeRole.WORKER).cpuCores(32).build();
+        var topology = new AcmSimulatorService.SimulatedTopology(List.of(master, worker), 1, 40, BigDecimal.valueOf(160));
 
         when(acmHubRepository.findAll()).thenReturn(List.of(hub));
-        when(clusterRepository.findAll()).thenReturn(List.of(cluster));
-        when(licensingService.calculateLicenseCores(any(), any())).thenReturn(64);
+        when(clusterRepository.findByAcmHubId(hubId)).thenReturn(List.of(cluster));
+        when(simulatorService.simulateTopology(eq(cluster), any(), eq(0))).thenReturn(topology);
+        when(snapshotRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(licensingService.calculateLicenseCores(any(), any())).thenReturn(32);
 
         SnapshotTriggerResultDto result = collectorService.triggerCollection();
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSnapshotsCreated()).isEqualTo(1);
-        verify(snapshotRepository, times(1)).save(any());
+        // Counted from the repository query, not from the hub's lazy cluster collection (empty here)
+        assertThat(result.getClustersProcessed()).isEqualTo(1);
+
+        ArgumentCaptor<ClusterSnapshot> snapshotCaptor = ArgumentCaptor.forClass(ClusterSnapshot.class);
+        verify(snapshotRepository, times(1)).save(snapshotCaptor.capture());
+        ClusterSnapshot saved = snapshotCaptor.getValue();
+        assertThat(saved.getTotalNodes()).isEqualTo(2);
+        assertThat(saved.getWorkerNodes()).isEqualTo(1);
+        assertThat(saved.getTotalCpuCores()).isEqualTo(40);
+        assertThat(saved.getLicenseCoresCount()).isEqualTo(32);
+
+        // Node rows are persisted with every collected snapshot and point back to it
+        verify(nodeMetricsRepository, times(1)).saveAll(List.of(master, worker));
+        assertThat(master.getSnapshot()).isSameAs(saved);
+        assertThat(worker.getSnapshot()).isSameAs(saved);
         verify(acmHubRepository, times(1)).save(hub);
     }
 

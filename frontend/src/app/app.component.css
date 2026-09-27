@@ -75,21 +75,9 @@
   box-shadow: 0 0 6px #10B981;
 }
 
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #D1D5DB;
-  font-size: 0.875rem;
-}
-
-.role-badge {
-  background: #374151;
-  color: #F3F4F6;
-  padding: 0.2rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 500;
+.status-dot.degraded {
+  background-color: #F59E0B;
+  box-shadow: 0 0 6px #F59E0B;
 }
 
 /* Body Layout */

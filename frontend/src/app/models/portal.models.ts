@@ -108,22 +108,35 @@ export interface TrendPoint {
 
 export interface ForecastingProjection {
   horizonDays: number;
+  /** Fewer than two daily data points: no projection or runway is computed. */
+  insufficientData: boolean;
+  dataPoints: number;
   currentCores: number;
   projectedCores: number;
   estimatedGrowthPercent: number;
   currentMemoryGb: number;
   projectedMemoryGb: number;
   dailyGrowthRateCores: number;
-  confidenceScore: number;
+  coresRSquared: number | null;
+  memoryRSquared: number | null;
   totalCapacityCores: number;
   totalCapacityMemoryGb: number;
-  runwayDaysCores?: number;
-  runwayDaysMemory?: number;
-  exhaustionDateCores?: string;
-  exhaustionDateMemory?: string;
+  /** 0 = capacity already reached, null = no projected exhaustion (or capacity unknown). */
+  runwayDaysCores: number | null;
+  runwayDaysMemory: number | null;
+  exhaustionDateCores: string | null;
+  exhaustionDateMemory: string | null;
   capacityAlert: boolean;
   historicalPoints: TrendPoint[];
   projectedPoints: TrendPoint[];
+}
+
+export interface AcmHubSummary {
+  id: string;
+  name: string;
+  apiUrl: string;
+  status: 'ACTIVE' | 'UNREACHABLE' | 'DEGRADED' | 'ERROR';
+  lastSyncTimestamp: string | null;
 }
 
 export interface SnapshotTriggerResult {

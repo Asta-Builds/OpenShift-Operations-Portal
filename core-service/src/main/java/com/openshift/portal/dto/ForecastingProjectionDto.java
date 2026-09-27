@@ -14,13 +14,20 @@ import java.util.List;
 @AllArgsConstructor
 public class ForecastingProjectionDto {
     private int horizonDays;
+    /** True when fewer than two daily data points exist; projection and runway fields are then unset. */
+    private boolean insufficientData;
+    /** Number of daily points the regression was fitted on. */
+    private int dataPoints;
     private int currentCores;
     private int projectedCores;
     private double estimatedGrowthPercent;
     private double currentMemoryGb;
     private double projectedMemoryGb;
     private double dailyGrowthRateCores;
-    private double confidenceScore;
+    /** Coefficient of determination of the linear fit; null when undefined (fewer than three points or a flat series). */
+    private Double coresRSquared;
+    private Double memoryRSquared;
+    /** Days until allocation reaches capacity: 0 = already reached, null = no projected exhaustion or unknown capacity. */
     private Integer runwayDaysCores;
     private Integer runwayDaysMemory;
     private LocalDate exhaustionDateCores;

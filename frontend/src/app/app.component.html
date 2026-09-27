@@ -10,14 +10,9 @@
     </div>
 
     <div class="header-right">
-      <div class="hub-status-pill">
-        <span class="status-dot"></span>
-        <span>2 ACM Hubs Active</span>
-      </div>
-
-      <div class="user-profile">
-        <app-icon name="users" [size]="16"></app-icon>
-        <span class="role-badge">Platform Operator</span>
+      <div class="hub-status-pill" *ngIf="hubs.length > 0">
+        <span class="status-dot" [class.degraded]="activeHubCount < hubs.length"></span>
+        <span>{{ activeHubCount }} of {{ hubs.length }} ACM Hubs Active</span>
       </div>
     </div>
   </header>
@@ -51,12 +46,14 @@
           <span>Reports & Dispatch</span>
         </a>
 
-        <div class="nav-separator"></div>
+        <ng-container *ngIf="simulatorAvailable">
+          <div class="nav-separator"></div>
 
-        <a routerLink="/simulator" routerLinkActive="active" class="nav-item">
-          <app-icon name="activity" [size]="18"></app-icon>
-          <span>ACM Simulator</span>
-        </a>
+          <a routerLink="/simulator" routerLinkActive="active" class="nav-item">
+            <app-icon name="activity" [size]="18"></app-icon>
+            <span>ACM Simulator</span>
+          </a>
+        </ng-container>
       </nav>
 
       <div class="sidebar-footer">

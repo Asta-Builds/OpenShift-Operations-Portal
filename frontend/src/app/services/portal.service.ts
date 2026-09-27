@@ -8,7 +8,8 @@ import {
   LicenseAudit,
   ForecastingProjection,
   SnapshotTriggerResult,
-  ReportDefinition
+  ReportDefinition,
+  AcmHubSummary
 } from '../models/portal.models';
 
 @Injectable({
@@ -20,6 +21,10 @@ export class PortalService {
 
   getFleetOverview(): Observable<FleetOverview> {
     return this.http.get<FleetOverview>(`${this.baseUrl}/fleet/overview`);
+  }
+
+  getHubs(): Observable<AcmHubSummary[]> {
+    return this.http.get<AcmHubSummary[]>(`${this.baseUrl}/hubs`);
   }
 
   getClusters(): Observable<ClusterSummary[]> {

@@ -43,27 +43,42 @@ public class ForecastingService {
                     lookbackStart, now);
         }
 
-        // Group by day to aggregate daily snapshots
-        Map<LocalDate, DailyAggregate> dailyData = new TreeMap<>();
+        // Keep only the latest snapshot per cluster per day. Collection runs many times a day, so summing
+        // every snapshot would multiply each daily total by the number of collection cycles.
+        Map<LocalDate, Map<UUID, ClusterSnapshot>> latestPerClusterByDay = new TreeMap<>();
         for (ClusterSnapshot snap : historicalSnapshots) {
-            LocalDate date = snap.getSnapshotTimestamp().toLocalDate();
-            DailyAggregate agg = dailyData.computeIfAbsent(date, k -> new DailyAggregate());
-            agg.cores += (snap.getAllocatedCpuCores() != null && snap.getAllocatedCpuCores() > 0)
-                    ? snap.getAllocatedCpuCores()
-                    : (snap.getTotalCpuCores() != null ? snap.getTotalCpuCores() : 0);
-            agg.memoryGb += (snap.getAllocatedMemoryGb() != null && snap.getAllocatedMemoryGb().compareTo(BigDecimal.ZERO) > 0)
-                    ? snap.getAllocatedMemoryGb().doubleValue()
-                    : (snap.getTotalMemoryGb() != null ? snap.getTotalMemoryGb().doubleValue() : 0.0);
+            latestPerClusterByDay
+                    .computeIfAbsent(snap.getSnapshotTimestamp().toLocalDate(), day -> new HashMap<>())
+                    .put(snap.getCluster().getId(), snap); // ascending order, so later snapshots win
         }
 
-        // If not enough historical points exist, create a stable baseline from current fleet capacity
-        if (dailyData.size() < 2) {
-            return generateSyntheticBaselineProjection(horizonDays);
+        // Daily totals across clusters; a cluster without a snapshot on a given day keeps its last known values.
+        Map<LocalDate, DailyAggregate> dailyData = new TreeMap<>();
+        Map<UUID, ClusterSnapshot> lastKnownPerCluster = new HashMap<>();
+        for (Map.Entry<LocalDate, Map<UUID, ClusterSnapshot>> day : latestPerClusterByDay.entrySet()) {
+            lastKnownPerCluster.putAll(day.getValue());
+            DailyAggregate agg = new DailyAggregate();
+            for (ClusterSnapshot snap : lastKnownPerCluster.values()) {
+                agg.cores += (snap.getAllocatedCpuCores() != null && snap.getAllocatedCpuCores() > 0)
+                        ? snap.getAllocatedCpuCores()
+                        : (snap.getTotalCpuCores() != null ? snap.getTotalCpuCores() : 0);
+                agg.memoryGb += (snap.getAllocatedMemoryGb() != null && snap.getAllocatedMemoryGb().compareTo(BigDecimal.ZERO) > 0)
+                        ? snap.getAllocatedMemoryGb().doubleValue()
+                        : (snap.getTotalMemoryGb() != null ? snap.getTotalMemoryGb().doubleValue() : 0.0);
+            }
+            dailyData.put(day.getKey(), agg);
         }
+
+        // Capacity of the clusters in scope, from each one's latest snapshot in the window
+        int totalCapCores = lastKnownPerCluster.values().stream()
+                .mapToInt(s -> s.getTotalCpuCores() != null ? s.getTotalCpuCores() : 0)
+                .sum();
+        double totalCapMem = lastKnownPerCluster.values().stream()
+                .mapToDouble(s -> s.getTotalMemoryGb() != null ? s.getTotalMemoryGb().doubleValue() : 0.0)
+                .sum();
 
         List<ForecastingProjectionDto.TrendPointDto> historyPoints = new ArrayList<>();
         List<LocalDate> sortedDates = new ArrayList<>(dailyData.keySet());
-        LocalDate startDate = sortedDates.get(0);
 
         List<Double> xValues = new ArrayList<>();
         List<Double> yCoresValues = new ArrayList<>();
@@ -71,7 +86,7 @@ public class ForecastingService {
 
         for (LocalDate date : sortedDates) {
             DailyAggregate agg = dailyData.get(date);
-            double dayOffset = (double) ChronoUnit.DAYS.between(startDate, date);
+            double dayOffset = (double) ChronoUnit.DAYS.between(sortedDates.get(0), date);
             xValues.add(dayOffset);
             yCoresValues.add((double) agg.cores);
             yMemoryValues.add(agg.memoryGb);
@@ -83,16 +98,33 @@ public class ForecastingService {
                     .build());
         }
 
+        DailyAggregate lastAgg = sortedDates.isEmpty()
+                ? new DailyAggregate()
+                : dailyData.get(sortedDates.get(sortedDates.size() - 1));
+        int currentCores = lastAgg.cores;
+        double currentMemory = lastAgg.memoryGb;
+
+        // A trend needs at least two days; never invent history to fill the gap
+        if (sortedDates.size() < 2) {
+            return ForecastingProjectionDto.builder()
+                    .horizonDays(horizonDays)
+                    .insufficientData(true)
+                    .dataPoints(sortedDates.size())
+                    .currentCores(currentCores)
+                    .currentMemoryGb(Math.round(currentMemory * 100.0) / 100.0)
+                    .totalCapacityCores(totalCapCores)
+                    .totalCapacityMemoryGb(Math.round(totalCapMem * 100.0) / 100.0)
+                    .historicalPoints(historyPoints)
+                    .projectedPoints(List.of())
+                    .build();
+        }
+
         // Linear regression: y = slope * x + intercept
         double[] coreReg = calculateLinearRegression(xValues, yCoresValues);
         double[] memReg = calculateLinearRegression(xValues, yMemoryValues);
 
         double coreSlope = Math.max(0.0, coreReg[0]); // Resources typically grow or remain steady
         double memSlope = Math.max(0.0, memReg[0]);
-
-        DailyAggregate lastAgg = dailyData.get(sortedDates.get(sortedDates.size() - 1));
-        int currentCores = lastAgg.cores;
-        double currentMemory = lastAgg.memoryGb;
 
         double projectedCoresRaw = currentCores + (coreSlope * horizonDays);
         int projectedCores = (int) Math.round(projectedCoresRaw);
@@ -120,42 +152,25 @@ public class ForecastingService {
         }
 
         // Calculate capacity runway and exhaustion dates
-        List<ClusterSnapshot> latestSnapshots = snapshotRepository.findLatestSnapshotsForAllClusters();
-        int totalCapCores = latestSnapshots.stream()
-                .mapToInt(s -> s.getTotalCpuCores() != null ? s.getTotalCpuCores() : 0)
-                .sum();
-        double totalCapMem = latestSnapshots.stream()
-                .mapToDouble(s -> s.getTotalMemoryGb() != null ? s.getTotalMemoryGb().doubleValue() : 0.0)
-                .sum();
+        Integer runwayCores = runwayDays(currentCores, totalCapCores, coreSlope);
+        LocalDate exhaustionCores = runwayCores != null ? currentDate.plusDays(runwayCores) : null;
 
-        if (totalCapCores == 0) totalCapCores = currentCores * 2;
-        if (totalCapMem == 0.0) totalCapMem = currentMemory * 2;
-
-        Integer runwayCores = null;
-        LocalDate exhaustionCores = null;
-        if (coreSlope > 0 && totalCapCores > currentCores) {
-            runwayCores = (int) Math.round((totalCapCores - currentCores) / coreSlope);
-            exhaustionCores = currentDate.plusDays(runwayCores);
-        }
-
-        Integer runwayMem = null;
-        LocalDate exhaustionMem = null;
-        if (memSlope > 0 && totalCapMem > currentMemory) {
-            runwayMem = (int) Math.round((totalCapMem - currentMemory) / memSlope);
-            exhaustionMem = currentDate.plusDays(runwayMem);
-        }
+        Integer runwayMem = runwayDays(currentMemory, totalCapMem, memSlope);
+        LocalDate exhaustionMem = runwayMem != null ? currentDate.plusDays(runwayMem) : null;
 
         boolean alert = (runwayCores != null && runwayCores <= 90) || (runwayMem != null && runwayMem <= 90);
 
         return ForecastingProjectionDto.builder()
                 .horizonDays(horizonDays)
+                .dataPoints(sortedDates.size())
                 .currentCores(currentCores)
                 .projectedCores(projectedCores)
                 .estimatedGrowthPercent(growthPercent)
                 .currentMemoryGb(Math.round(currentMemory * 100.0) / 100.0)
                 .projectedMemoryGb(projectedMemory)
                 .dailyGrowthRateCores(Math.round(coreSlope * 100.0) / 100.0)
-                .confidenceScore(0.92)
+                .coresRSquared(calculateRSquared(xValues, yCoresValues, coreReg))
+                .memoryRSquared(calculateRSquared(xValues, yMemoryValues, memReg))
                 .totalCapacityCores(totalCapCores)
                 .totalCapacityMemoryGb(Math.round(totalCapMem * 100.0) / 100.0)
                 .runwayDaysCores(runwayCores)
@@ -168,68 +183,41 @@ public class ForecastingService {
                 .build();
     }
 
-    private ForecastingProjectionDto generateSyntheticBaselineProjection(int horizonDays) {
-        List<ClusterSnapshot> latest = snapshotRepository.findLatestSnapshotsForAllClusters();
-        int totalCores = 0;
-        double totalMemory = 0.0;
-
-        for (ClusterSnapshot snap : latest) {
-            totalCores += (snap.getAllocatedCpuCores() != null && snap.getAllocatedCpuCores() > 0)
-                    ? snap.getAllocatedCpuCores()
-                    : (snap.getTotalCpuCores() != null ? snap.getTotalCpuCores() : 0);
-            totalMemory += (snap.getAllocatedMemoryGb() != null)
-                    ? snap.getAllocatedMemoryGb().doubleValue()
-                    : 0.0;
+    /**
+     * Days until demand reaches capacity: 0 when it already has, null when capacity is unknown or demand isn't growing.
+     */
+    private Integer runwayDays(double current, double capacity, double dailyGrowth) {
+        if (capacity <= 0) {
+            return null;
         }
+        if (current >= capacity) {
+            return 0;
+        }
+        if (dailyGrowth <= 0) {
+            return null;
+        }
+        return (int) Math.ceil((capacity - current) / dailyGrowth);
+    }
 
-        if (totalCores == 0) totalCores = 128;
-        if (totalMemory == 0.0) totalMemory = 512.0;
-
-        // Enterprise baseline assumption: ~2.5% monthly growth
-        double monthlyRate = 0.025;
-        double horizonRate = monthlyRate * (horizonDays / 30.0);
-        int projectedCores = (int) Math.round(totalCores * (1.0 + horizonRate));
-        double projectedMemory = Math.round((totalMemory * (1.0 + horizonRate)) * 100.0) / 100.0;
-
-        LocalDate today = LocalDate.now();
-        List<ForecastingProjectionDto.TrendPointDto> history = List.of(
-                ForecastingProjectionDto.TrendPointDto.builder()
-                        .date(today.minusDays(14))
-                        .cores((int) (totalCores * 0.98))
-                        .memoryGb(Math.round(totalMemory * 0.98 * 100.0) / 100.0)
-                        .build(),
-                ForecastingProjectionDto.TrendPointDto.builder()
-                        .date(today)
-                        .cores(totalCores)
-                        .memoryGb(Math.round(totalMemory * 100.0) / 100.0)
-                        .build()
-        );
-
-        List<ForecastingProjectionDto.TrendPointDto> future = List.of(
-                ForecastingProjectionDto.TrendPointDto.builder()
-                        .date(today.plusDays(horizonDays / 2))
-                        .cores((int) (totalCores * (1.0 + horizonRate / 2.0)))
-                        .memoryGb(Math.round(totalMemory * (1.0 + horizonRate / 2.0) * 100.0) / 100.0)
-                        .build(),
-                ForecastingProjectionDto.TrendPointDto.builder()
-                        .date(today.plusDays(horizonDays))
-                        .cores(projectedCores)
-                        .memoryGb(projectedMemory)
-                        .build()
-        );
-
-        return ForecastingProjectionDto.builder()
-                .horizonDays(horizonDays)
-                .currentCores(totalCores)
-                .projectedCores(projectedCores)
-                .estimatedGrowthPercent(Math.round(horizonRate * 10000.0) / 100.0)
-                .currentMemoryGb(Math.round(totalMemory * 100.0) / 100.0)
-                .projectedMemoryGb(projectedMemory)
-                .dailyGrowthRateCores(Math.round(((double) (projectedCores - totalCores) / horizonDays) * 100.0) / 100.0)
-                .confidenceScore(0.85)
-                .historicalPoints(history)
-                .projectedPoints(future)
-                .build();
+    /**
+     * R² of the fitted line; null when undefined (two points always fit exactly, a flat series has no variance).
+     */
+    private Double calculateRSquared(List<Double> x, List<Double> y, double[] regression) {
+        if (x.size() < 3) {
+            return null;
+        }
+        double meanY = y.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        double ssResidual = 0.0;
+        double ssTotal = 0.0;
+        for (int i = 0; i < x.size(); i++) {
+            double predicted = (regression[0] * x.get(i)) + regression[1];
+            ssResidual += Math.pow(y.get(i) - predicted, 2);
+            ssTotal += Math.pow(y.get(i) - meanY, 2);
+        }
+        if (ssTotal < 1e-9) {
+            return null;
+        }
+        return Math.round((1.0 - (ssResidual / ssTotal)) * 1000.0) / 1000.0;
     }
 
     private double[] calculateLinearRegression(List<Double> x, List<Double> y) {

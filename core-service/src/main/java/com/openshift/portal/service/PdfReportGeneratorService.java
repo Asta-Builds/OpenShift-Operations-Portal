@@ -87,9 +87,11 @@ public class PdfReportGeneratorService {
 
             document.add(table);
 
-            // Compliance Note
+            // How license cores are counted (no subscription rules are applied yet)
             Font footerFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8, Color.GRAY);
-            Paragraph note = new Paragraph("\n* Compliance Audit verified: Red Hat OpenShift licensing guidelines applied to active worker nodes.", footerFont);
+            Paragraph note = new Paragraph("\n* License cores count the CPU cores of worker nodes only; control-plane and infrastructure "
+                    + "nodes are excluded. Hyperthreading and socket-pair subscription rules are not applied yet, so verify "
+                    + "these figures against your Red Hat subscription terms before using them for compliance.", footerFont);
             document.add(note);
 
             document.close();

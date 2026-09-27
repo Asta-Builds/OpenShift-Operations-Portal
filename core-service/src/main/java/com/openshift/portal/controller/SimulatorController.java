@@ -2,6 +2,7 @@ package com.openshift.portal.controller;
 
 import com.openshift.portal.service.AcmSimulatorService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,14 +11,17 @@ import java.util.Map;
 @RestController
 @RequestMapping("/simulator")
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "openshift.portal.simulator", name = "enabled", havingValue = "true")
 public class SimulatorController {
 
     private final AcmSimulatorService simulatorService;
 
     @PostMapping("/seed")
     public ResponseEntity<Map<String, String>> seedFleet() {
-        simulatorService.seedInitialFleetIfEmpty();
-        return ResponseEntity.ok(Map.of("message", "Simulator seed triggered successfully."));
+        boolean seeded = simulatorService.seedInitialFleetIfEmpty();
+        return ResponseEntity.ok(Map.of("message", seeded
+                ? "Seeded simulated hubs, clusters, namespaces and 30 days of snapshots."
+                : "The fleet already contains clusters; nothing was changed."));
     }
 
     @PostMapping("/fault")

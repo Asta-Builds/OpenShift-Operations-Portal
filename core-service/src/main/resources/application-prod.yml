@@ -26,9 +26,11 @@ spring:
 
 openshift:
   portal:
+    # Fail closed: production requires a JWT issuer (KEYCLOAK_ISSUER_URI) and never serves simulated data
+    # unless these are overridden explicitly (docker-compose does so for the local sandbox).
     security:
-      enabled: ${OPENSHIFT_PORTAL_SECURITY_ENABLED:false}
+      enabled: ${OPENSHIFT_PORTAL_SECURITY_ENABLED:true}
     simulator:
-      enabled: ${OPENSHIFT_PORTAL_SIMULATOR_ENABLED:true}
+      enabled: ${OPENSHIFT_PORTAL_SIMULATOR_ENABLED:false}
     rabbitmq:
       enabled: ${OPENSHIFT_PORTAL_RABBITMQ_ENABLED:true}

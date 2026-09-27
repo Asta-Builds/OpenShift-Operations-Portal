@@ -40,17 +40,27 @@ import { IconComponent } from '../../shared/icon.component';
         </div>
       </div>
 
+      <!-- Not enough history for a trend -->
+      <div *ngIf="projection?.insufficientData" class="warning-banner">
+        <app-icon name="alert-triangle" [size]="20"></app-icon>
+        <div>
+          <strong>Not enough history to forecast:</strong> {{ projection?.dataPoints }} daily data point(s) in the last
+          {{ selectedHorizon }} days; at least 2 are needed.
+        </div>
+      </div>
+
       <!-- Capacity Runway Alert Banner -->
       <div *ngIf="projection?.capacityAlert" class="warning-banner">
         <app-icon name="alert-triangle" [size]="20"></app-icon>
         <div>
-          <strong>Capacity Expansion Recommended:</strong> Based on historical growth rate, available fleet CPU cores will reach full saturation in
-          <strong>{{ projection?.runwayDaysCores || 'N/A' }} days</strong> (projected depletion date: <code>{{ projection?.exhaustionDateCores || 'Pending' }}</code>).
+          <strong>Capacity Expansion Recommended:</strong>
+          CPU runway <strong>{{ runwayLabel(projection?.runwayDaysCores, projection?.totalCapacityCores) }}</strong>,
+          memory runway <strong>{{ runwayLabel(projection?.runwayDaysMemory, projection?.totalCapacityMemoryGb) }}</strong>.
         </div>
       </div>
 
       <!-- Projection Cards Grid -->
-      <div class="metrics-grid" *ngIf="projection">
+      <div class="metrics-grid" *ngIf="projection && !projection.insufficientData">
         <div class="card">
           <div class="metric-title">Projected Core Demand</div>
           <div class="metric-value text-red">
@@ -63,11 +73,21 @@ import { IconComponent } from '../../shared/icon.component';
 
         <div class="card">
           <div class="metric-title">Capacity Runway (CPU)</div>
-          <div class="metric-value" [ngClass]="projection.capacityAlert ? 'text-red' : 'text-green'">
-            {{ projection.runwayDaysCores ? projection.runwayDaysCores + ' Days' : 'Unlimited' }}
+          <div class="metric-value" [ngClass]="runwayClass(projection.runwayDaysCores)">
+            {{ runwayLabel(projection.runwayDaysCores, projection.totalCapacityCores) }}
           </div>
           <div class="metric-footer">
-            Exhaustion Date: <strong>{{ projection.exhaustionDateCores || 'None in Horizon' }}</strong>
+            {{ exhaustionLabel(projection.runwayDaysCores, projection.exhaustionDateCores, projection.totalCapacityCores) }}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="metric-title">Capacity Runway (Memory)</div>
+          <div class="metric-value" [ngClass]="runwayClass(projection.runwayDaysMemory)">
+            {{ runwayLabel(projection.runwayDaysMemory, projection.totalCapacityMemoryGb) }}
+          </div>
+          <div class="metric-footer">
+            {{ exhaustionLabel(projection.runwayDaysMemory, projection.exhaustionDateMemory, projection.totalCapacityMemoryGb) }}
           </div>
         </div>
 
@@ -78,14 +98,14 @@ import { IconComponent } from '../../shared/icon.component';
         </div>
 
         <div class="card">
-          <div class="metric-title">Statistical Confidence</div>
-          <div class="metric-value text-green">{{ (projection.confidenceScore * 100) | number:'1.0-0' }}%</div>
-          <div class="metric-footer">Based on historical snapshot variance</div>
+          <div class="metric-title">Fit Quality (R²)</div>
+          <div class="metric-value">{{ (projection.coresRSquared | number:'1.2-2') ?? 'n/a' }}</div>
+          <div class="metric-footer">CPU trend fitted on {{ projection.dataPoints }} daily points</div>
         </div>
       </div>
 
       <!-- Forecast Timeline Comparison -->
-      <div class="card section-margin" *ngIf="projection">
+      <div class="card section-margin" *ngIf="projection && !projection.insufficientData">
         <h2 class="card-title">Trajectory & Forecast Timeline (+{{ selectedHorizon }} Days)</h2>
         <div class="timeline-container">
           <div class="timeline-group">
@@ -248,10 +268,37 @@ import { IconComponent } from '../../shared/icon.component';
   `]
 })
 export class ForecastingComponent implements OnInit {
+  /** Same threshold ForecastingService uses to raise capacityAlert. */
+  private static readonly RUNWAY_ALERT_DAYS = 90;
+
   private portalService = inject(PortalService);
 
   projection: ForecastingProjection | null = null;
   selectedHorizon = 30;
+
+  runwayLabel(days: number | null | undefined, capacity: number | undefined): string {
+    if (!capacity) {
+      return 'Capacity unknown';
+    }
+    if (days === 0) {
+      return 'Exceeded';
+    }
+    return days == null ? 'No projected exhaustion' : `${days} days`;
+  }
+
+  exhaustionLabel(days: number | null, date: string | null, capacity: number): string {
+    if (!capacity) {
+      return 'No capacity data in this window';
+    }
+    if (days === 0) {
+      return 'Allocation has already reached capacity';
+    }
+    return date ? `Exhaustion date: ${date}` : 'Allocation is flat or shrinking';
+  }
+
+  runwayClass(days: number | null): string {
+    return days !== null && days <= ForecastingComponent.RUNWAY_ALERT_DAYS ? 'text-red' : 'text-green';
+  }
 
   ngOnInit(): void {
     this.loadProjection();

@@ -1,6 +1,7 @@
 package com.openshift.portal.controller;
 
 import com.openshift.portal.domain.entity.ClusterSnapshot;
+import com.openshift.portal.domain.enums.HubStatus;
 import com.openshift.portal.dto.FleetOverviewDto;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
@@ -27,7 +28,7 @@ public class FleetController {
     @GetMapping("/overview")
     public ResponseEntity<FleetOverviewDto> getFleetOverview() {
         long totalClusters = clusterRepository.count();
-        long activeHubs = acmHubRepository.count();
+        long activeHubs = acmHubRepository.countByStatus(HubStatus.ACTIVE);
 
         List<ClusterSnapshot> latestSnapshots = snapshotRepository.findLatestSnapshotsForAllClusters();
 

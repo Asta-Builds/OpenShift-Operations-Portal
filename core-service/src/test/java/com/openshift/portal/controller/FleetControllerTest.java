@@ -3,6 +3,7 @@ package com.openshift.portal.controller;
 import com.openshift.portal.config.AcmProperties;
 import com.openshift.portal.config.SecurityConfig;
 import com.openshift.portal.domain.entity.ClusterSnapshot;
+import com.openshift.portal.domain.enums.HubStatus;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
@@ -41,7 +42,7 @@ class FleetControllerTest {
     @Test
     void getFleetOverview_returnsAggregatedMetrics() throws Exception {
         when(clusterRepository.count()).thenReturn(3L);
-        when(acmHubRepository.count()).thenReturn(1L);
+        when(acmHubRepository.countByStatus(HubStatus.ACTIVE)).thenReturn(1L);
 
         ClusterSnapshot snapshot = ClusterSnapshot.builder()
                 .totalCpuCores(128)

@@ -6,8 +6,6 @@ import com.openshift.portal.domain.entity.Cluster;
 import com.openshift.portal.domain.entity.ClusterSnapshot;
 import com.openshift.portal.domain.entity.NodeMetricsSnapshot;
 import com.openshift.portal.domain.enums.HubStatus;
-import com.openshift.portal.domain.enums.InfrastructureType;
-import com.openshift.portal.domain.enums.NodeRole;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
 import com.openshift.portal.exception.AcmConnectionException;
 import com.openshift.portal.repository.AcmHubRepository;
@@ -73,7 +71,7 @@ public class AcmCollectorService {
             try {
                 int created = collectFromHubWithResilience(hub);
                 totalSnapshotsCreated += created;
-                totalClustersProcessed += hub.getClusters().size();
+                totalClustersProcessed += created; // one snapshot per collected cluster
             } catch (Exception e) {
                 log.error("Failed to collect snapshots for ACM Hub {}: {}", hub.getName(), e.getMessage());
             }
@@ -104,13 +102,15 @@ public class AcmCollectorService {
         LocalDateTime now = LocalDateTime.now();
         int createdCount = 0;
 
-        List<Cluster> clusters = clusterRepository.findAll();
-        for (Cluster cluster : clusters) {
-            if (cluster.getAcmHub() != null && cluster.getAcmHub().getId().equals(hub.getId())) {
-                ClusterSnapshot snapshot = createSnapshotForCluster(cluster, now);
-                snapshotRepository.save(snapshot);
-                createdCount++;
+        for (Cluster cluster : clusterRepository.findByAcmHubId(hub.getId())) {
+            // No live ACM client exists yet (plan Phase 3), so the node inventory comes from the simulated topology
+            AcmSimulatorService.SimulatedTopology topology = simulatorService.simulateTopology(cluster, now, 0);
+            ClusterSnapshot snapshot = snapshotRepository.save(createSnapshotForCluster(cluster, now, topology));
+            for (NodeMetricsSnapshot node : topology.nodes()) {
+                node.setSnapshot(snapshot);
             }
+            nodeMetricsRepository.saveAll(topology.nodes());
+            createdCount++;
         }
 
         hub.setStatus(HubStatus.ACTIVE);
@@ -130,31 +130,14 @@ public class AcmCollectorService {
         return 0;
     }
 
-    private ClusterSnapshot createSnapshotForCluster(Cluster cluster, LocalDateTime timestamp) {
-        int workerCount = (cluster.getInfrastructureType() == InfrastructureType.BARE_METAL) ? 8 : 6;
-        int coresPerWorker = (cluster.getInfrastructureType() == InfrastructureType.BARE_METAL) ? 32 : 16;
-        int memGbPerWorker = (cluster.getInfrastructureType() == InfrastructureType.BARE_METAL) ? 128 : 64;
-
-        int totalNodes = workerCount + 3;
-        int totalCores = (workerCount * coresPerWorker) + (3 * 8);
+    private ClusterSnapshot createSnapshotForCluster(Cluster cluster, LocalDateTime timestamp,
+                                                     AcmSimulatorService.SimulatedTopology topology) {
+        int totalCores = topology.totalCpuCores();
         int allocatedCores = (int) Math.round(totalCores * (0.60 + Math.random() * 0.25));
-        BigDecimal totalMem = BigDecimal.valueOf((workerCount * memGbPerWorker) + (3 * 32));
+        BigDecimal totalMem = topology.totalMemoryGb();
         BigDecimal allocatedMem = totalMem.multiply(BigDecimal.valueOf(0.55 + Math.random() * 0.25));
 
-        List<NodeMetricsSnapshot> nodes = new ArrayList<>();
-        for (int w = 1; w <= workerCount; w++) {
-            nodes.add(NodeMetricsSnapshot.builder()
-                    .cluster(cluster)
-                    .snapshotTimestamp(timestamp)
-                    .nodeName(String.format("%s-worker-%02d", cluster.getClusterName(), w))
-                    .role(NodeRole.WORKER)
-                    .hostType(cluster.getInfrastructureType().name())
-                    .cpuCores(coresPerWorker)
-                    .memoryGb(BigDecimal.valueOf(memGbPerWorker))
-                    .build());
-        }
-
-        int licenseCores = licensingService.calculateLicenseCores(nodes, cluster.getInfrastructureType());
+        int licenseCores = licensingService.calculateLicenseCores(topology.nodes(), cluster.getInfrastructureType());
 
         BigDecimal totalStorage = BigDecimal.valueOf(totalCores * 40.0);
         BigDecimal allocatedStorage = totalStorage.multiply(BigDecimal.valueOf(0.55 + Math.random() * 0.25));
@@ -169,8 +152,8 @@ public class AcmCollectorService {
                 .totalStorageGb(totalStorage)
                 .allocatedStorageGb(allocatedStorage)
                 .licenseCoresCount(licenseCores)
-                .totalNodes(totalNodes)
-                .workerNodes(workerCount)
+                .totalNodes(topology.nodes().size())
+                .workerNodes(topology.workerNodes())
                 .rawPayload(String.format("{\"cluster\": \"%s\", \"collectedAt\": \"%s\"}",
                         cluster.getClusterName(), timestamp))
                 .build();

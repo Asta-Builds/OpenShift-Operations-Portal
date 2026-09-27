@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PortalService } from '../../services/portal.service';
+import { AcmHubSummary } from '../../models/portal.models';
 import { IconComponent } from '../../shared/icon.component';
 
 @Component({
@@ -44,7 +45,7 @@ import { IconComponent } from '../../shared/icon.component';
           </div>
           <h3 class="control-title">Resilience4j Fault Injection</h3>
           <p class="control-desc">
-            Simulate an ACM Hub network timeout on next collection to verify that Circuit Breaker transitions to fallback without breaking the portal.
+            Simulate an ACM Hub connection timeout on the next collection.
           </p>
           <button
             class="btn"
@@ -60,12 +61,12 @@ import { IconComponent } from '../../shared/icon.component';
           <div class="card-icon-box blue">
             <app-icon name="server" [size]="20"></app-icon>
           </div>
-          <h3 class="control-title">Re-seed Fleet Baseline</h3>
+          <h3 class="control-title">Seed Fleet Baseline</h3>
           <p class="control-desc">
-            Reinitializes mock clusters, historical 30-day snapshots, and cost center attribution.
+            Creates mock hubs, clusters, namespaces and 30 days of snapshots when the database has no clusters yet.
           </p>
           <button class="btn btn-secondary" (click)="reseedFleet()">
-            <app-icon name="layers" [size]="16"></app-icon> Reset & Seed
+            <app-icon name="layers" [size]="16"></app-icon> Seed If Empty
           </button>
         </div>
       </div>
@@ -80,21 +81,20 @@ import { IconComponent } from '../../shared/icon.component';
                 <th>Hub Name</th>
                 <th>API Endpoint</th>
                 <th>Status</th>
-                <th>Resilience Protection</th>
+                <th>Last Sync</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td><strong>acm-hub-primary-eu</strong></td>
-                <td><code>https://api.acm-hub-primary.internal:6443</code></td>
-                <td><span class="badge badge-ready">ACTIVE</span></td>
-                <td>Circuit Breaker (Resilience4j), Retry (3 attempts)</td>
+              <tr *ngFor="let hub of hubs">
+                <td><strong>{{ hub.name }}</strong></td>
+                <td><code>{{ hub.apiUrl }}</code></td>
+                <td>
+                  <span class="badge" [ngClass]="hub.status === 'ACTIVE' ? 'badge-ready' : 'badge-prod'">{{ hub.status }}</span>
+                </td>
+                <td>{{ (hub.lastSyncTimestamp | date:'yyyy-MM-dd HH:mm:ss') ?? 'Never' }}</td>
               </tr>
-              <tr>
-                <td><strong>acm-hub-secondary-us</strong></td>
-                <td><code>https://api.acm-hub-secondary.internal:6443</code></td>
-                <td><span class="badge badge-ready">ACTIVE</span></td>
-                <td>Circuit Breaker (Resilience4j), Retry (3 attempts)</td>
+              <tr *ngIf="hubs.length === 0">
+                <td colspan="4" class="empty-state">No ACM hubs are registered.</td>
               </tr>
             </tbody>
           </table>
@@ -181,6 +181,11 @@ import { IconComponent } from '../../shared/icon.component';
       to { transform: rotate(360deg); }
     }
     .spin { animation: spin 1s linear infinite; }
+    .empty-state {
+      text-align: center;
+      color: #6B7280;
+      padding: 1.5rem;
+    }
   `]
 })
 export class SimulatorComponent implements OnInit {
@@ -189,9 +194,18 @@ export class SimulatorComponent implements OnInit {
   loading = false;
   faultActive = false;
   statusMessage = '';
+  hubs: AcmHubSummary[] = [];
 
   ngOnInit(): void {
     this.checkSimulatorStatus();
+    this.loadHubs();
+  }
+
+  loadHubs(): void {
+    this.portalService.getHubs().subscribe({
+      next: (res) => (this.hubs = res),
+      error: (err) => console.error('Failed to load ACM hubs', err)
+    });
   }
 
   checkSimulatorStatus(): void {
@@ -219,19 +233,24 @@ export class SimulatorComponent implements OnInit {
         this.loading = false;
         this.statusMessage = res.message;
         this.checkSimulatorStatus();
+        this.loadHubs();
       },
       error: (err) => {
         this.loading = false;
-        this.statusMessage = 'Collection completed with resilience handling: ' + (err.error?.message || err.message);
+        this.statusMessage = 'Collection failed: ' + (err.error?.message || err.message);
         this.checkSimulatorStatus();
+        this.loadHubs();
       }
     });
   }
 
   reseedFleet(): void {
     this.portalService.seedFleet().subscribe({
-      next: (res) => (this.statusMessage = res.message),
-      error: (err) => console.error('Error reseeding', err)
+      next: (res) => {
+        this.statusMessage = res.message;
+        this.loadHubs();
+      },
+      error: (err) => console.error('Error seeding fleet', err)
     });
   }
 }

@@ -46,12 +46,14 @@ public class AcmSimulatorService {
 
     /**
      * Seeds initial enterprise clusters, ACM hubs, namespaces, and historical snapshots for local sandbox testing.
+     *
+     * @return true if the fleet was seeded, false if clusters already existed and nothing changed
      */
     @Transactional
-    public void seedInitialFleetIfEmpty() {
+    public boolean seedInitialFleetIfEmpty() {
         if (clusterRepository.count() > 0) {
             log.info("Fleet already seeded ({} clusters present).", clusterRepository.count());
-            return;
+            return false;
         }
 
         log.info("Seeding realistic enterprise OpenShift fleet into database...");
@@ -151,66 +153,22 @@ public class AcmSimulatorService {
         int totalPeakWorkerCores = 0;
 
         for (Cluster cluster : savedClusters) {
-            int baseWorkers = (cluster.getInfrastructureType() == InfrastructureType.BARE_METAL) ? 8 : 6;
-            int coresPerWorker = (cluster.getInfrastructureType() == InfrastructureType.BARE_METAL) ? 32 : 16;
-            int memGbPerWorker = (cluster.getInfrastructureType() == InfrastructureType.BARE_METAL) ? 128 : 64;
-
             // Seed Namespaces for owner-aware namespace level attribution
             seedNamespacesForCluster(cluster);
 
             // Generate 3 history points: 30 days ago, 15 days ago, and today
             for (int daysAgo : List.of(30, 15, 0)) {
                 LocalDateTime snapshotTime = now.minusDays(daysAgo);
-                int workerCount = baseWorkers + (30 - daysAgo) / 10;
-                int totalNodes = workerCount + 3;
+                SimulatedTopology topology = simulateTopology(cluster, snapshotTime, daysAgo);
+                List<NodeMetricsSnapshot> nodes = topology.nodes();
 
-                int totalCores = (workerCount * coresPerWorker) + (3 * 8);
+                int totalCores = topology.totalCpuCores();
                 int allocatedCores = (int) Math.round(totalCores * (0.65 + (30 - daysAgo) * 0.005));
-                BigDecimal totalMem = BigDecimal.valueOf((workerCount * memGbPerWorker) + (3 * 32));
+                BigDecimal totalMem = topology.totalMemoryGb();
                 BigDecimal allocatedMem = totalMem.multiply(BigDecimal.valueOf(0.60 + (30 - daysAgo) * 0.004));
 
                 BigDecimal totalStorage = BigDecimal.valueOf(totalCores * 40.0);
                 BigDecimal allocatedStorage = totalStorage.multiply(BigDecimal.valueOf(0.55 + (30 - daysAgo) * 0.003));
-
-                List<NodeMetricsSnapshot> nodes = new ArrayList<>();
-                // Master nodes
-                for (int m = 1; m <= 3; m++) {
-                    String providerId = generateProviderId(cluster.getInfrastructureType(), "master", m);
-                    var providerInfo = providerIdParser.parseProviderId(providerId);
-
-                    nodes.add(NodeMetricsSnapshot.builder()
-                            .cluster(cluster)
-                            .snapshotTimestamp(snapshotTime)
-                            .nodeName(String.format("%s-master-%d", cluster.getClusterName(), m))
-                            .role(NodeRole.MASTER)
-                            .hostType(cluster.getInfrastructureType().name())
-                            .cpuCores(8)
-                            .memoryGb(BigDecimal.valueOf(32))
-                            .underlyingHostId(providerInfo.getInstanceId())
-                            .providerId(providerId)
-                            .hypervisorHost(providerInfo.getHypervisorHost())
-                            .sockets(2)
-                            .build());
-                }
-                // Worker nodes
-                for (int w = 1; w <= workerCount; w++) {
-                    String providerId = generateProviderId(cluster.getInfrastructureType(), "worker", w);
-                    var providerInfo = providerIdParser.parseProviderId(providerId);
-
-                    nodes.add(NodeMetricsSnapshot.builder()
-                            .cluster(cluster)
-                            .snapshotTimestamp(snapshotTime)
-                            .nodeName(String.format("%s-worker-%02d", cluster.getClusterName(), w))
-                            .role(NodeRole.WORKER)
-                            .hostType(cluster.getInfrastructureType().name())
-                            .cpuCores(coresPerWorker)
-                            .memoryGb(BigDecimal.valueOf(memGbPerWorker))
-                            .underlyingHostId(providerInfo.getInstanceId())
-                            .providerId(providerId)
-                            .hypervisorHost(providerInfo.getHypervisorHost())
-                            .sockets((cluster.getInfrastructureType() == InfrastructureType.BARE_METAL) ? 2 : 1)
-                            .build());
-                }
 
                 int licenseCores = licensingService.calculateLicenseCores(nodes, cluster.getInfrastructureType());
                 if (daysAgo == 0) {
@@ -227,8 +185,8 @@ public class AcmSimulatorService {
                         .totalStorageGb(totalStorage)
                         .allocatedStorageGb(allocatedStorage)
                         .licenseCoresCount(licenseCores)
-                        .totalNodes(totalNodes)
-                        .workerNodes(workerCount)
+                        .totalNodes(nodes.size())
+                        .workerNodes(topology.workerNodes())
                         .rawPayload(String.format("{\"cluster\": \"%s\", \"simulated\": true, \"timestamp\": \"%s\"}",
                                 cluster.getClusterName(), snapshotTime))
                         .build();
@@ -254,6 +212,62 @@ public class AcmSimulatorService {
                 .build());
 
         log.info("Fleet seeding complete with {} clusters and historical snapshots.", savedClusters.size());
+        return true;
+    }
+
+    /**
+     * Simulated node inventory of a cluster {@code daysAgo} days before the end of the seeded history. The worker
+     * count grows along that history, so live collections (daysAgo = 0) keep the latest seeded topology.
+     */
+    public SimulatedTopology simulateTopology(Cluster cluster, LocalDateTime timestamp, int daysAgo) {
+        boolean bareMetal = cluster.getInfrastructureType() == InfrastructureType.BARE_METAL;
+        int workerCount = (bareMetal ? 8 : 6) + (30 - daysAgo) / 10;
+        int coresPerWorker = bareMetal ? 32 : 16;
+        int memGbPerWorker = bareMetal ? 128 : 64;
+
+        List<NodeMetricsSnapshot> nodes = new ArrayList<>();
+        // Master nodes
+        for (int m = 1; m <= 3; m++) {
+            String providerId = generateProviderId(cluster.getInfrastructureType(), "master", m);
+            var providerInfo = providerIdParser.parseProviderId(providerId);
+
+            nodes.add(NodeMetricsSnapshot.builder()
+                    .cluster(cluster)
+                    .snapshotTimestamp(timestamp)
+                    .nodeName(String.format("%s-master-%d", cluster.getClusterName(), m))
+                    .role(NodeRole.MASTER)
+                    .hostType(cluster.getInfrastructureType().name())
+                    .cpuCores(8)
+                    .memoryGb(BigDecimal.valueOf(32))
+                    .underlyingHostId(providerInfo.getInstanceId())
+                    .providerId(providerId)
+                    .hypervisorHost(providerInfo.getHypervisorHost())
+                    .sockets(2)
+                    .build());
+        }
+        // Worker nodes
+        for (int w = 1; w <= workerCount; w++) {
+            String providerId = generateProviderId(cluster.getInfrastructureType(), "worker", w);
+            var providerInfo = providerIdParser.parseProviderId(providerId);
+
+            nodes.add(NodeMetricsSnapshot.builder()
+                    .cluster(cluster)
+                    .snapshotTimestamp(timestamp)
+                    .nodeName(String.format("%s-worker-%02d", cluster.getClusterName(), w))
+                    .role(NodeRole.WORKER)
+                    .hostType(cluster.getInfrastructureType().name())
+                    .cpuCores(coresPerWorker)
+                    .memoryGb(BigDecimal.valueOf(memGbPerWorker))
+                    .underlyingHostId(providerInfo.getInstanceId())
+                    .providerId(providerId)
+                    .hypervisorHost(providerInfo.getHypervisorHost())
+                    .sockets(bareMetal ? 2 : 1)
+                    .build());
+        }
+
+        int totalCores = (workerCount * coresPerWorker) + (3 * 8);
+        BigDecimal totalMem = BigDecimal.valueOf((workerCount * memGbPerWorker) + (3 * 32));
+        return new SimulatedTopology(nodes, workerCount, totalCores, totalMem);
     }
 
     private void seedNamespacesForCluster(Cluster cluster) {
@@ -307,4 +321,7 @@ public class AcmSimulatorService {
     }
 
     public record SimulatedClusterPayload(String clusterName, InfrastructureType infrastructureType) {}
+
+    public record SimulatedTopology(List<NodeMetricsSnapshot> nodes, int workerNodes, int totalCpuCores,
+                                    BigDecimal totalMemoryGb) {}
 }

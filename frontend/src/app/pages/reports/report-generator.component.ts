@@ -93,7 +93,7 @@ import { IconComponent } from '../../shared/icon.component';
                 <td><strong>{{ report.title }}</strong></td>
                 <td>{{ report.reportType }}</td>
                 <td><code>{{ report.cronSchedule || 'N/A' }}</code></td>
-                <td>{{ report.recipients || 'operations@enterprise.internal' }}</td>
+                <td>{{ report.recipients || 'None' }}</td>
                 <td>
                   <span class="badge" [ngClass]="report.isEnabled ? 'badge-ready' : 'badge-staging'">
                     {{ report.isEnabled ? 'ACTIVE' : 'PAUSED' }}
@@ -101,18 +101,7 @@ import { IconComponent } from '../../shared/icon.component';
                 </td>
               </tr>
               <tr *ngIf="reports.length === 0">
-                <td><strong>Weekly Executive Fleet Capacity</strong></td>
-                <td>FLEET_CAPACITY</td>
-                <td><code>0 8 * * 1 (Every Monday 08:00)</code></td>
-                <td>infra-executives&#64;enterprise.internal</td>
-                <td><span class="badge badge-ready">ACTIVE</span></td>
-              </tr>
-              <tr *ngIf="reports.length === 0">
-                <td><strong>Monthly Red Hat License Audit</strong></td>
-                <td>LICENSE_AUDIT</td>
-                <td><code>0 0 1 * * (1st of Month)</code></td>
-                <td>compliance-team&#64;enterprise.internal</td>
-                <td><span class="badge badge-ready">ACTIVE</span></td>
+                <td colspan="5" class="empty-state">No scheduled reports are configured.</td>
               </tr>
             </tbody>
           </table>
@@ -186,6 +175,11 @@ import { IconComponent } from '../../shared/icon.component';
       padding: 0.2rem 0.4rem;
       border-radius: 0.25rem;
       font-size: 0.8125rem;
+    }
+    .empty-state {
+      text-align: center;
+      color: #6B7280;
+      padding: 1.5rem;
     }
   `]
 })
