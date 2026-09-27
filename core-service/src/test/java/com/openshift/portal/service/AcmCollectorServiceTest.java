@@ -4,6 +4,7 @@ import com.openshift.portal.acm.AcmHubClient;
 import com.openshift.portal.acm.ClusterMetadata;
 import com.openshift.portal.acm.ClusterObservation;
 import com.openshift.portal.acm.HubResilience;
+import com.openshift.portal.acm.NodeObservation;
 import com.openshift.portal.config.AcmProperties;
 import com.openshift.portal.domain.entity.AcmHub;
 import com.openshift.portal.domain.entity.Cluster;
@@ -11,6 +12,7 @@ import com.openshift.portal.domain.entity.HubSyncRun;
 import com.openshift.portal.domain.enums.Environment;
 import com.openshift.portal.domain.enums.HubStatus;
 import com.openshift.portal.domain.enums.InfrastructureType;
+import com.openshift.portal.domain.enums.NodeRole;
 import com.openshift.portal.domain.enums.SyncStatus;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
 import com.openshift.portal.exception.AcmConnectionException;
@@ -34,6 +36,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,6 +59,9 @@ class AcmCollectorServiceTest {
     private ObjectProvider<AcmHubClient> hubClientProvider;
     @Mock
     private AcmHubClient hubClient;
+    /** Answers Optional.empty() unless stubbed: no agent reports. */
+    @Mock
+    private NodeAgentReportService nodeAgentReports;
 
     private AcmHub hub;
     private Cluster clusterA;
@@ -79,7 +85,8 @@ class AcmCollectorServiceTest {
                 RetryRegistry.of(Map.of(HubResilience.CONFIG, retryConfig)));
 
         collectorService = new AcmCollectorService(acmHubRepository, clusterRepository, syncRunRepository,
-                ingestionService, new ClusterDiscovery(), hubClientProvider, hubResilience, new AcmProperties());
+                ingestionService, new ClusterDiscovery(), hubClientProvider, hubResilience, new AcmProperties(),
+                nodeAgentReports);
 
         hub = AcmHub.builder().id(UUID.randomUUID()).name("hub-test").apiUrl("https://hub.example.com").build();
         clusterA = cluster("ocp-a");
@@ -198,6 +205,42 @@ class AcmCollectorServiceTest {
         assertThat(registered.getValue().getInfrastructureType()).isEqualTo(InfrastructureType.AWS);
         verify(ingestionService).ingest(eq(registered.getValue()), eq(discovered), any(), eq(true));
         assertThat(savedRun().getStatus()).isEqualTo(SyncStatus.SUCCESS);
+    }
+
+    @Test
+    void clusterWithoutNodes_getsTheNodesOfItsAgentReport() {
+        givenHubWithClusters();
+        when(hubClient.fetchClusters(hub)).thenReturn(List.of(observation("ocp-a"), observation("ocp-b")));
+        List<NodeObservation> reported = List.of(
+                new NodeObservation("ocp-a-worker-0", NodeRole.WORKER, 16, BigDecimal.valueOf(64), "vsphere://a0"));
+        when(nodeAgentReports.freshNodes("ocp-a")).thenReturn(Optional.of(reported));
+        when(nodeAgentReports.freshNodes("ocp-b")).thenReturn(Optional.empty());
+
+        collectorService.triggerCollection();
+
+        ArgumentCaptor<ClusterObservation> ingestedA = ArgumentCaptor.forClass(ClusterObservation.class);
+        verify(ingestionService).ingest(eq(clusterA), ingestedA.capture(), any(), eq(true));
+        assertThat(ingestedA.getValue().nodes()).isEqualTo(reported);
+        assertThat(ingestedA.getValue().totalCpuCores()).isEqualTo(100);
+        // No fresh report for ocp-b: it is stored without nodes, as before
+        ArgumentCaptor<ClusterObservation> ingestedB = ArgumentCaptor.forClass(ClusterObservation.class);
+        verify(ingestionService).ingest(eq(clusterB), ingestedB.capture(), any(), eq(true));
+        assertThat(ingestedB.getValue().nodes()).isEmpty();
+    }
+
+    @Test
+    void nodesReportedByTheHubClientAreKept() {
+        givenHubWithClusters();
+        List<NodeObservation> simulated = List.of(
+                new NodeObservation("ocp-a-worker-0", NodeRole.WORKER, 8, BigDecimal.valueOf(32), null));
+        when(hubClient.fetchClusters(hub)).thenReturn(List.of(observation("ocp-a").withNodes(simulated)));
+
+        collectorService.triggerCollection();
+
+        ArgumentCaptor<ClusterObservation> ingested = ArgumentCaptor.forClass(ClusterObservation.class);
+        verify(ingestionService).ingest(eq(clusterA), ingested.capture(), any(), eq(true));
+        assertThat(ingested.getValue().nodes()).isEqualTo(simulated);
+        verify(nodeAgentReports, never()).freshNodes(any());
     }
 
     @Test

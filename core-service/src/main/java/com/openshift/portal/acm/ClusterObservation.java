@@ -30,4 +30,10 @@ public record ClusterObservation(
     public boolean isFailed() {
         return error != null;
     }
+
+    /** The same observation with nodes from another source, such as the cluster's node agent. */
+    public ClusterObservation withNodes(List<NodeObservation> nodes) {
+        return new ClusterObservation(clusterName, totalCpuCores, allocatedCpuCores, totalMemoryGb, allocatedMemoryGb,
+                totalStorageGb, allocatedStorageGb, nodes, namespaces, rawPayload, metadata, error);
+    }
 }

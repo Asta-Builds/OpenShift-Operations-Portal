@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: openshift-portal-node-agent
+  main:
+    banner-mode: off
+
+server:
+  port: 8080
+
+node-agent:
+  # The ManagedCluster name of this cluster on its ACM hub
+  cluster-name: ${CLUSTER_NAME:}
+  version: "@project.version@"
+  report-interval: ${REPORT_INTERVAL:PT5M}
+  initial-delay: ${REPORT_INITIAL_DELAY:PT10S}
+  portal:
+    # Portal API base URL including the context path, e.g. https://portal.apps.example.com/api/v1
+    url: ${PORTAL_URL:}
+    # Name of a spring.ssl.bundle.pem.* bundle trusting a private CA; empty uses the JVM trust store
+    ssl-bundle: ${PORTAL_SSL_BUNDLE:}
+  auth:
+    # Keycloak token endpoint; leave empty only for a portal running with security disabled
+    token-uri: ${PORTAL_TOKEN_URI:}
+    client-id: ${PORTAL_CLIENT_ID:}
+    client-secret: ${PORTAL_CLIENT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true

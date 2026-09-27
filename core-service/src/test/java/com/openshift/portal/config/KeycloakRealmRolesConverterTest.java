@@ -23,6 +23,14 @@ class KeycloakRealmRolesConverterTest {
     }
 
     @Test
+    void nodeAgentServiceAccountGetsOnlyTheAgentRole() {
+        Jwt jwt = token(Map.of("realm_access", Map.of("roles",
+                List.of("portal-node-agent", "default-roles-openshift-portal"))));
+
+        assertThat(converter.convert(jwt)).extracting(GrantedAuthority::getAuthority).containsExactly("ROLE_NODE_AGENT");
+    }
+
+    @Test
     void tokenWithoutRealmRolesGrantsNothing() {
         assertThat(converter.convert(token(Map.of("scope", "openid")))).isEmpty();
         assertThat(converter.convert(token(Map.of("realm_access", Map.of("roles", "portal-admin"))))).isEmpty();
