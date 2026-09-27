@@ -62,6 +62,8 @@ class AcmCollectorServiceTest {
     /** Answers Optional.empty() unless stubbed: no agent reports. */
     @Mock
     private NodeAgentReportService nodeAgentReports;
+    @Mock
+    private LicensingService licensingService;
 
     private AcmHub hub;
     private Cluster clusterA;
@@ -86,7 +88,7 @@ class AcmCollectorServiceTest {
 
         collectorService = new AcmCollectorService(acmHubRepository, clusterRepository, syncRunRepository,
                 ingestionService, new ClusterDiscovery(), hubClientProvider, hubResilience, new AcmProperties(),
-                nodeAgentReports);
+                nodeAgentReports, licensingService);
 
         hub = AcmHub.builder().id(UUID.randomUUID()).name("hub-test").apiUrl("https://hub.example.com").build();
         clusterA = cluster("ocp-a");
@@ -241,6 +243,40 @@ class AcmCollectorServiceTest {
         verify(ingestionService).ingest(eq(clusterA), ingested.capture(), any(), eq(true));
         assertThat(ingested.getValue().nodes()).isEqualTo(simulated);
         verify(nodeAgentReports, never()).freshNodes(any());
+    }
+
+    @Test
+    void collectionThatStoresSnapshots_updatesTodaysLicenseWatermark() {
+        givenHubWithClusters();
+        when(hubClient.fetchClusters(hub)).thenReturn(List.of(observation("ocp-a"), observation("ocp-b")));
+
+        collectorService.triggerCollection();
+
+        verify(licensingService).recordDailyWatermark();
+    }
+
+    @Test
+    void collectionWithoutSnapshots_leavesTheWatermarkAlone() {
+        when(hubClientProvider.getIfAvailable()).thenReturn(hubClient);
+        when(acmHubRepository.findAll(any(Sort.class))).thenReturn(List.of(hub));
+        when(syncRunRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(hubClient.fetchClusters(hub)).thenThrow(new IllegalStateException("401 Unauthorized"));
+
+        collectorService.triggerCollection();
+
+        verify(licensingService, never()).recordDailyWatermark();
+    }
+
+    @Test
+    void failedWatermarkUpdate_doesNotFailTheCollection() {
+        givenHubWithClusters();
+        when(hubClient.fetchClusters(hub)).thenReturn(List.of(observation("ocp-a"), observation("ocp-b")));
+        when(licensingService.recordDailyWatermark()).thenThrow(new IllegalStateException("duplicate watermark date"));
+
+        SnapshotTriggerResultDto result = collectorService.triggerCollection();
+
+        assertThat(result.getStatus()).isEqualTo("COMPLETED");
+        assertThat(result.getSnapshotsCreated()).isEqualTo(2);
     }
 
     @Test

@@ -128,9 +128,13 @@ import { IconComponent } from '../../shared/icon.component';
                   <span class="text-default-400"> / {{ cluster.totalMemoryGb | number:'1.0-0' }} GB</span>
                 </td>
                 <td class="py-3.5 px-3">
-                  <span class="px-2 py-0.5 rounded-md bg-content3 text-foreground font-mono font-bold text-xs">
+                  <span *ngIf="cluster.nodeDataAvailable; else noNodeData" class="px-2 py-0.5 rounded-md bg-content3 text-foreground font-mono font-bold text-xs">
                     {{ cluster.licenseCores }}
                   </span>
+                  <ng-template #noNodeData>
+                    <span class="px-2 py-0.5 rounded-md bg-warning/10 text-warning font-bold text-xs"
+                          title="No node data: this cluster's license cores are unknown until its node agent reports">—</span>
+                  </ng-template>
                 </td>
                 <td class="py-3.5 px-3">
                   <span class="heroui-badge bg-success/15 text-success text-[10px]">

@@ -68,4 +68,23 @@ class PdfReportGeneratorServiceTest {
         String header = new String(pdfBytes, 0, 4);
         assertThat(header).isEqualTo("%PDF");
     }
+
+    @Test
+    void licenseAudit_showsClustersWithoutNodeDataAsUnknownNotZero() throws Exception {
+        Cluster known = Cluster.builder().id(UUID.randomUUID()).clusterName("ocp-known")
+                .environment(Environment.PRODUCTION).infrastructureType(InfrastructureType.VMWARE).build();
+        Cluster unknown = Cluster.builder().id(UUID.randomUUID()).clusterName("ocp-unknown")
+                .environment(Environment.PRODUCTION).infrastructureType(InfrastructureType.VMWARE).build();
+        when(snapshotRepository.findLatestSnapshotsForAllClusters()).thenReturn(List.of(
+                ClusterSnapshot.builder().cluster(known).snapshotTimestamp(LocalDateTime.now())
+                        .workerNodes(3).totalNodes(6).licenseCoresCount(48).build(),
+                ClusterSnapshot.builder().cluster(unknown).snapshotTimestamp(LocalDateTime.now()).build()));
+
+        byte[] pdfBytes = pdfService.generatePdfReport(ReportType.LICENSE_AUDIT);
+
+        com.lowagie.text.pdf.PdfReader reader = new com.lowagie.text.pdf.PdfReader(pdfBytes);
+        String text = new com.lowagie.text.pdf.parser.PdfTextExtractor(reader).getTextFromPage(1);
+        assertThat(text).contains("ocp-known", "48", "ocp-unknown", "no node data",
+                "1 cluster(s) have no node data");
+    }
 }

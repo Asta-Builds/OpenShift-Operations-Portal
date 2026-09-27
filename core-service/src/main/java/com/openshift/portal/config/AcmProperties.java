@@ -93,6 +93,10 @@ public class AcmProperties {
     public static class Licensing {
         private double defaultCoreMultiplier = 1.0;
         private int bareMetalSocketFactor = 16;
+        /** Contracted subscription cores; the high watermark is compared with it. */
+        private int licensedCapCores = 500;
+        /** The high watermark is the highest daily peak over this many days, typically the subscription term. */
+        private int watermarkPeriodDays = 365;
     }
 
     @Data

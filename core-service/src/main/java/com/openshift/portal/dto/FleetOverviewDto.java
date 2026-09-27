@@ -24,6 +24,8 @@ public class FleetOverviewDto {
     private double allocatedStorageGb;
     private double storageUtilizationPercent;
     private int totalLicenseCores;
+    /** Clusters left out of totalLicenseCores because their nodes are unknown; while above 0 the total is a lower bound. */
+    private long clustersWithoutNodeData;
     private Map<String, Long> clustersByEnvironment;
     private Map<String, Long> clustersByInfrastructure;
 }

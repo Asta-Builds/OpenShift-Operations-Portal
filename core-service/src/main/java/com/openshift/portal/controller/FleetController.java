@@ -79,6 +79,9 @@ public class FleetController {
                 .allocatedStorageGb(Math.round(allocatedStorage * 100.0) / 100.0)
                 .storageUtilizationPercent(storageUtil)
                 .totalLicenseCores(totalLicenseCores)
+                // Clusters whose latest snapshot has no nodes, and clusters without any snapshot yet
+                .clustersWithoutNodeData(latestSnapshots.stream().filter(snap -> !snap.hasNodeData()).count()
+                        + Math.max(0, totalClusters - latestSnapshots.size()))
                 .clustersByEnvironment(envMap)
                 .clustersByInfrastructure(infraMap)
                 .build();

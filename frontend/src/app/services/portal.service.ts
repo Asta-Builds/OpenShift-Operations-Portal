@@ -18,7 +18,8 @@ import {
   Team,
   InfrastructureTopology,
   InventoryRow,
-  InventoryImportResult
+  InventoryImportResult,
+  NodeAgentStatus
 } from '../models/portal.models';
 
 @Injectable({
@@ -58,6 +59,11 @@ export class PortalService {
 
   getLicenseAudit(): Observable<LicenseAudit> {
     return this.http.get<LicenseAudit>(`${this.baseUrl}/licensing/audit`);
+  }
+
+  /** Latest report of each cluster's node agent. */
+  getNodeAgents(): Observable<NodeAgentStatus[]> {
+    return this.http.get<NodeAgentStatus[]>(`${this.baseUrl}/node-reports`);
   }
 
   getForecastingProjection(horizonDays: number = 30, clusterId?: string): Observable<ForecastingProjection> {

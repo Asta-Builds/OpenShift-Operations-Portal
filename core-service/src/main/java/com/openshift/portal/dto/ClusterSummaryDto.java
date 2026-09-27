@@ -28,5 +28,7 @@ public class ClusterSummaryDto {
     private double totalMemoryGb;
     private double allocatedMemoryGb;
     private int licenseCores;
+    /** False when the latest snapshot has no nodes: licenseCores is then unknown, not 0. */
+    private boolean nodeDataAvailable;
     private LocalDateTime lastSnapshotTime;
 }

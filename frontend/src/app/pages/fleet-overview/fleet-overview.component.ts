@@ -148,12 +148,20 @@ import { IconComponent } from '../../shared/icon.component';
               </span>
               <span class="text-xs text-default-500">Billable Cores</span>
             </div>
-            <div class="flex items-center gap-1.5 mt-2">
-              <span class="heroui-badge bg-danger/15 text-danger text-[10px]">
+            <div *ngIf="overview?.clustersWithoutNodeData" class="text-[11px] text-warning font-medium mt-1">
+              + {{ overview?.clustersWithoutNodeData }} {{ overview?.clustersWithoutNodeData === 1 ? 'cluster' : 'clusters' }} without node data
+            </div>
+            <div class="flex items-center gap-1.5 mt-2" *ngIf="licenseAudit">
+              <span class="heroui-badge text-[10px]" [ngClass]="licenseAudit.complianceStatus === 'BREACH' ? 'bg-danger/15 text-danger'
+                  : licenseAudit.complianceStatus === 'INCOMPLETE' ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success'">
                 <app-icon name="alert-triangle" [size]="11"></app-icon>
-                Cap: {{ licenseAudit?.licensedCapCores || 500 }} Cores
+                Cap: {{ licenseAudit.licensedCapCores }} Cores
               </span>
-              <span class="text-[11px] text-danger font-medium">Breach Active</span>
+              <span class="text-[11px] font-medium" [ngClass]="licenseAudit.complianceStatus === 'BREACH' ? 'text-danger'
+                  : licenseAudit.complianceStatus === 'INCOMPLETE' ? 'text-warning' : 'text-success'">
+                {{ licenseAudit.complianceStatus === 'BREACH' ? 'Breach Active'
+                  : licenseAudit.complianceStatus === 'INCOMPLETE' ? 'Incomplete' : 'Compliant' }}
+              </span>
             </div>
           </div>
         </div>
@@ -383,9 +391,13 @@ import { IconComponent } from '../../shared/icon.component';
                   <span class="text-default-400"> / {{ cluster.totalMemoryGb | number:'1.0-0' }} GB</span>
                 </td>
                 <td class="py-3.5 px-3">
-                  <span class="px-2 py-0.5 rounded-md bg-content3 text-foreground font-mono font-bold text-xs">
+                  <span *ngIf="cluster.nodeDataAvailable; else noNodeData" class="px-2 py-0.5 rounded-md bg-content3 text-foreground font-mono font-bold text-xs">
                     {{ cluster.licenseCores }}
                   </span>
+                  <ng-template #noNodeData>
+                    <span class="px-2 py-0.5 rounded-md bg-warning/10 text-warning font-bold text-xs"
+                          title="No node data: this cluster's license cores are unknown until its node agent reports">—</span>
+                  </ng-template>
                 </td>
                 <td class="py-3.5 px-3 text-right">
                   <span class="heroui-badge bg-success/15 text-success text-[10px]">

@@ -26,7 +26,7 @@ The role comes from the `node-role.kubernetes.io/*` labels:
 | `master` or `control-plane` together with `worker` (compact and single-node clusters, where the control plane runs workloads) | WORKER | yes |
 | anything else | WORKER | yes |
 
-Capacity is what the node reports in `status.capacity`, so it is the size of the VM or machine, not what Kubernetes leaves for pods.
+Capacity is what the node reports in `status.capacity`, so it is the size of the VM or machine, not what Kubernetes leaves for pods. The portal rejects a report without nodes (400): a running cluster always has at least one, so an empty list means something is wrong, not that the cluster is empty.
 
 ## Configuration
 

@@ -79,8 +79,8 @@ public class PdfReportGeneratorService {
                     table.addCell(createCell(c.getEnvironment() != null ? c.getEnvironment().name() : "N/A", false));
                     table.addCell(createCell(c.getOwnerTeam() != null ? c.getOwnerTeam().getName() : "Unassigned", false));
                     table.addCell(createCell(c.getInfrastructureType() != null ? c.getInfrastructureType().name() : "N/A", false));
-                    table.addCell(createCell(String.valueOf(snap.getWorkerNodes()), true));
-                    table.addCell(createCell(String.valueOf(snap.getLicenseCoresCount()), true));
+                    table.addCell(createCell(snap.hasNodeData() ? String.valueOf(snap.getWorkerNodes()) : "-", true));
+                    table.addCell(createCell(licenseCores(snap), true));
                     table.addCell(createCell(snap.getSnapshotTimestamp().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), false));
                 }
             } else {
@@ -97,8 +97,8 @@ public class PdfReportGeneratorService {
                     table.addCell(createCell(snap.getAllocatedCpuCores().stripTrailingZeros().toPlainString() + " / " + snap.getTotalCpuCores(), true));
                     table.addCell(createCell(snap.getAllocatedMemoryGb() + " / " + snap.getTotalMemoryGb() + " GB", true));
                     table.addCell(createCell(snap.getAllocatedStorageGb() + " / " + snap.getTotalStorageGb() + " GB", true));
-                    table.addCell(createCell(String.valueOf(snap.getTotalNodes()), true));
-                    table.addCell(createCell(String.valueOf(snap.getLicenseCoresCount()), true));
+                    table.addCell(createCell(snap.hasNodeData() ? String.valueOf(snap.getTotalNodes()) : "-", true));
+                    table.addCell(createCell(licenseCores(snap), true));
                 }
             }
 
@@ -113,6 +113,11 @@ public class PdfReportGeneratorService {
                     + "nodes are excluded. Hyperthreading and socket-pair subscription rules are not applied yet, so verify "
                     + "these figures against your Red Hat subscription terms before using them for compliance.", footerFont);
             document.add(note);
+            long withoutNodeData = latestSnapshots.stream().filter(snap -> !snap.hasNodeData()).count();
+            if (type != ReportType.COST_ATTRIBUTION && withoutNodeData > 0) {
+                document.add(new Paragraph("* " + withoutNodeData + " cluster(s) have no node data (no fresh node agent "
+                        + "report), so their license cores are unknown and not included in any total.", footerFont));
+            }
 
             document.close();
             return baos.toByteArray();
@@ -133,6 +138,11 @@ public class PdfReportGeneratorService {
             cell.setHorizontalAlignment(Element.ALIGN_CENTER);
             table.addCell(cell);
         }
+    }
+
+    /** Unknown without node data, which is not the same as 0. */
+    private static String licenseCores(ClusterSnapshot snap) {
+        return snap.hasNodeData() ? String.valueOf(snap.getLicenseCoresCount()) : "no node data";
     }
 
     private PdfPCell createCell(String text, boolean center) {

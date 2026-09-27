@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PortalService } from '../../services/portal.service';
-import { LicenseAudit } from '../../models/portal.models';
+import { ComplianceStatus, LicenseAudit, NodeAgentStatus, NodeDataGapReason } from '../../models/portal.models';
 import { IconComponent } from '../../shared/icon.component';
 
 @Component({
@@ -47,8 +47,13 @@ import { IconComponent } from '../../shared/icon.component';
               <app-icon name="cpu" [size]="16"></app-icon>
             </div>
           </div>
-          <div class="text-3xl font-extrabold text-danger">{{ audit.totalLicenseCores }}</div>
-          <div class="text-xs text-default-400">Current active worker cores across fleet</div>
+          <div class="flex items-baseline gap-2">
+            <span *ngIf="audit.clustersWithoutNodeData.length" class="text-xs font-semibold text-warning">at least</span>
+            <span class="text-3xl font-extrabold text-danger">{{ audit.totalLicenseCores }}</span>
+          </div>
+          <div class="text-xs text-default-400">
+            Worker cores of {{ audit.clustersCounted }} of {{ audit.clustersCounted + audit.clustersWithoutNodeData.length }} clusters
+          </div>
         </div>
 
         <div class="heroui-card p-5 space-y-3">
@@ -73,13 +78,11 @@ import { IconComponent } from '../../shared/icon.component';
             </div>
           </div>
           <div>
-            <span class="heroui-badge text-xs" [ngClass]="audit.complianceBreach ? 'bg-danger/15 text-danger border border-danger/30' : 'bg-success/15 text-success'">
-              {{ audit.complianceBreach ? 'CAP EXCEEDED' : 'COMPLIANT' }}
+            <span class="heroui-badge text-xs" [ngClass]="statusBadgeClass(audit.complianceStatus)" data-testid="compliance-status">
+              {{ statusLabel(audit.complianceStatus) }}
             </span>
           </div>
-          <div class="text-xs text-default-400">
-            {{ audit.complianceBreach ? 'Audit notice sent to administrator' : 'Within contractual allowance' }}
-          </div>
+          <div class="text-xs text-default-400">{{ statusDetail(audit) }}</div>
         </div>
 
         <div class="heroui-card p-5 space-y-3">
@@ -148,6 +151,85 @@ import { IconComponent } from '../../shared/icon.component';
 
       </div>
 
+      <!-- Clusters whose cores are unknown: listed, never counted as 0 -->
+      <div class="heroui-card p-6 space-y-4 border-warning/40" *ngIf="audit?.clustersWithoutNodeData?.length" data-testid="node-data-gaps">
+        <div class="flex items-start gap-3 pb-3 border-b border-divider">
+          <div class="w-9 h-9 rounded-xl bg-warning/10 text-warning flex items-center justify-center flex-shrink-0">
+            <app-icon name="alert-triangle" [size]="18"></app-icon>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-foreground">
+              {{ audit!.clustersWithoutNodeData.length }} {{ audit!.clustersWithoutNodeData.length === 1 ? 'cluster has' : 'clusters have' }} no node data
+            </h3>
+            <p class="text-xs text-default-500 mt-1">
+              ACM hubs do not report nodes: they come from the node agent running in each managed cluster. Until these clusters' nodes are known,
+              their license cores are not in any total above, so the totals are a lower bound.
+            </p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-divider text-default-400 uppercase tracking-wider text-[10px]">
+                <th class="py-2.5 px-3">Cluster</th>
+                <th class="py-2.5 px-3">Environment</th>
+                <th class="py-2.5 px-3">Why</th>
+                <th class="py-2.5 px-3">Last agent report</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-divider/40">
+              <tr *ngFor="let gap of audit!.clustersWithoutNodeData">
+                <td class="py-2.5 px-3 font-bold text-foreground">{{ gap.clusterName }}</td>
+                <td class="py-2.5 px-3 text-default-500">{{ gap.environment }}</td>
+                <td class="py-2.5 px-3 text-default-600">{{ gapReason(gap.reason) }}</td>
+                <td class="py-2.5 px-3 text-default-500">{{ gap.lastAgentReportAt ? (gap.lastAgentReportAt | date: 'yyyy-MM-dd HH:mm') : 'never' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Node agents: where live clusters' nodes come from -->
+      <div class="heroui-card p-6 space-y-4" *ngIf="audit" data-testid="node-agents">
+        <div class="flex items-center justify-between pb-3 border-b border-divider">
+          <h3 class="text-base font-bold text-foreground">Node Agents</h3>
+          <span class="text-xs text-default-400">Latest report of each managed cluster's agent</span>
+        </div>
+        <p *ngIf="!agents.length" class="text-xs text-default-500">
+          No node agent has reported yet. Live clusters need the node agent to count license cores; simulated clusters do not.
+        </p>
+        <div class="overflow-x-auto" *ngIf="agents.length">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-divider text-default-400 uppercase tracking-wider text-[10px]">
+                <th class="py-2.5 px-3">Cluster</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3">Nodes</th>
+                <th class="py-2.5 px-3">Last report</th>
+                <th class="py-2.5 px-3">Agent version</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-divider/40">
+              <tr *ngFor="let agent of agents">
+                <td class="py-2.5 px-3 font-bold text-foreground">{{ agent.clusterName }}</td>
+                <td class="py-2.5 px-3 space-x-1">
+                  <span class="heroui-badge text-[10px]" [ngClass]="agent.fresh ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'">
+                    {{ agent.fresh ? 'Reporting' : 'Stale' }}
+                  </span>
+                  <span *ngIf="!agent.registered" class="heroui-badge text-[10px] bg-danger/15 text-danger"
+                        title="No ACM hub reports a cluster of this name; check the agent's CLUSTER_NAME">
+                    Unknown cluster
+                  </span>
+                </td>
+                <td class="py-2.5 px-3 font-mono text-foreground">{{ agent.nodeCount }}</td>
+                <td class="py-2.5 px-3 text-default-500">{{ agent.receivedAt | date: 'yyyy-MM-dd HH:mm' }}</td>
+                <td class="py-2.5 px-3 text-default-500 font-mono">{{ agent.agentVersion || 'unknown' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   `
 })
@@ -155,6 +237,7 @@ export class LicensingComponent implements OnInit {
   private portalService = inject(PortalService);
 
   audit: LicenseAudit | null = null;
+  agents: NodeAgentStatus[] = [];
   teamBreakdown: { name: string; cores: number }[] = [];
   infraBreakdown: { name: string; cores: number }[] = [];
 
@@ -167,5 +250,39 @@ export class LicensingComponent implements OnInit {
       },
       error: (err) => console.error('Failed to load license audit', err)
     });
+    this.portalService.getNodeAgents().subscribe({
+      next: (res) => (this.agents = res),
+      error: (err) => console.error('Failed to load node agents', err)
+    });
+  }
+
+  statusLabel(status: ComplianceStatus): string {
+    return status === 'BREACH' ? 'CAP EXCEEDED' : status === 'INCOMPLETE' ? 'INCOMPLETE' : 'COMPLIANT';
+  }
+
+  statusBadgeClass(status: ComplianceStatus): string {
+    return status === 'BREACH' ? 'bg-danger/15 text-danger border border-danger/30'
+      : status === 'INCOMPLETE' ? 'bg-warning/15 text-warning border border-warning/30'
+      : 'bg-success/15 text-success';
+  }
+
+  statusDetail(audit: LicenseAudit): string {
+    if (audit.complianceStatus === 'BREACH') {
+      return 'The high watermark exceeds the contracted cap';
+    }
+    if (audit.complianceStatus === 'INCOMPLETE') {
+      const missing = audit.clustersWithoutNodeData.length;
+      return `Within the cap so far, but ${missing} ${missing === 1 ? 'cluster is' : 'clusters are'} not counted yet`;
+    }
+    return 'Within contractual allowance';
+  }
+
+  gapReason(reason: NodeDataGapReason): string {
+    switch (reason) {
+      case 'NOT_COLLECTED': return 'No successful collection yet';
+      case 'NO_AGENT_REPORT': return 'No node agent has reported this cluster';
+      case 'STALE_AGENT_REPORT': return 'The node agent stopped reporting';
+      case 'AWAITING_COLLECTION': return 'Agent reported; counted from the next collection';
+    }
   }
 }

@@ -202,17 +202,17 @@
       <div class="p-3.5 rounded-2xl bg-content1 border border-divider space-y-2">
         <div class="flex items-center justify-between text-xs">
           <span class="text-default-400 font-medium">Compliance</span>
-          <span class="text-xs font-bold text-success flex items-center gap-1">
-            <app-icon name="check-circle" [size]="13"></app-icon>
-            Active
+          <span class="text-xs font-bold flex items-center gap-1" [ngClass]="complianceClass">
+            <app-icon [name]="licenseAudit?.complianceStatus === 'COMPLIANT' ? 'check-circle' : 'alert-triangle'" [size]="13"></app-icon>
+            {{ complianceLabel }}
           </span>
         </div>
         <div class="w-full h-1.5 rounded-full bg-content3 overflow-hidden">
-          <div class="h-full bg-primary rounded-full" style="width: 79.9%;"></div>
+          <div class="h-full bg-primary rounded-full" [style.width.%]="fleet?.cpuUtilizationPercent || 0"></div>
         </div>
         <div class="flex items-center justify-between text-[11px] text-default-400">
-          <span>79.9% Core Alloc.</span>
-          <span>1,256 Cores</span>
+          <span>{{ fleet ? (fleet.cpuUtilizationPercent | number: '1.0-1') + '% Core Alloc.' : '—' }}</span>
+          <span>{{ fleet ? (fleet.totalCpuCores | number) + ' Cores' : '' }}</span>
         </div>
       </div>
     </aside>

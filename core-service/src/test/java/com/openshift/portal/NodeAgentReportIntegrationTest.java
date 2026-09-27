@@ -13,6 +13,7 @@ import com.openshift.portal.domain.enums.ProviderType;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
+import com.openshift.portal.repository.LicenseWatermarkRepository;
 import com.openshift.portal.repository.NodeAgentReportRepository;
 import com.openshift.portal.repository.NodeMetricsSnapshotRepository;
 import com.openshift.portal.service.AcmCollectorService;
@@ -27,6 +28,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -67,6 +69,8 @@ class NodeAgentReportIntegrationTest {
     private NodeMetricsSnapshotRepository nodeRepository;
     @Autowired
     private NodeAgentReportRepository reportRepository;
+    @Autowired
+    private LicenseWatermarkRepository watermarkRepository;
 
     /** Clusters this hub reports; other contexts' hubs share the in-memory database and are answered with none. */
     private List<String> hubClusters = List.of();
@@ -117,6 +121,13 @@ class NodeAgentReportIntegrationTest {
         assertThat(nodes.get(1).getProviderType()).isEqualTo(ProviderType.VSPHERE);
         assertThat(nodes.get(1).getMemoryGb()).isEqualByComparingTo("64.00");
 
+        // Collections now record the day's license watermark, and the cluster counts in the audit
+        assertThat(watermarkRepository.findByWatermarkDate(LocalDate.now()).orElseThrow().getPeakWorkerCores())
+                .isGreaterThanOrEqualTo(32);
+        mockMvc.perform(get("/licensing/audit"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clustersWithoutNodeData[?(@.clusterName == '" + cluster + "')]").isEmpty());
+
         mockMvc.perform(get("/node-reports"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.clusterName == '" + cluster + "')].registered").value(true))
@@ -141,6 +152,18 @@ class NodeAgentReportIntegrationTest {
         assertThat(latestSnapshot(cluster).getLicenseCoresCount()).isZero();
         mockMvc.perform(get("/node-reports"))
                 .andExpect(jsonPath("$[?(@.clusterName == '" + cluster + "')].fresh").value(false));
+        // The audit lists it with the reason instead of counting it as 0 cores
+        mockMvc.perform(get("/licensing/audit"))
+                .andExpect(jsonPath("$.complianceStatus").value(org.hamcrest.Matchers.not("COMPLIANT")))
+                .andExpect(jsonPath("$.clustersWithoutNodeData[?(@.clusterName == '" + cluster + "')].reason")
+                        .value("STALE_AGENT_REPORT"));
+        mockMvc.perform(get("/clusters"))
+                .andExpect(jsonPath("$[?(@.clusterName == '" + cluster + "')].nodeDataAvailable").value(false));
+        String csv = mockMvc.perform(get("/reports/export").param("type", "LICENSE_AUDIT"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(csv.lines().filter(line -> line.startsWith("\"" + cluster + "\"")).findFirst().orElseThrow())
+                .contains("\"\",\"\",").endsWith("\"MISSING\"");
     }
 
     @Test
@@ -170,6 +193,11 @@ class NodeAgentReportIntegrationTest {
         mockMvc.perform(post("/node-reports").contentType(MediaType.APPLICATION_JSON)
                         .content(report("agent-it-bad", "2026-09-27T18:00:00Z",
                                 "{\"name\":\"worker-0\",\"role\":\"WORKER\",\"cpuCores\":-1,\"memoryGb\":64}")))
+                .andExpect(status().isBadRequest());
+
+        // A running cluster always has nodes, so an empty report is broken rather than an empty cluster
+        mockMvc.perform(post("/node-reports").contentType(MediaType.APPLICATION_JSON)
+                        .content(report("agent-it-bad", "2026-09-27T18:00:00Z", "")))
                 .andExpect(status().isBadRequest());
 
         assertThat(reportRepository.findById("agent-it-bad")).isEmpty();

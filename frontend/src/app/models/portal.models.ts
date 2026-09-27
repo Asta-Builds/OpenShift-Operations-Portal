@@ -11,6 +11,8 @@ export interface FleetOverview {
   allocatedStorageGb: number;
   storageUtilizationPercent: number;
   totalLicenseCores: number;
+  /** Clusters left out of totalLicenseCores because their nodes are unknown; above 0 the total is a lower bound. */
+  clustersWithoutNodeData: number;
   clustersByEnvironment: Record<string, number>;
   clustersByInfrastructure: Record<string, number>;
 }
@@ -29,6 +31,8 @@ export interface ClusterSummary {
   totalMemoryGb: number;
   allocatedMemoryGb: number;
   licenseCores: number;
+  /** False when the latest snapshot has no nodes: licenseCores is then unknown, not 0. */
+  nodeDataAvailable: boolean;
   lastSnapshotTime: string;
 }
 
@@ -116,11 +120,41 @@ export interface ClusterDetail {
   recentSnapshots: SnapshotDetail[];
 }
 
+/** BREACH as soon as the known cores exceed the cap; INCOMPLETE when they do not but some clusters lack node data. */
+export type ComplianceStatus = 'COMPLIANT' | 'BREACH' | 'INCOMPLETE';
+
+export type NodeDataGapReason = 'NOT_COLLECTED' | 'NO_AGENT_REPORT' | 'STALE_AGENT_REPORT' | 'AWAITING_COLLECTION';
+
+export interface NodeDataGap {
+  clusterName: string;
+  environment: string;
+  reason: NodeDataGapReason;
+  /** When the portal received the cluster's latest node agent report, if any. */
+  lastAgentReportAt: string | null;
+}
+
+/** Latest report of one cluster's node agent (GET /node-reports). */
+export interface NodeAgentStatus {
+  clusterName: string;
+  agentVersion: string | null;
+  collectedAt: string;
+  receivedAt: string;
+  nodeCount: number;
+  /** Whether an ACM hub has reported a cluster of this name. */
+  registered: boolean;
+  /** Whether collections still use the report. */
+  fresh: boolean;
+}
+
 export interface LicenseAudit {
+  /** Cores of the clusters whose nodes are known; a lower bound while clustersWithoutNodeData is not empty. */
   totalLicenseCores: number;
   licensedCapCores: number;
   highWatermarkCores: number;
   complianceBreach: boolean;
+  complianceStatus: ComplianceStatus;
+  clustersCounted: number;
+  clustersWithoutNodeData: NodeDataGap[];
   workerNodesCount: number;
   masterNodesCount: number;
   bareMetalCores: number;

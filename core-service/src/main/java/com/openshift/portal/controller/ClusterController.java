@@ -64,6 +64,7 @@ public class ClusterController {
                     .totalMemoryGb(latest.map(s -> s.getTotalMemoryGb().doubleValue()).orElse(0.0))
                     .allocatedMemoryGb(latest.map(s -> s.getAllocatedMemoryGb().doubleValue()).orElse(0.0))
                     .licenseCores(latest.map(ClusterSnapshot::getLicenseCoresCount).orElse(0))
+                    .nodeDataAvailable(latest.map(ClusterSnapshot::hasNodeData).orElse(false))
                     .lastSnapshotTime(latest.map(ClusterSnapshot::getSnapshotTimestamp).orElse(null))
                     .build();
 

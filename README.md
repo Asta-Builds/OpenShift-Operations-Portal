@@ -139,6 +139,12 @@ To try this without an ACM hub, [hub-lab/README.md](hub-lab/README.md) builds a 
 
 License cores, watermarks and infrastructure correlation need each cluster's nodes, which ACM hubs do not provide. The [node agent](node-agent/README.md) runs in every managed cluster, lists its `Node` objects (name, role, CPU and memory capacity, `spec.providerID`) every 5 minutes and sends them to `POST /api/v1/node-reports`. The portal keeps the latest report of each cluster, and every collection copies its nodes into the cluster's snapshot while the report is younger than `openshift.portal.node-agent.max-report-age` (default `PT1H`). After that the cluster shows no nodes rather than nodes that may be gone. `GET /api/v1/node-reports` lists the agents' latest reports.
 
+### License audit
+
+The audit (`GET /api/v1/licensing/audit`, the Licensing page and the `LICENSE_AUDIT` exports) counts worker cores from each cluster's latest snapshot. A cluster without node data (no successful collection yet, no node agent report, or a report older than the max report age) is not counted as 0 cores: the audit lists it in `clustersWithoutNodeData` with the reason, the exports leave its cores empty, and the cluster pages show "no node data". While any cluster is listed the totals are a lower bound and the status is `INCOMPLETE`, unless the known cores already exceed the cap, which is `BREACH`.
+
+Every collection that stores snapshots raises today's watermark to the fleet's current license cores. The high watermark is the highest daily value over `openshift.portal.licensing.watermark-period-days` (default 365), compared with the contracted `openshift.portal.licensing.licensed-cap-cores` (default 500).
+
 Agents sign in to Keycloak with the client credentials grant. Their client's service account needs the `portal-node-agent` realm role, which allows sending node reports and nothing else. To keep one cluster's agent from reporting another cluster, give each cluster its own client with a hardcoded `portal_cluster` claim set to the cluster name: the portal then refuses reports for any other cluster. The sandbox realm has a `portal-node-agent` client with secret `node-agent-sandbox-secret`.
 
 ### Infrastructure inventory
@@ -189,7 +195,7 @@ Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OP
 | `GET` | `/api/v1/inventory` | VIEWER | Infrastructure inventory rows |
 | `POST` | `/api/v1/inventory/import?source=&replace=` | ADMIN | Import inventory CSV (`text/csv`); `replace=true` removes the source's rows missing from the file |
 | `DELETE` | `/api/v1/inventory?source=` | ADMIN | Remove every row of one source |
-| `GET` | `/api/v1/licensing/audit` | VIEWER | Core counting and subscription compliance audit |
+| `GET` | `/api/v1/licensing/audit` | VIEWER | Worker cores, high watermark and compliance status (`COMPLIANT`, `BREACH`, or `INCOMPLETE` while clusters lack node data, which are listed with the reason) |
 | `GET` | `/api/v1/forecasting/projection?horizonDays=30` | VIEWER | Predictive resource growth projection (30/60/90 days) |
 | `GET` | `/api/v1/reports/export?type=FLEET_CAPACITY` | OPERATOR | Export CSV report (`FLEET_CAPACITY`, `LICENSE_AUDIT`, `COST_ATTRIBUTION`); `/export/pdf` for PDF |
 | `GET`/`POST` | `/api/v1/reports/saved` | OPERATOR | The caller's own saved report presets |

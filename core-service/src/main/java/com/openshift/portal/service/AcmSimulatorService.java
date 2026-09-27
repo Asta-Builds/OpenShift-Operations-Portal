@@ -240,11 +240,12 @@ public class AcmSimulatorService {
         }
 
         // 5. Seed License Watermark Audit record
+        int cap = properties.getLicensing().getLicensedCapCores();
         watermarkRepository.save(LicenseWatermark.builder()
                 .watermarkDate(LocalDate.now())
                 .peakWorkerCores(totalPeakWorkerCores)
-                .licensedCapCores(500)
-                .complianceBreach(totalPeakWorkerCores > 500)
+                .licensedCapCores(cap)
+                .complianceBreach(totalPeakWorkerCores > cap)
                 .build());
 
         log.info("Fleet seeding complete with {} clusters and historical snapshots.", savedClusters.size());

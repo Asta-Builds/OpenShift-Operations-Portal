@@ -3,11 +3,11 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of, switchMap, timer } from 'rxjs';
+import { catchError, forkJoin, of, switchMap, timer } from 'rxjs';
 import { IconComponent } from './shared/icon.component';
 import { PortalService } from './services/portal.service';
 import { AuthService } from './services/auth.service';
-import { AcmHubSummary, CurrentUser } from './models/portal.models';
+import { AcmHubSummary, CurrentUser, FleetOverview, LicenseAudit } from './models/portal.models';
 
 const HUB_STATUS_REFRESH_MS = 30_000;
 
@@ -26,6 +26,9 @@ export class AppComponent implements OnInit {
 
   title = 'OpenShift Operations Portal';
   hubs: AcmHubSummary[] = [];
+  /** Sidebar compliance widget; null until loaded or when the user may not read them. */
+  licenseAudit: LicenseAudit | null = null;
+  fleet: FleetOverview | null = null;
   simulatorAvailable = false;
   isDark = true;
   searchQuery = '';
@@ -59,10 +62,41 @@ export class AppComponent implements OnInit {
       )
       .subscribe((hubs) => (this.hubs = hubs));
 
+    timer(0, HUB_STATUS_REFRESH_MS)
+      .pipe(
+        switchMap(() => forkJoin({
+          audit: this.portalService.getLicenseAudit().pipe(catchError(() => of(this.licenseAudit))),
+          fleet: this.portalService.getFleetOverview().pipe(catchError(() => of(this.fleet)))
+        })),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(({ audit, fleet }) => {
+        this.licenseAudit = audit;
+        this.fleet = fleet;
+      });
+
     this.portalService.getSimulatorStatus().subscribe({
       next: () => (this.simulatorAvailable = true),
       error: () => (this.simulatorAvailable = false)
     });
+  }
+
+  get complianceLabel(): string {
+    switch (this.licenseAudit?.complianceStatus) {
+      case 'BREACH': return 'Cap exceeded';
+      case 'INCOMPLETE': return 'Incomplete';
+      case 'COMPLIANT': return 'Compliant';
+      default: return '—';
+    }
+  }
+
+  get complianceClass(): string {
+    switch (this.licenseAudit?.complianceStatus) {
+      case 'BREACH': return 'text-danger';
+      case 'INCOMPLETE': return 'text-warning';
+      case 'COMPLIANT': return 'text-success';
+      default: return 'text-default-400';
+    }
   }
 
   toggleTheme(): void {

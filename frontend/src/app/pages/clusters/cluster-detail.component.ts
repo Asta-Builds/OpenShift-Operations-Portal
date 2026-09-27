@@ -74,8 +74,14 @@ import { IconComponent } from '../../shared/icon.component';
               <app-icon name="shield-check" [size]="16"></app-icon>
             </div>
           </div>
-          <div class="text-lg font-bold text-danger">{{ cluster.latestSnapshot?.licenseCoresCount || 0 }} Cores</div>
-          <div class="text-xs text-default-400">{{ cluster.latestSnapshot?.workerNodes || 0 }} Worker Nodes Billable</div>
+          <ng-container *ngIf="cluster.latestSnapshot?.totalNodes; else noNodeData">
+            <div class="text-lg font-bold text-danger">{{ cluster.latestSnapshot?.licenseCoresCount || 0 }} Cores</div>
+            <div class="text-xs text-default-400">{{ cluster.latestSnapshot?.workerNodes || 0 }} Worker Nodes Billable</div>
+          </ng-container>
+          <ng-template #noNodeData>
+            <div class="text-lg font-bold text-warning">No node data</div>
+            <div class="text-xs text-default-400">Unknown until the cluster's node agent reports</div>
+          </ng-template>
         </div>
 
         <div class="heroui-card p-5 space-y-2">
@@ -235,7 +241,8 @@ import { IconComponent } from '../../shared/icon.component';
                 <td class="py-3 px-3 text-default-600">{{ snap.totalMemoryGb | number:'1.0-0' }} GB</td>
                 <td class="py-3 px-3 text-default-600">{{ snap.allocatedMemoryGb | number:'1.0-0' }} GB</td>
                 <td class="py-3 px-3">
-                  <span class="px-2 py-0.5 rounded bg-content3 text-foreground font-mono font-bold text-xs">{{ snap.licenseCoresCount }}</span>
+                  <span class="px-2 py-0.5 rounded bg-content3 text-foreground font-mono font-bold text-xs"
+                        [title]="snap.totalNodes ? '' : 'No node data in this snapshot'">{{ snap.totalNodes ? snap.licenseCoresCount : '—' }}</span>
                 </td>
                 <td class="py-3 px-3 text-default-500">{{ snap.totalNodes }} ({{ snap.workerNodes }} workers)</td>
               </tr>

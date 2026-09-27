@@ -43,17 +43,20 @@ public class ReportingService {
 
             switch (type) {
                 case LICENSE_AUDIT -> {
-                    writer.writeNext(new String[]{"Cluster Name", "Environment", "Owner Team", "Infrastructure", "Worker Nodes", "License Cores", "Collected At"});
+                    // Without node data the node and core counts are unknown: left empty, never written as 0
+                    writer.writeNext(new String[]{"Cluster Name", "Environment", "Owner Team", "Infrastructure", "Worker Nodes", "License Cores", "Collected At", "Node Data"});
                     for (ClusterSnapshot snap : latestSnapshots) {
                         Cluster c = snap.getCluster();
+                        boolean known = snap.hasNodeData();
                         writer.writeNext(new String[]{
                                 c.getClusterName(),
                                 c.getEnvironment() != null ? c.getEnvironment().name() : "N/A",
                                 c.getOwnerTeam() != null ? c.getOwnerTeam().getName() : "Unassigned",
                                 c.getInfrastructureType() != null ? c.getInfrastructureType().name() : "N/A",
-                                String.valueOf(snap.getWorkerNodes()),
-                                String.valueOf(snap.getLicenseCoresCount()),
-                                snap.getSnapshotTimestamp().format(formatter)
+                                known ? String.valueOf(snap.getWorkerNodes()) : "",
+                                known ? String.valueOf(snap.getLicenseCoresCount()) : "",
+                                snap.getSnapshotTimestamp().format(formatter),
+                                known ? "YES" : "MISSING"
                         });
                     }
                 }

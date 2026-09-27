@@ -22,8 +22,10 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -102,6 +104,12 @@ public class NodeAgentReportService {
                         report.getCollectedAt(), report.getReceivedAt(), report.getNodeCount(),
                         clusterNames.contains(report.getClusterName()), isFresh(report)))
                 .toList();
+    }
+
+    /** {@link #statuses()} by cluster name. */
+    @Transactional(readOnly = true)
+    public Map<String, NodeAgentStatusDto> statusesByCluster() {
+        return statuses().stream().collect(Collectors.toMap(NodeAgentStatusDto::clusterName, Function.identity()));
     }
 
     private boolean isFresh(NodeAgentReport report) {

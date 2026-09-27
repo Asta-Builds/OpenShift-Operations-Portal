@@ -71,4 +71,12 @@ public class ClusterSnapshot {
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    /**
+     * Whether the snapshot knows the cluster's nodes. Every running cluster has at least one node, so zero nodes means
+     * none were reported (a live cluster without a fresh node agent report), and its license cores are unknown, not 0.
+     */
+    public boolean hasNodeData() {
+        return totalNodes != null && totalNodes > 0;
+    }
 }

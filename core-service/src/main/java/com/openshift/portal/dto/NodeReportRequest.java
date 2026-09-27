@@ -38,8 +38,9 @@ public class NodeReportRequest {
     @NotNull
     private Instant collectedAt;
 
+    /** A running cluster always has at least one node, so an empty list is a broken report, not an empty cluster. */
     @NotNull
-    @Size(max = 10000)
+    @Size(min = 1, max = 10000)
     private List<@Valid @NotNull Node> nodes;
 
     @Data

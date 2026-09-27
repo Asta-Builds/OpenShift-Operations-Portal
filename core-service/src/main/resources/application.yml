@@ -34,6 +34,8 @@ openshift:
     licensing:
       default-core-multiplier: 1.0
       bare-metal-socket-factor: 16
+      licensed-cap-cores: 500
+      watermark-period-days: 365
 
 # Resilience4j for ACM Hub calls: each hub gets its own circuit breaker and retry built from these configs
 resilience4j:

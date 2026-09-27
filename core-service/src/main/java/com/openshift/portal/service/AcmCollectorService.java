@@ -45,6 +45,7 @@ public class AcmCollectorService {
     private final HubResilience hubResilience;
     private final AcmProperties properties;
     private final NodeAgentReportService nodeAgentReports;
+    private final LicensingService licensingService;
 
     /**
      * Periodic scheduled collection across all configured ACM Hubs; the lock keeps each cycle to one replica.
@@ -83,6 +84,10 @@ public class AcmCollectorService {
             if (run.getStatus() != SyncStatus.SUCCESS) {
                 hubsNeedingAttention.add(hub.getName() + " (" + run.getStatus() + ")");
             }
+        }
+
+        if (snapshotsCreated > 0) {
+            recordWatermark();
         }
 
         long duration = System.currentTimeMillis() - start;
@@ -178,6 +183,15 @@ public class AcmCollectorService {
         run.setStatus(failed == 0 ? SyncStatus.SUCCESS : ok > 0 ? SyncStatus.PARTIAL : SyncStatus.FAILED);
         if (failed > 0) {
             run.setErrorMessage(failed + " of " + (ok + failed) + " clusters could not be collected");
+        }
+    }
+
+    /** The snapshots are stored already, so a failed watermark update only loses that value, not the collection. */
+    private void recordWatermark() {
+        try {
+            licensingService.recordDailyWatermark();
+        } catch (Exception e) {
+            log.warn("Could not update today's license watermark: {}", describe(e));
         }
     }
 
