@@ -44,7 +44,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Paths are relative to the servlet context path (/api/v1); the first matching rule wins
                         .requestMatchers(mvc.pattern("/actuator/health/**"), mvc.pattern("/actuator/info"),
-                                mvc.pattern("/auth/config"), mvc.pattern("/error")).permitAll()
+                                mvc.pattern("/auth/config"), mvc.pattern("/error"),
+                                mvc.pattern("/v3/api-docs/**"), mvc.pattern("/swagger-ui/**"),
+                                mvc.pattern("/swagger-ui.html")).permitAll()
                         .requestMatchers(mvc.pattern("/auth/me")).authenticated()
                         .requestMatchers(mvc.pattern("/actuator/**"), mvc.pattern("/simulator/**")).hasRole("ADMIN")
                         .requestMatchers(mvc.pattern(HttpMethod.POST, "/reports")).hasRole("ADMIN")

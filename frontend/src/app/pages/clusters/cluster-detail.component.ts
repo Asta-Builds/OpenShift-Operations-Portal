@@ -86,7 +86,7 @@ import { IconComponent } from '../../shared/icon.component';
             </div>
           </div>
           <div class="text-lg font-bold text-foreground">
-            {{ cluster.latestSnapshot?.allocatedCpuCores || 0 }} Cores
+            {{ (cluster.latestSnapshot?.allocatedCpuCores || 0) | number: '1.0-2' }} Cores
           </div>
           <div class="text-xs text-default-400">{{ cluster.latestSnapshot?.allocatedMemoryGb | number:'1.0-0' }} GB RAM allocated</div>
         </div>
@@ -216,7 +216,7 @@ import { IconComponent } from '../../shared/icon.component';
               <tr *ngFor="let snap of cluster.recentSnapshots" class="hover:bg-content2/50 transition-colors">
                 <td class="py-3 px-3 text-default-500 font-mono text-[11px]">{{ snap.snapshotTimestamp }}</td>
                 <td class="py-3 px-3 font-bold text-foreground">{{ snap.totalCpuCores }}</td>
-                <td class="py-3 px-3 text-default-600">{{ snap.allocatedCpuCores }}</td>
+                <td class="py-3 px-3 text-default-600">{{ snap.allocatedCpuCores | number: '1.0-2' }}</td>
                 <td class="py-3 px-3 text-default-600">{{ snap.totalMemoryGb | number:'1.0-0' }} GB</td>
                 <td class="py-3 px-3 text-default-600">{{ snap.allocatedMemoryGb | number:'1.0-0' }} GB</td>
                 <td class="py-3 px-3">

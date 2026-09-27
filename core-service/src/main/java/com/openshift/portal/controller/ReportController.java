@@ -6,6 +6,7 @@ import com.openshift.portal.domain.enums.ReportType;
 import com.openshift.portal.repository.SavedReportRepository;
 import com.openshift.portal.service.PdfReportGeneratorService;
 import com.openshift.portal.service.ReportingService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/reports")
 @RequiredArgsConstructor
+@Tag(name = "Reports", description = "Operational reporting, saved reports configuration, and CSV/PDF export")
 public class ReportController {
 
     private final ReportingService reportingService;

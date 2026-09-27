@@ -127,6 +127,12 @@ public class LiveAcmHubClient implements AcmHubClient {
             return ClusterObservation.failed(cluster.name(),
                     "ManagedCluster " + cluster.name() + " is not available on its hub");
         }
+        // Every running cluster has pods with requests, so no series at all means missing data, not zero: storing
+        // zeros would distort utilization and forecasts, while a failed read keeps the last known values
+        if (metrics != null && metrics.cpuRequests().getOrDefault(cluster.name(), Map.of()).isEmpty()) {
+            return ClusterObservation.failed(cluster.name(), "ACM Observability returned no request series for cluster "
+                    + cluster.name() + "; its metrics are delayed or not collected");
+        }
         NamespaceInventory namespaces = namespaces(cluster.name(), metrics, labels);
         BigDecimal cpuRequests = BigDecimal.ZERO;
         BigDecimal memoryRequests = BigDecimal.ZERO;

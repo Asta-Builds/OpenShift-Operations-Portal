@@ -46,7 +46,7 @@ class LiveAcmHubClientTest {
     private volatile int managedClustersStatus = 200;
     private volatile int searchStatus = 200;
     private final AcmProperties properties = new AcmProperties();
-    private Map<String, String> promQlAnswers;
+    private volatile Map<String, String> promQlAnswers;
     private LiveAcmHubClient client;
     private AcmHub hub;
 
@@ -199,6 +199,19 @@ class LiveAcmHubClientTest {
         assertThat(inventory.complete()).isFalse();
         assertThat(inventory.namespaces()).hasSize(4).allSatisfy(ns -> assertThat(ns.labels()).isNull());
         assertThat(authorizationByPath).doesNotContainKey("search");
+    }
+
+    @Test
+    void clusterWithoutRequestSeriesIsFailedRatherThanZero() {
+        // Observability answers, but its series for prod-east are missing (scrape gap, collector down)
+        Map<String, String> answers = new java.util.HashMap<>(promQlAnswers);
+        answers.put(properties.getAcm().getQueries().getNamespaceCpuRequests(), vector(""));
+        promQlAnswers = answers;
+
+        ClusterObservation prod = client.fetchClusters(hub).get(0);
+
+        assertThat(prod.isFailed()).isTrue();
+        assertThat(prod.error()).contains("no request series").contains("prod-east");
     }
 
     @Test

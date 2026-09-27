@@ -8,6 +8,7 @@ import com.openshift.portal.dto.RegisterHubRequest;
 import com.openshift.portal.exception.ResourceNotFoundException;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.HubSyncRunRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -22,6 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/hubs")
 @RequiredArgsConstructor
+@Tag(name = "ACM Hubs", description = "Advanced Cluster Management hubs registration, synchronization, and telemetry status")
 public class HubController {
 
     private final AcmHubRepository acmHubRepository;

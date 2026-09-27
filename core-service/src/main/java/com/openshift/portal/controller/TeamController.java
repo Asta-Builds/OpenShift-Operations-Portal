@@ -3,6 +3,7 @@ package com.openshift.portal.controller;
 import com.openshift.portal.dto.TeamDto;
 import com.openshift.portal.dto.TeamRequests;
 import com.openshift.portal.service.TeamService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/teams")
 @RequiredArgsConstructor
+@Tag(name = "Teams", description = "Team management and namespace alias mapping")
 public class TeamController {
 
     private final TeamService teamService;

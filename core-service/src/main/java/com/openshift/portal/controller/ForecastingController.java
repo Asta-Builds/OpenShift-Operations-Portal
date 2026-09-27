@@ -2,6 +2,7 @@ package com.openshift.portal.controller;
 
 import com.openshift.portal.dto.ForecastingProjectionDto;
 import com.openshift.portal.service.ForecastingService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/forecasting")
 @RequiredArgsConstructor
+@Tag(name = "Capacity Forecasting", description = "Historical utilization trends and capacity exhaustion projection engine")
 public class ForecastingController {
 
     private final ForecastingService forecastingService;

@@ -120,7 +120,7 @@ import { IconComponent } from '../../shared/icon.component';
                   {{ cluster.openshiftVersion || 'N/A' }}
                 </td>
                 <td class="py-3.5 px-3">
-                  <span class="font-bold text-foreground">{{ cluster.allocatedCores }}</span>
+                  <span class="font-bold text-foreground">{{ cluster.allocatedCores | number: '1.0-2' }}</span>
                   <span class="text-default-400"> / {{ cluster.totalCores }}</span>
                 </td>
                 <td class="py-3.5 px-3">

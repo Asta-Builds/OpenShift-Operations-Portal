@@ -1,6 +1,7 @@
 package com.openshift.portal.controller;
 
 import com.openshift.portal.service.AcmSimulatorService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import java.util.Map;
 @RequestMapping("/simulator")
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "openshift.portal.simulator", name = "enabled", havingValue = "true")
+@Tag(name = "Simulator", description = "Synthetic fleet telemetry generator and chaos injection controls")
 public class SimulatorController {
 
     private final AcmSimulatorService simulatorService;

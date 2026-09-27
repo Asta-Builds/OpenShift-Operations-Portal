@@ -86,7 +86,7 @@ import { IconComponent } from '../../shared/icon.component';
           <div>
             <div class="flex items-baseline gap-2">
               <span class="text-3xl font-extrabold tracking-tight text-foreground">
-                {{ overview?.allocatedCpuCores || 0 }}
+                {{ (overview?.allocatedCpuCores || 0) | number: '1.0-2' }}
               </span>
               <span class="text-xs text-default-500">/ {{ overview?.totalCpuCores || 0 }} Cores</span>
             </div>
@@ -99,7 +99,7 @@ import { IconComponent } from '../../shared/icon.component';
             </div>
             <div class="flex items-center justify-between text-[11px] text-default-400 mt-1.5">
               <span class="font-medium text-foreground">{{ overview?.cpuUtilizationPercent || 0 }}% Fleet Utilized</span>
-              <span>{{ (overview?.totalCpuCores || 0) - (overview?.allocatedCpuCores || 0) }} Cores Free</span>
+              <span>{{ (overview?.totalCpuCores || 0) - (overview?.allocatedCpuCores || 0) | number: '1.0-2' }} Cores Free</span>
             </div>
           </div>
         </div>
@@ -375,7 +375,7 @@ import { IconComponent } from '../../shared/icon.component';
                   </span>
                 </td>
                 <td class="py-3.5 px-3">
-                  <span class="font-bold text-foreground">{{ cluster.allocatedCores }}</span>
+                  <span class="font-bold text-foreground">{{ cluster.allocatedCores | number: '1.0-2' }}</span>
                   <span class="text-default-400"> / {{ cluster.totalCores }}</span>
                 </td>
                 <td class="py-3.5 px-3">

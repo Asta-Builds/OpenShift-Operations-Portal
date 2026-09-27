@@ -14,6 +14,7 @@ import com.openshift.portal.exception.ResourceNotFoundException;
 import com.openshift.portal.repository.*;
 import com.openshift.portal.service.AcmCollectorService;
 import com.openshift.portal.service.AttributionService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clusters")
 @RequiredArgsConstructor
+@Tag(name = "Clusters", description = "Cluster inventory, capacity metrics, snapshots, and collection triggers")
 public class ClusterController {
 
     private final ClusterRepository clusterRepository;

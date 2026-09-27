@@ -74,7 +74,7 @@ import { IconComponent } from '../../shared/icon.component';
               <app-icon name="cpu" [size]="16"></app-icon>
             </div>
           </div>
-          <div class="text-3xl font-extrabold text-foreground">{{ projection.currentCores }} Cores</div>
+          <div class="text-3xl font-extrabold text-foreground">{{ projection.currentCores | number: '1.0-2' }} Cores</div>
           <div class="text-xs text-default-400">RAM: {{ projection.currentMemoryGb | number:'1.0-0' }} GB Active</div>
         </div>
 
@@ -85,7 +85,7 @@ import { IconComponent } from '../../shared/icon.component';
               <app-icon name="trending-up" [size]="16"></app-icon>
             </div>
           </div>
-          <div class="text-3xl font-extrabold text-foreground">{{ projection.projectedCores }} Cores</div>
+          <div class="text-3xl font-extrabold text-foreground">{{ projection.projectedCores | number: '1.0-2' }} Cores</div>
           <div class="text-xs text-warning font-semibold">+{{ projection.estimatedGrowthPercent | number:'1.1-1' }}% Growth Forecast</div>
         </div>
 
@@ -120,7 +120,7 @@ import { IconComponent } from '../../shared/icon.component';
             <h3 class="text-base font-bold text-foreground">Future Capacity Telemetry Checkpoints</h3>
             <p class="text-xs text-default-400 mt-0.5">Projected linear regression checkpoints for capacity planning</p>
           </div>
-          <span class="text-xs text-success font-medium">Model R² Confidence: {{ (projection.coresRSquared || 0.92) * 100 | number:'1.0-0' }}%</span>
+          <span class="text-xs text-success font-medium">Model R² Confidence: {{ projection.coresRSquared !== null ? (projection.coresRSquared * 100 | number:'1.0-0') + '%' : 'n/a' }}</span>
         </div>
 
         <div class="w-full overflow-x-auto">
@@ -137,7 +137,7 @@ import { IconComponent } from '../../shared/icon.component';
             <tbody class="divide-y divide-divider/40">
               <tr *ngFor="let point of projection.projectedPoints" class="hover:bg-content2/50 transition-colors">
                 <td class="py-3 px-3 font-mono font-bold text-foreground">{{ point.date }}</td>
-                <td class="py-3 px-3 font-semibold text-foreground">{{ point.cores }} Cores</td>
+                <td class="py-3 px-3 font-semibold text-foreground">{{ point.cores | number: '1.0-2' }} Cores</td>
                 <td class="py-3 px-3 text-default-600">{{ point.memoryGb | number:'1.0-0' }} GB</td>
                 <td class="py-3 px-3 text-default-400">{{ projection.totalCapacityCores }} Cores</td>
                 <td class="py-3 px-3 text-right">

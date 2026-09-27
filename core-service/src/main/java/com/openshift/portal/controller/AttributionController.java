@@ -3,6 +3,7 @@ package com.openshift.portal.controller;
 import com.openshift.portal.domain.enums.Environment;
 import com.openshift.portal.dto.AttributionReportDto;
 import com.openshift.portal.service.AttributionService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/attribution")
 @RequiredArgsConstructor
+@Tag(name = "Attribution", description = "Cost center and team capacity attribution analysis")
 public class AttributionController {
 
     /** Period used when none is given: the last 30 days, today included. */

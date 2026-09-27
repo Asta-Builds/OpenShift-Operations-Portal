@@ -102,7 +102,7 @@ class ForecastingServiceTest {
 
         assertThat(projection.getHistoricalPoints())
                 .extracting(ForecastingProjectionDto.TrendPointDto::getCores)
-                .containsExactly(150, 190);
+                .containsExactly(150.0, 190.0);
         assertThat(projection.getCurrentCores()).isEqualTo(190);
         assertThat(projection.getTotalCapacityCores()).isEqualTo(600);
     }
@@ -125,7 +125,7 @@ class ForecastingServiceTest {
 
         assertThat(projection.getHistoricalPoints())
                 .extracting(ForecastingProjectionDto.TrendPointDto::getCores)
-                .containsExactly(150, 160, 190);
+                .containsExactly(150.0, 160.0, 190.0);
     }
 
     @Test

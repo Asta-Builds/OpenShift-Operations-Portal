@@ -6,6 +6,7 @@ import com.openshift.portal.dto.FleetOverviewDto;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/fleet")
 @RequiredArgsConstructor
+@Tag(name = "Fleet Overview", description = "Multi-cluster fleet aggregated capacity metrics and ACM hubs status")
 public class FleetController {
 
     private final ClusterRepository clusterRepository;

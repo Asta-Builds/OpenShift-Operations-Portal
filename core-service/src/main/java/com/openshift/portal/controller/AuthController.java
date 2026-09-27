@@ -3,6 +3,7 @@ package com.openshift.portal.controller;
 import com.openshift.portal.config.AcmProperties;
 import com.openshift.portal.dto.AuthConfigDto;
 import com.openshift.portal.dto.CurrentUserDto;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
+@Tag(name = "Authentication", description = "OIDC Keycloak authentication endpoints and user profile")
 public class AuthController {
 
     private static final String ROLE_PREFIX = "ROLE_";
