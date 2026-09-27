@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-operations-portal-core
+  labels:
+    app: openshift-operations-portal
+    component: core-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: openshift-operations-portal
+      component: core-service
+  template:
+    metadata:
+      labels:
+        app: openshift-operations-portal
+        component: core-service
+    spec:
+      containers:
+        - name: core-service
+          image: image-registry.openshift-image-registry.svc:5000/openshift-portal/core-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: portal-core-config
+            - secretRef:
+                name: portal-core-secrets
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /api/v1/actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/v1/actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10

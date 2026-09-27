@@ -1,0 +1,75 @@
+<div class="layout-wrapper">
+  <!-- Top Global Header -->
+  <header class="top-header">
+    <div class="brand">
+      <div class="logo-accent"></div>
+      <div class="brand-text">
+        <span class="brand-title">OpenShift Operations Portal</span>
+        <span class="brand-sub">Multi-Cluster ACM Hub Fleet Management</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="hub-status-pill">
+        <span class="status-dot"></span>
+        <span>2 ACM Hubs Active</span>
+      </div>
+
+      <div class="user-profile">
+        <app-icon name="users" [size]="16"></app-icon>
+        <span class="role-badge">Platform Operator</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="body-layout">
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar">
+      <nav class="nav-menu">
+        <a routerLink="/overview" routerLinkActive="active" class="nav-item">
+          <app-icon name="dashboard" [size]="18"></app-icon>
+          <span>Fleet Overview</span>
+        </a>
+
+        <a routerLink="/clusters" routerLinkActive="active" class="nav-item">
+          <app-icon name="server" [size]="18"></app-icon>
+          <span>Cluster Inventory</span>
+        </a>
+
+        <a routerLink="/licensing" routerLinkActive="active" class="nav-item">
+          <app-icon name="shield-check" [size]="18"></app-icon>
+          <span>Licensing & Cores</span>
+        </a>
+
+        <a routerLink="/forecasting" routerLinkActive="active" class="nav-item">
+          <app-icon name="trending-up" [size]="18"></app-icon>
+          <span>Growth Forecast</span>
+        </a>
+
+        <a routerLink="/reports" routerLinkActive="active" class="nav-item">
+          <app-icon name="file-text" [size]="18"></app-icon>
+          <span>Reports & Dispatch</span>
+        </a>
+
+        <div class="nav-separator"></div>
+
+        <a routerLink="/simulator" routerLinkActive="active" class="nav-item">
+          <app-icon name="activity" [size]="18"></app-icon>
+          <span>ACM Simulator</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="version-tag">
+          <app-icon name="layers" [size]="14"></app-icon>
+          <span>Air-Gapped Edition v1.0</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

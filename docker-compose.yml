@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Snapshots & Historical Metrics
+  postgres:
+    image: postgres:15-alpine
+    container_name: ocp-portal-postgres
+    environment:
+      POSTGRES_DB: openshift_portal
+      POSTGRES_USER: portal_user
+      POSTGRES_PASSWORD: portal_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal_user -d openshift_portal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ Broker for Asynchronous Report Generation and Queue Dispatch
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ocp-portal-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak IAM with LDAP Federation Support
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: ocp-portal-keycloak
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+
+  # OpenShift Operations Portal Core Service
+  core-service:
+    build:
+      context: ./core-service
+      dockerfile: Dockerfile
+    container_name: ocp-portal-core
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/openshift_portal
+      SPRING_DATASOURCE_USERNAME: portal_user
+      SPRING_DATASOURCE_PASSWORD: portal_secret
+      KEYCLOAK_ISSUER_URI: http://keycloak:8081/realms/openshift-portal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Angular Operations Portal Frontend & Nginx Proxy
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ocp-portal-ui
+    ports:
+      - "4200:80"
+    depends_on:
+      - core-service
+
+volumes:
+  postgres_data:
+

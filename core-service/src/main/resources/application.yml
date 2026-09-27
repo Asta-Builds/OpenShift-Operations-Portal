@@ -1,0 +1,58 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: openshift-operations-portal
+  profiles:
+    active: dev
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+# ACM Hub Collection & Simulator Configuration
+openshift:
+  portal:
+    collector:
+      enabled: true
+      # Every 15 minutes by default
+      cron: "0 */15 * * * *"
+      connect-timeout-ms: 5000
+      read-timeout-ms: 10000
+    simulator:
+      enabled: true
+      default-clusters: 5
+    licensing:
+      default-core-multiplier: 1.0
+      bare-metal-socket-factor: 16
+
+# Resilience4j Circuit Breaker & Retry for ACM Hub calls
+resilience4j:
+  circuitbreaker:
+    instances:
+      acmHubService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      acmHubService:
+        max-attempts: 3
+        wait-duration: 2s
+        exponential-backoff-multiplier: 2
+
+# Actuator Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
