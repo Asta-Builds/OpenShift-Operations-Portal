@@ -5,6 +5,7 @@ import com.openshift.portal.domain.entity.AcmHub;
 import com.openshift.portal.domain.entity.HubSyncRun;
 import com.openshift.portal.dto.AcmHubSummaryDto;
 import com.openshift.portal.dto.RegisterHubRequest;
+import com.openshift.portal.dto.UpdateHubRequest;
 import com.openshift.portal.exception.ResourceNotFoundException;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.HubSyncRunRepository;
@@ -49,6 +50,26 @@ public class HubController {
                 .searchUrl(request.getSearchUrl())
                 .build());
         return ResponseEntity.status(HttpStatus.CREATED).body(toSummary(hub));
+    }
+
+    /** Admin only. Changes the hub's endpoints or credentials Secret while keeping its clusters and history. */
+    @PatchMapping("/{id}")
+    public ResponseEntity<AcmHubSummaryDto> updateHub(@PathVariable UUID id, @Valid @RequestBody UpdateHubRequest request) {
+        AcmHub hub = acmHubRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ACM hub not found with ID: " + id));
+        if (request.getApiUrl() != null) {
+            hub.setApiUrl(request.getApiUrl());
+        }
+        if (request.getCredentialsSecretRef() != null) {
+            hub.setCredentialsSecretRef(request.getCredentialsSecretRef());
+        }
+        if (request.getObservabilityUrl() != null) {
+            hub.setObservabilityUrl(request.getObservabilityUrl().isEmpty() ? null : request.getObservabilityUrl());
+        }
+        if (request.getSearchUrl() != null) {
+            hub.setSearchUrl(request.getSearchUrl().isEmpty() ? null : request.getSearchUrl());
+        }
+        return ResponseEntity.ok(toSummary(acmHubRepository.save(hub)));
     }
 
     /** Removes the hub together with its clusters and their snapshots. */

@@ -1,0 +1,19 @@
+# Runs the portal against the kind hub lab instead of the simulator:
+#   docker compose -f docker-compose.yml -f hub-lab/docker-compose.hub-lab.yml up -d core-service
+# It uses its own database (openshift_portal_lab), so the simulator's data is left as it is; start without this file
+# to go back to the simulator.
+services:
+  core-service:
+    environment:
+      OPENSHIFT_PORTAL_SIMULATOR_ENABLED: "false"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/openshift_portal_lab
+    volumes:
+      # Hub Secrets as the portal would mount them on OpenShift: <secret-name>/{token,ca.crt}
+      - ./hub-lab/.state/credentials:/var/run/secrets/acm-hubs:ro
+    networks:
+      - default
+      - kind
+
+networks:
+  kind:
+    external: true

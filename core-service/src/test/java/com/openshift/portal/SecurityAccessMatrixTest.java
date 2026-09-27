@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.PATCH;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -145,17 +146,33 @@ class SecurityAccessMatrixTest {
         String hub = "{\"name\":\"hub-matrix\",\"apiUrl\":\"https://api.hub-matrix.example.com:6443\","
                 + "\"credentialsSecretRef\":\"hub-matrix-credentials\"}";
 
-        mockMvc.perform(post("/hubs").with(token("alice-id", "portal-admin"))
+        String created = mockMvc.perform(post("/hubs").with(token("alice-id", "portal-admin"))
                         .contentType(MediaType.APPLICATION_JSON).content(hub))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("hub-matrix"))
-                .andExpect(jsonPath("$.credentialsSecretRef").value("hub-matrix-credentials"));
+                .andExpect(jsonPath("$.credentialsSecretRef").value("hub-matrix-credentials"))
+                .andReturn().getResponse().getContentAsString();
+        String id = com.jayway.jsonpath.JsonPath.read(created, "$.id");
         mockMvc.perform(post("/hubs").with(token("alice-id", "portal-admin"))
                         .contentType(MediaType.APPLICATION_JSON).content(hub))
                 .andExpect(status().isConflict());
         mockMvc.perform(post("/hubs").with(token("alice-id", "portal-admin"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"bad\",\"apiUrl\":\"ftp://x\",\"credentialsSecretRef\":\"../etc\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(request(PATCH, "/hubs/{id}", id).with(token("bob-id", "portal-operator"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"searchUrl\":\"https://search.example.com\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(request(PATCH, "/hubs/{id}", id).with(token("alice-id", "portal-admin"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"searchUrl\":\"https://search.example.com/searchapi/graphql\",\"observabilityUrl\":\"\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.searchUrl").value("https://search.example.com/searchapi/graphql"))
+                .andExpect(jsonPath("$.observabilityUrl").doesNotExist())
+                .andExpect(jsonPath("$.credentialsSecretRef").value("hub-matrix-credentials"));
+        mockMvc.perform(request(PATCH, "/hubs/{id}", id).with(token("alice-id", "portal-admin"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"apiUrl\":\"ftp://x\"}"))
                 .andExpect(status().isBadRequest());
     }
 

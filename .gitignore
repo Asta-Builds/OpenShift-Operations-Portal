@@ -39,4 +39,5 @@ desktop.ini
 logs/
 tmp/
 temp/
-hub-lab/
+# Hub lab credentials, tokens and kubeconfigs (the lab scripts themselves are tracked)
+hub-lab/.state/

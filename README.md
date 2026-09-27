@@ -131,6 +131,8 @@ Both extra endpoints are optional:
 * **`observabilityUrl`** (ACM Observability, `rbac-query-proxy` route): per-namespace CPU and memory requests, usage and PVC requests. A cluster's requested CPU, memory and storage are the sums over its namespaces, so team attribution always reconciles with cluster totals. Requests come from the `namespace_cpu:` / `namespace_memory:kube_pod_container_resource_requests:sum` recording rules, which count running and pending pods only. Metric names differ between ACM versions, so every query can be replaced under `openshift.portal.acm.queries.*`; add any metric your hub does not keep to the `observability-metrics-custom-allowlist` ConfigMap.
 * **`searchUrl`** (ACM Search GraphQL API; expose the `search-search-api` service with a route): namespace labels, and so ownership. Without it namespaces are still measured but stay Unattributed. If Search fails during a collection, the ownership recorded earlier is kept.
 
+To try this without an ACM hub, [hub-lab/README.md](hub-lab/README.md) builds a local Open Cluster Management hub with two managed clusters and stand-ins for Observability and Search.
+
 ### Owner attribution
 
 Each namespace's owner comes from its `openshift.io/owner-team` label and its cost center from `cost-center` (set `openshift.portal.attribution.owner-label` and `cost-center-label` to use your own keys; an organisation-owned prefix is recommended). An owner value maps to a team when it equals the team's name with case and punctuation ignored (`payments-platform` matches "Payments Platform"), or one of the team's aliases. Admins add aliases on the Cost Attribution page or with `POST /api/v1/teams/{id}/aliases`; namespaces carrying the value move to the team immediately.
@@ -152,6 +154,7 @@ Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OP
 | `GET` | `/api/v1/fleet/overview` | VIEWER | Aggregated fleet cores, memory, utilization %, and cluster distributions |
 | `GET` | `/api/v1/hubs` | VIEWER | ACM hubs with status, failures in a row, circuit breaker state and latest sync run |
 | `POST` | `/api/v1/hubs` | ADMIN | Register an ACM hub (name, API URL, credentials Secret name, optional Observability and Search URLs) |
+| `PATCH` | `/api/v1/hubs/{id}` | ADMIN | Change a hub's API URL, credentials Secret, or Observability / Search URLs (empty string removes an optional URL), keeping its clusters and history |
 | `DELETE` | `/api/v1/hubs/{id}` | ADMIN | Remove a hub with its clusters and snapshots |
 | `GET` | `/api/v1/clusters` | VIEWER | List all registered clusters with latest metrics and owner details |
 | `GET` | `/api/v1/clusters/{id}` | VIEWER | Detailed cluster breakdown, node inventory, and historical snapshot trend |
