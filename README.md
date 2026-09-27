@@ -43,6 +43,8 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 │   ├── src/test/java/          # Comprehensive JUnit 5 & Mockito test suite
 │   ├── Dockerfile              # Multi-stage container build
 │   └── pom.xml                 # Maven build definition
+├── node-agent/                 # Spring Boot agent run in each managed cluster: reports its nodes to the portal
+│   └── deploy/                 # Namespace, read-only RBAC and Deployment for one managed cluster
 ├── frontend/                   # Angular 18 Single Page Dashboard
 │   ├── src/app/pages/          # Overview, Clusters, Licensing, Forecast, Reports, Simulator
 │   ├── src/app/shared/         # Pure Lucide SVG Icons Component
@@ -124,7 +126,7 @@ curl.exe -X POST http://localhost:4200/api/v1/hubs -H "Authorization: Bearer <to
   -d '{"name":"hub-east","apiUrl":"https://api.hub-east.example.com:6443","credentialsSecretRef":"hub-east-credentials","observabilityUrl":"https://rbac-query-proxy-open-cluster-management-observability.apps.hub-east.example.com","searchUrl":"https://search-api-open-cluster-management.apps.hub-east.example.com/searchapi/graphql"}'
 ```
 
-The next collection registers every `ManagedCluster` it finds. It reads capacity, platform, version and region from the cluster's status and ClusterClaims, and the environment from its `environment` label. Clusters that are not Available are recorded as failed for that run. Node inventory is not read yet, so live clusters show no nodes or license cores.
+The next collection registers every `ManagedCluster` it finds. It reads capacity, platform, version and region from the cluster's status and ClusterClaims, and the environment from its `environment` label. Clusters that are not Available are recorded as failed for that run. Hubs do not describe nodes: those come from the [node agent](#node-agent) in each managed cluster, and a live cluster without one shows no nodes or license cores.
 
 Both extra endpoints are optional:
 
@@ -132,6 +134,12 @@ Both extra endpoints are optional:
 * **`searchUrl`** (ACM Search GraphQL API; expose the `search-search-api` service with a route): namespace labels, and so ownership. Without it namespaces are still measured but stay Unattributed. If Search fails during a collection, the ownership recorded earlier is kept.
 
 To try this without an ACM hub, [hub-lab/README.md](hub-lab/README.md) builds a local Open Cluster Management hub with two managed clusters and stand-ins for Observability and Search.
+
+### Node agent
+
+License cores, watermarks and infrastructure correlation need each cluster's nodes, which ACM hubs do not provide. The [node agent](node-agent/README.md) runs in every managed cluster, lists its `Node` objects (name, role, CPU and memory capacity, `spec.providerID`) every 5 minutes and sends them to `POST /api/v1/node-reports`. The portal keeps the latest report of each cluster, and every collection copies its nodes into the cluster's snapshot while the report is younger than `openshift.portal.node-agent.max-report-age` (default `PT1H`). After that the cluster shows no nodes rather than nodes that may be gone. `GET /api/v1/node-reports` lists the agents' latest reports.
+
+Agents sign in to Keycloak with the client credentials grant. Their client's service account needs the `portal-node-agent` realm role, which allows sending node reports and nothing else. To keep one cluster's agent from reporting another cluster, give each cluster its own client with a hardcoded `portal_cluster` claim set to the cluster name: the portal then refuses reports for any other cluster. The sandbox realm has a `portal-node-agent` client with secret `node-agent-sandbox-secret`.
 
 ### Infrastructure inventory
 
@@ -153,7 +161,7 @@ Attribution values are averages over a period's collections that carried namespa
 
 ### Roles
 
-Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OPERATOR everything a VIEWER can. In Keycloak they are the realm roles `portal-admin`, `portal-operator` and `portal-viewer`; the sandbox realm maps LDAP groups of the same names to them. Tokens must be issued for the `portal-api` audience.
+Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OPERATOR everything a VIEWER can. In Keycloak they are the realm roles `portal-admin`, `portal-operator` and `portal-viewer`; the sandbox realm maps LDAP groups of the same names to them. Tokens must be issued for the `portal-api` audience. The NODE_AGENT role (`portal-node-agent`) stands apart: it is for node agents' service accounts, only sends node reports, and no other role includes it.
 
 ---
 
@@ -171,6 +179,8 @@ Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OP
 | `GET` | `/api/v1/clusters` | VIEWER | List all registered clusters with latest metrics and owner details |
 | `GET` | `/api/v1/clusters/{id}` | VIEWER | Detailed cluster breakdown, node inventory, and historical snapshot trend |
 | `POST` | `/api/v1/clusters/collect` | OPERATOR | Trigger immediate snapshot collection across all ACM Hubs |
+| `POST` | `/api/v1/node-reports` | NODE_AGENT | A cluster's nodes from its node agent (name, role, CPU, memory, providerID); replaces the cluster's previous report unless that one was read later |
+| `GET` | `/api/v1/node-reports` | VIEWER | Latest report of each node agent, with whether a hub reports its cluster and whether collections still use it |
 | `GET` | `/api/v1/attribution/teams?from=&to=&environment=` | VIEWER | Requests and usage by team and cost center over inclusive days (default: last 30), with the Unattributed bucket and the cluster-level totals they reconcile with |
 | `GET` | `/api/v1/teams` | VIEWER | Teams with their aliases and namespace counts |
 | `POST` | `/api/v1/teams` | ADMIN | Create a team (name, cost center, contact email) |
@@ -195,5 +205,7 @@ Run the automated test suite:
 
 ```powershell
 cd core-service
+.\mvnw.cmd test
+cd ..\node-agent
 .\mvnw.cmd test
 ```

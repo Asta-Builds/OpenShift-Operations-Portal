@@ -31,7 +31,8 @@ import java.util.TreeSet;
  *       A cluster's requested CPU, memory and storage are the sums over its namespaces;</li>
  *   <li>namespace labels, and so ownership, from ACM Search, when the hub has an endpoint for it.</li>
  * </ul>
- * Node inventory is not read yet (plan decision D2), so license cores cannot be counted for live clusters.
+ * Hubs do not describe nodes, so observations carry none; the collector adds them from the node agent running in
+ * each managed cluster (plan decision D2).
  */
 @Component
 @ConditionalOnProperty(prefix = "openshift.portal.simulator", name = "enabled", havingValue = "false")

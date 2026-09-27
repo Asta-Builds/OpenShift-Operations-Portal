@@ -8,7 +8,8 @@
     "realm": [
       { "name": "portal-admin", "description": "Everything, including hub registration, report schedules and the simulator" },
       { "name": "portal-operator", "description": "Viewer rights plus collections, exports and own saved reports" },
-      { "name": "portal-viewer", "description": "Read-only access to the portal dashboards" }
+      { "name": "portal-viewer", "description": "Read-only access to the portal dashboards" },
+      { "name": "portal-node-agent", "description": "Node agents only: report a cluster's nodes, nothing else" }
     ]
   },
   "clients": [
@@ -65,10 +66,43 @@
       ]
     },
     {
+      "clientId": "portal-node-agent",
+      "name": "Node agents (client credentials; sandbox secret, local sandbox only)",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "node-agent-sandbox-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "portal-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "portal-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "clientId": "portal-api",
       "name": "OpenShift Operations Portal API",
       "enabled": true,
       "bearerOnly": true
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-portal-node-agent",
+      "enabled": true,
+      "serviceAccountClientId": "portal-node-agent",
+      "realmRoles": ["portal-node-agent"]
     }
   ],
   "components": {

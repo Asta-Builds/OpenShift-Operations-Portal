@@ -49,6 +49,8 @@ public class SecurityConfig {
                                 mvc.pattern("/swagger-ui.html")).permitAll()
                         .requestMatchers(mvc.pattern("/auth/me")).authenticated()
                         .requestMatchers(mvc.pattern("/actuator/**"), mvc.pattern("/simulator/**")).hasRole("ADMIN")
+                        // Only node agents report nodes; the role grants nothing else, not even reading
+                        .requestMatchers(mvc.pattern(HttpMethod.POST, "/node-reports")).hasRole("NODE_AGENT")
                         .requestMatchers(mvc.pattern(HttpMethod.POST, "/reports")).hasRole("ADMIN")
                         .requestMatchers(mvc.pattern(HttpMethod.POST, "/clusters/collect"),
                                 mvc.pattern("/reports/export/**"), mvc.pattern("/reports/saved/**")).hasRole("OPERATOR")

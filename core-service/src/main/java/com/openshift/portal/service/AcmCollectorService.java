@@ -44,6 +44,7 @@ public class AcmCollectorService {
     private final ObjectProvider<AcmHubClient> hubClientProvider;
     private final HubResilience hubResilience;
     private final AcmProperties properties;
+    private final NodeAgentReportService nodeAgentReports;
 
     /**
      * Periodic scheduled collection across all configured ACM Hubs; the lock keeps each cycle to one replica.
@@ -163,7 +164,7 @@ public class AcmCollectorService {
                 continue;
             }
             try {
-                ingestionService.ingest(cluster, observation, timestamp, true);
+                ingestionService.ingest(cluster, withAgentNodes(observation), timestamp, true);
                 ok++;
             } catch (Exception e) {
                 failed++;
@@ -178,6 +179,17 @@ public class AcmCollectorService {
         if (failed > 0) {
             run.setErrorMessage(failed + " of " + (ok + failed) + " clusters could not be collected");
         }
+    }
+
+    /**
+     * Hubs describe clusters but not their nodes, so a live observation gets its nodes from the cluster's node agent
+     * while that agent's latest report is fresh. Observations that already carry nodes are kept as they are.
+     */
+    private ClusterObservation withAgentNodes(ClusterObservation observation) {
+        if (!observation.nodes().isEmpty()) {
+            return observation;
+        }
+        return nodeAgentReports.freshNodes(observation.clusterName()).map(observation::withNodes).orElse(observation);
     }
 
     private static String describe(Throwable t) {

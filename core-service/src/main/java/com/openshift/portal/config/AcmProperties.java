@@ -3,6 +3,8 @@ package com.openshift.portal.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
+
 @ConfigurationProperties(prefix = "openshift.portal")
 @Data
 public class AcmProperties {
@@ -13,6 +15,17 @@ public class AcmProperties {
     private Acm acm = new Acm();
     private Attribution attribution = new Attribution();
     private Inventory inventory = new Inventory();
+    private NodeAgent nodeAgent = new NodeAgent();
+
+    /** Node reports pushed by the node agent in each managed cluster (plan decision D2). */
+    @Data
+    public static class NodeAgent {
+        /**
+         * Collections use a cluster's latest report only while it is younger than this; after that the cluster is
+         * treated as having no node data rather than showing nodes that may no longer exist.
+         */
+        private Duration maxReportAge = Duration.ofHours(1);
+    }
 
     /**
      * Scheduled inventory import from a mounted folder: each {@code <source>.csv} (for example {@code cmdb.csv})

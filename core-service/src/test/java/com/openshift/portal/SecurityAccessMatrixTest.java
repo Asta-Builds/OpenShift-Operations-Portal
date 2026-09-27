@@ -62,7 +62,8 @@ class SecurityAccessMatrixTest {
         NO_PORTAL_ROLE("offline_access"),
         VIEWER("portal-viewer"),
         OPERATOR("portal-operator"),
-        ADMIN("portal-admin");
+        ADMIN("portal-admin"),
+        NODE_AGENT("portal-node-agent");
 
         private final String realmRole;
 
@@ -128,7 +129,17 @@ class SecurityAccessMatrixTest {
                 // Hub registration is admin only
                 arguments(POST, "/hubs", Caller.OPERATOR, 403),
                 arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.OPERATOR, 403),
-                arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.ADMIN, 404)
+                arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.ADMIN, 404),
+                // Only node agents report nodes (a 400 means authorized, as the matrix body is no node report);
+                // the agent role grants nothing else
+                arguments(POST, "/node-reports", Caller.ANONYMOUS, 401),
+                arguments(POST, "/node-reports", Caller.VIEWER, 403),
+                arguments(POST, "/node-reports", Caller.ADMIN, 403),
+                arguments(POST, "/node-reports", Caller.NODE_AGENT, 400),
+                arguments(GET, "/node-reports", Caller.VIEWER, 200),
+                arguments(GET, "/node-reports", Caller.NODE_AGENT, 403),
+                arguments(GET, "/fleet/overview", Caller.NODE_AGENT, 403),
+                arguments(POST, "/clusters/collect", Caller.NODE_AGENT, 403)
         );
     }
 
@@ -201,6 +212,31 @@ class SecurityAccessMatrixTest {
                 .andExpect(status().isConflict());
         mockMvc.perform(request(DELETE, "/teams/{id}/aliases/{alias}", id, "matrix-squad").with(token("alice-id", "portal-admin")))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void agentTokenBoundToAClusterMayOnlyReportThatCluster() throws Exception {
+        String report = """
+                {"clusterName":"%s","agentVersion":"1.0.0","collectedAt":"2026-09-27T18:00:00Z",
+                 "nodes":[{"name":"worker-0","role":"WORKER","cpuCores":16,"memoryGb":64,"providerId":null}]}
+                """;
+        RequestPostProcessor boundToEast = jwt()
+                .jwt(jwt -> jwt.subject("service-account-node-agent-east")
+                        .claim("realm_access", Map.of("roles", List.of("portal-node-agent")))
+                        .claim("portal_cluster", "matrix-east"))
+                .authorities(new KeycloakRealmRolesConverter());
+
+        mockMvc.perform(post("/node-reports").with(boundToEast)
+                        .contentType(MediaType.APPLICATION_JSON).content(report.formatted("matrix-east")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes").value(1));
+        mockMvc.perform(post("/node-reports").with(boundToEast)
+                        .contentType(MediaType.APPLICATION_JSON).content(report.formatted("matrix-west")))
+                .andExpect(status().isForbidden());
+        // Without the claim, one agent client may serve several clusters
+        mockMvc.perform(post("/node-reports").with(token("service-account-portal-node-agent", "portal-node-agent"))
+                        .contentType(MediaType.APPLICATION_JSON).content(report.formatted("matrix-west")))
+                .andExpect(status().isOk());
     }
 
     @Test

@@ -7,6 +7,7 @@ on:
       - dev
     paths:
       - 'core-service/**'
+      - 'node-agent/**'
       - 'frontend/**'
       - '.github/workflows/unit-tests.yml'
   pull_request:
@@ -78,7 +79,46 @@ jobs:
           fi
 
   # =========================================================================
-  # 2. Angular Operations Portal Unit Tests & Build Verification
+  # 2. Node Agent Unit Tests & JaCoCo Coverage
+  # =========================================================================
+  node-agent-unit-tests:
+    name: Node Agent Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Eclipse Temurin JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Maven Unit Tests & Generate JaCoCo Coverage
+        working-directory: ./node-agent
+        run: ./mvnw clean test
+
+      - name: Upload Surefire Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-agent-surefire-test-results
+          path: ./node-agent/target/surefire-reports/
+          retention-days: 14
+
+      - name: Upload JaCoCo Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-agent-jacoco-coverage-report
+          path: ./node-agent/target/site/jacoco/
+          retention-days: 14
+
+  # =========================================================================
+  # 3. Angular Operations Portal Unit Tests & Build Verification
   # =========================================================================
   frontend-unit-tests:
     name: Frontend Unit Tests & Build (Angular)
@@ -117,13 +157,13 @@ jobs:
           retention-days: 14
 
   # =========================================================================
-  # 3. Aggregated Pipeline Verification
+  # 4. Aggregated Pipeline Verification
   # =========================================================================
   pipeline-success:
     name: Pipeline Verification Gate
-    needs: [backend-unit-tests, frontend-unit-tests]
+    needs: [backend-unit-tests, node-agent-unit-tests, frontend-unit-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Final Quality Gate
         run: |
-          echo "All unit tests and builds for Core Service and Frontend passed the CI Quality Gate!" >> $GITHUB_STEP_SUMMARY
+          echo "All unit tests and builds for Core Service, Node Agent and Frontend passed the CI Quality Gate!" >> $GITHUB_STEP_SUMMARY
