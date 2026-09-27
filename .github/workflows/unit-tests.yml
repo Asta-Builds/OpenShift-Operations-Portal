@@ -102,7 +102,7 @@ jobs:
 
       - name: Run Angular Unit Tests (Headless Chrome)
         working-directory: ./frontend
-        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
+        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI --code-coverage
 
       - name: Verify Production Bundle Build
         working-directory: ./frontend
