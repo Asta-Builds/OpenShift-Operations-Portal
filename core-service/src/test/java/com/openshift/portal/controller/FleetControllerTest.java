@@ -46,7 +46,7 @@ class FleetControllerTest {
 
         ClusterSnapshot snapshot = ClusterSnapshot.builder()
                 .totalCpuCores(128)
-                .allocatedCpuCores(64)
+                .allocatedCpuCores(BigDecimal.valueOf(64))
                 .totalMemoryGb(BigDecimal.valueOf(512.0))
                 .allocatedMemoryGb(BigDecimal.valueOf(256.0))
                 .totalStorageGb(BigDecimal.valueOf(2000.0))

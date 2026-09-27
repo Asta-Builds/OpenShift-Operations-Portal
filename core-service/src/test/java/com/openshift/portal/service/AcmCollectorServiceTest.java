@@ -183,7 +183,7 @@ class AcmCollectorServiceTest {
         when(clusterRepository.findByAcmHubId(hub.getId())).thenReturn(List.of());
         when(clusterRepository.save(any(Cluster.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(syncRunRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        ClusterObservation discovered = new ClusterObservation("prod-east", 48, 30, BigDecimal.valueOf(187),
+        ClusterObservation discovered = new ClusterObservation("prod-east", 48, BigDecimal.valueOf(30), BigDecimal.valueOf(187),
                 BigDecimal.valueOf(100), BigDecimal.ZERO, BigDecimal.ZERO, List.of(), null, "{}",
                 new ClusterMetadata("production", "AWS", "4.14.28", "us-east-1"), null);
         when(hubClient.fetchClusters(hub)).thenReturn(List.of(discovered));
@@ -235,7 +235,7 @@ class AcmCollectorServiceTest {
     }
 
     private static ClusterObservation observation(String clusterName) {
-        return new ClusterObservation(clusterName, 100, 60, BigDecimal.valueOf(400), BigDecimal.valueOf(240),
+        return new ClusterObservation(clusterName, 100, BigDecimal.valueOf(60), BigDecimal.valueOf(400), BigDecimal.valueOf(240),
                 BigDecimal.valueOf(4000), BigDecimal.valueOf(2000), List.of(), null, "{}", null, null);
     }
 }

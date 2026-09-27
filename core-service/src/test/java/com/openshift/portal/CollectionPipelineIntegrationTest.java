@@ -65,11 +65,11 @@ class CollectionPipelineIntegrationTest {
         }
 
         List<ClusterSnapshot> latest = snapshotRepository.findLatestSnapshotsForAllClusters();
-        int latestAllocatedCores = latest.stream().mapToInt(ClusterSnapshot::getAllocatedCpuCores).sum();
+        double latestAllocatedCores = latest.stream().mapToDouble(s -> s.getAllocatedCpuCores().doubleValue()).sum();
 
         ForecastingProjectionDto projection = forecastingService.generateProjection(30, null);
         assertThat(projection.isInsufficientData()).isFalse();
-        assertThat(projection.getCurrentCores()).isEqualTo(latestAllocatedCores);
+        assertThat(projection.getCurrentCores()).isCloseTo(latestAllocatedCores, org.assertj.core.api.Assertions.within(0.01));
 
         for (ClusterSnapshot snapshot : latest) {
             assertThat(nodeMetricsRepository.findBySnapshotId(snapshot.getId())).hasSize(snapshot.getTotalNodes());

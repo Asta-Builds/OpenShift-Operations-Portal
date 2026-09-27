@@ -327,7 +327,7 @@ public class AcmSimulatorService {
         return new ClusterObservation(
                 cluster.getClusterName(),
                 totalCores,
-                allocatedCores,
+                BigDecimal.valueOf(allocatedCores),
                 totalMem,
                 allocatedMem,
                 totalStorage,

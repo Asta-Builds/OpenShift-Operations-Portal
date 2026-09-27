@@ -141,7 +141,7 @@ public class LiveAcmHubClient implements AcmHubClient {
         return new ClusterObservation(
                 cluster.name(),
                 cluster.cpuCores(),
-                cpuRequests.setScale(0, RoundingMode.HALF_UP).intValue(),
+                cpuRequests,
                 cluster.memoryGb(),
                 memoryRequests,
                 metrics != null ? gigabytes(metrics.pvCapacity().get(cluster.name())) : BigDecimal.ZERO,

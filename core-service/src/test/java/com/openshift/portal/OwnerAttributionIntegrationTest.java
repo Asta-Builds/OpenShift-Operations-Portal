@@ -199,14 +199,14 @@ class OwnerAttributionIntegrationTest {
             cpu = cpu.add(ns.cpuRequestCores());
             memory = memory.add(ns.memoryRequestGb());
         }
-        ClusterObservation observation = new ClusterObservation(cluster.getClusterName(), 64, cpu.intValueExact(),
+        ClusterObservation observation = new ClusterObservation(cluster.getClusterName(), 64, cpu,
                 BigDecimal.valueOf(256), memory, BigDecimal.ZERO, BigDecimal.ZERO, List.of(),
                 new NamespaceInventory(List.of(namespaces), complete), "{}", null, null);
         ingestionService.ingest(cluster, observation, at, false);
     }
 
     private void ingestWithoutNamespaces(Cluster cluster, LocalDateTime at, int cpuRequests) {
-        ingestionService.ingest(cluster, new ClusterObservation(cluster.getClusterName(), 64, cpuRequests,
+        ingestionService.ingest(cluster, new ClusterObservation(cluster.getClusterName(), 64, BigDecimal.valueOf(cpuRequests),
                 BigDecimal.valueOf(256), BigDecimal.valueOf(100), BigDecimal.ZERO, BigDecimal.ZERO, List.of(),
                 null, "{}", null, null), at, false);
     }

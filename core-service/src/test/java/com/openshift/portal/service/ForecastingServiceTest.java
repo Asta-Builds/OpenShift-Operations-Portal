@@ -43,21 +43,21 @@ class ForecastingServiceTest {
         ClusterSnapshot s1 = ClusterSnapshot.builder()
                 .cluster(cluster)
                 .snapshotTimestamp(now.minusDays(20))
-                .allocatedCpuCores(100)
+                .allocatedCpuCores(BigDecimal.valueOf(100))
                 .allocatedMemoryGb(BigDecimal.valueOf(200.0))
                 .build();
 
         ClusterSnapshot s2 = ClusterSnapshot.builder()
                 .cluster(cluster)
                 .snapshotTimestamp(now.minusDays(10))
-                .allocatedCpuCores(110)
+                .allocatedCpuCores(BigDecimal.valueOf(110))
                 .allocatedMemoryGb(BigDecimal.valueOf(220.0))
                 .build();
 
         ClusterSnapshot s3 = ClusterSnapshot.builder()
                 .cluster(cluster)
                 .snapshotTimestamp(now)
-                .allocatedCpuCores(120)
+                .allocatedCpuCores(BigDecimal.valueOf(120))
                 .allocatedMemoryGb(BigDecimal.valueOf(240.0))
                 .build();
 
@@ -189,7 +189,7 @@ class ForecastingServiceTest {
         return ClusterSnapshot.builder()
                 .cluster(cluster)
                 .snapshotTimestamp(timestamp)
-                .allocatedCpuCores(allocatedCores)
+                .allocatedCpuCores(BigDecimal.valueOf(allocatedCores))
                 .totalCpuCores(totalCores)
                 .build();
     }

@@ -94,7 +94,7 @@ public class PdfReportGeneratorService {
                     table.addCell(createCell(c.getClusterName(), false));
                     table.addCell(createCell(c.getEnvironment() != null ? c.getEnvironment().name() : "N/A", false));
                     table.addCell(createCell(c.getInfrastructureType() != null ? c.getInfrastructureType().name() : "N/A", false));
-                    table.addCell(createCell(snap.getAllocatedCpuCores() + " / " + snap.getTotalCpuCores(), true));
+                    table.addCell(createCell(snap.getAllocatedCpuCores().stripTrailingZeros().toPlainString() + " / " + snap.getTotalCpuCores(), true));
                     table.addCell(createCell(snap.getAllocatedMemoryGb() + " / " + snap.getTotalMemoryGb() + " GB", true));
                     table.addCell(createCell(snap.getAllocatedStorageGb() + " / " + snap.getTotalStorageGb() + " GB", true));
                     table.addCell(createCell(String.valueOf(snap.getTotalNodes()), true));

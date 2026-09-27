@@ -142,7 +142,7 @@ class LiveAcmHubClientTest {
         BigDecimal namespaceCpu = prod.namespaces().namespaces().stream()
                 .map(NamespaceObservation::cpuRequestCores).reduce(BigDecimal.ZERO, BigDecimal::add);
         assertThat(namespaceCpu).isEqualByComparingTo("30.40");
-        assertThat(prod.allocatedCpuCores()).isEqualTo(30);
+        assertThat(prod.allocatedCpuCores()).isEqualByComparingTo("30.40");
         assertThat(prod.allocatedMemoryGb()).isEqualByComparingTo("100.00");
         assertThat(prod.allocatedStorageGb()).isEqualByComparingTo("500.00");
     }
@@ -182,7 +182,7 @@ class LiveAcmHubClientTest {
         ClusterObservation prod = client.fetchClusters(hub).get(0);
 
         assertThat(prod.isFailed()).isFalse();
-        assertThat(prod.allocatedCpuCores()).isEqualTo(30);
+        assertThat(prod.allocatedCpuCores()).isEqualByComparingTo("30.40");
         assertThat(prod.namespaces().complete()).isFalse();
         assertThat(prod.namespaces().namespaces()).allSatisfy(ns -> assertThat(ns.labels()).isNull());
         // Without Search only namespaces that have series are known
@@ -216,7 +216,7 @@ class LiveAcmHubClientTest {
         ClusterObservation prod = client.fetchClusters(hub).get(0);
 
         assertThat(prod.totalCpuCores()).isEqualTo(48);
-        assertThat(prod.allocatedCpuCores()).isZero();
+        assertThat(prod.allocatedCpuCores()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(prod.allocatedMemoryGb()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(prod.namespaces().namespaces()).hasSize(5)
                 .allSatisfy(ns -> assertThat(ns.cpuUsageCores()).isNull());

@@ -42,7 +42,7 @@ public class ClusterDetailDto {
         private Long id;
         private LocalDateTime snapshotTimestamp;
         private Integer totalCpuCores;
-        private Integer allocatedCpuCores;
+        private Double allocatedCpuCores;
         private Double totalMemoryGb;
         private Double allocatedMemoryGb;
         private Double totalStorageGb;

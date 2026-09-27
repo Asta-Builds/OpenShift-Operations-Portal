@@ -73,7 +73,7 @@ public class ReportingService {
                                 c.getEnvironment() != null ? c.getEnvironment().name() : "N/A",
                                 c.getOpenshiftVersion() != null ? c.getOpenshiftVersion() : "N/A",
                                 String.valueOf(snap.getTotalCpuCores()),
-                                String.valueOf(snap.getAllocatedCpuCores()),
+                                snap.getAllocatedCpuCores().toPlainString(),
                                 snap.getTotalMemoryGb() != null ? snap.getTotalMemoryGb().toString() : "0.00",
                                 snap.getAllocatedMemoryGb() != null ? snap.getAllocatedMemoryGb().toString() : "0.00",
                                 String.valueOf(snap.getTotalNodes()),

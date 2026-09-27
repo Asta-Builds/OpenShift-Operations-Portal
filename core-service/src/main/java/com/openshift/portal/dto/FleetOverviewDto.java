@@ -15,7 +15,7 @@ public class FleetOverviewDto {
     private long totalClusters;
     private long activeAcmHubs;
     private int totalCpuCores;
-    private int allocatedCpuCores;
+    private double allocatedCpuCores;
     private double cpuUtilizationPercent;
     private double totalMemoryGb;
     private double allocatedMemoryGb;

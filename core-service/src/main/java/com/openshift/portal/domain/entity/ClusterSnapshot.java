@@ -32,9 +32,10 @@ public class ClusterSnapshot {
     @Builder.Default
     private Integer totalCpuCores = 0;
 
-    @Column(name = "allocated_cpu_cores", nullable = false)
+    /** Requested CPU in cores, with fractions (a pod may request 250m). */
+    @Column(name = "allocated_cpu_cores", precision = 10, scale = 2, nullable = false)
     @Builder.Default
-    private Integer allocatedCpuCores = 0;
+    private BigDecimal allocatedCpuCores = BigDecimal.ZERO;
 
     @Column(name = "total_memory_gb", precision = 10, scale = 2, nullable = false)
     @Builder.Default

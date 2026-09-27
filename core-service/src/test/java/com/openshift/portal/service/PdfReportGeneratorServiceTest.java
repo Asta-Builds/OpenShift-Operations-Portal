@@ -49,7 +49,7 @@ class PdfReportGeneratorServiceTest {
                 .cluster(cluster)
                 .snapshotTimestamp(LocalDateTime.now())
                 .totalCpuCores(64)
-                .allocatedCpuCores(32)
+                .allocatedCpuCores(BigDecimal.valueOf(32))
                 .totalMemoryGb(BigDecimal.valueOf(256.0))
                 .allocatedMemoryGb(BigDecimal.valueOf(128.0))
                 .totalStorageGb(BigDecimal.valueOf(2000.0))

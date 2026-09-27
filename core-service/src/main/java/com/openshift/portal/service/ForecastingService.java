@@ -59,8 +59,8 @@ public class ForecastingService {
             lastKnownPerCluster.putAll(day.getValue());
             DailyAggregate agg = new DailyAggregate();
             for (ClusterSnapshot snap : lastKnownPerCluster.values()) {
-                agg.cores += (snap.getAllocatedCpuCores() != null && snap.getAllocatedCpuCores() > 0)
-                        ? snap.getAllocatedCpuCores()
+                agg.cores += (snap.getAllocatedCpuCores() != null && snap.getAllocatedCpuCores().signum() > 0)
+                        ? snap.getAllocatedCpuCores().doubleValue()
                         : (snap.getTotalCpuCores() != null ? snap.getTotalCpuCores() : 0);
                 agg.memoryGb += (snap.getAllocatedMemoryGb() != null && snap.getAllocatedMemoryGb().compareTo(BigDecimal.ZERO) > 0)
                         ? snap.getAllocatedMemoryGb().doubleValue()
@@ -88,12 +88,12 @@ public class ForecastingService {
             DailyAggregate agg = dailyData.get(date);
             double dayOffset = (double) ChronoUnit.DAYS.between(sortedDates.get(0), date);
             xValues.add(dayOffset);
-            yCoresValues.add((double) agg.cores);
+            yCoresValues.add(agg.cores);
             yMemoryValues.add(agg.memoryGb);
 
             historyPoints.add(ForecastingProjectionDto.TrendPointDto.builder()
                     .date(date)
-                    .cores(agg.cores)
+                    .cores(round2(agg.cores))
                     .memoryGb(Math.round(agg.memoryGb * 100.0) / 100.0)
                     .build());
         }
@@ -101,7 +101,7 @@ public class ForecastingService {
         DailyAggregate lastAgg = sortedDates.isEmpty()
                 ? new DailyAggregate()
                 : dailyData.get(sortedDates.get(sortedDates.size() - 1));
-        int currentCores = lastAgg.cores;
+        double currentCores = round2(lastAgg.cores);
         double currentMemory = lastAgg.memoryGb;
 
         // A trend needs at least two days; never invent history to fill the gap
@@ -127,11 +127,11 @@ public class ForecastingService {
         double memSlope = Math.max(0.0, memReg[0]);
 
         double projectedCoresRaw = currentCores + (coreSlope * horizonDays);
-        int projectedCores = (int) Math.round(projectedCoresRaw);
+        double projectedCores = round2(projectedCoresRaw);
         double projectedMemory = Math.round((currentMemory + (memSlope * horizonDays)) * 100.0) / 100.0;
 
         double growthPercent = (currentCores > 0)
-                ? Math.round(((double) (projectedCores - currentCores) / currentCores) * 10000.0) / 100.0
+                ? Math.round(((projectedCores - currentCores) / currentCores) * 10000.0) / 100.0
                 : 0.0;
 
         // Generate projected points at future weekly intervals
@@ -141,7 +141,7 @@ public class ForecastingService {
 
         for (int i = stepDays; i <= horizonDays; i += stepDays) {
             LocalDate futureDate = currentDate.plusDays(i);
-            int futureCores = (int) Math.round(currentCores + (coreSlope * i));
+            double futureCores = round2(currentCores + (coreSlope * i));
             double futureMem = Math.round((currentMemory + (memSlope * i)) * 100.0) / 100.0;
 
             projectedPoints.add(ForecastingProjectionDto.TrendPointDto.builder()
@@ -246,8 +246,12 @@ public class ForecastingService {
         return new double[]{slope, intercept};
     }
 
+    private static double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
+    }
+
     private static class DailyAggregate {
-        int cores = 0;
+        double cores = 0.0;
         double memoryGb = 0.0;
     }
 }

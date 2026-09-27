@@ -104,7 +104,7 @@ public class AttributionService {
         BigDecimal clusterMemory = BigDecimal.ZERO;
         for (ClusterWindowTotals cluster : clusters.values()) {
             BigDecimal periods = BigDecimal.valueOf(cluster.snapshots());
-            clusterCpu = clusterCpu.add(divide(BigDecimal.valueOf(cluster.cpuRequestCores()), periods));
+            clusterCpu = clusterCpu.add(divide(cluster.cpuRequestCores(), periods));
             clusterMemory = clusterMemory.add(divide(cluster.memoryRequestGb(), periods));
         }
 

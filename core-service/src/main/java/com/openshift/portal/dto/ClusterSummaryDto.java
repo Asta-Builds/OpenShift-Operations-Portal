@@ -24,7 +24,7 @@ public class ClusterSummaryDto {
     private String openshiftVersion;
     private String status;
     private int totalCores;
-    private int allocatedCores;
+    private double allocatedCores;
     private double totalMemoryGb;
     private double allocatedMemoryGb;
     private int licenseCores;

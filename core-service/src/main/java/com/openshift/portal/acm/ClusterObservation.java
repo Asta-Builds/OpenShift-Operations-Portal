@@ -11,7 +11,7 @@ import java.util.List;
 public record ClusterObservation(
         String clusterName,
         int totalCpuCores,
-        int allocatedCpuCores,
+        BigDecimal allocatedCpuCores,
         BigDecimal totalMemoryGb,
         BigDecimal allocatedMemoryGb,
         BigDecimal totalStorageGb,
@@ -23,7 +23,7 @@ public record ClusterObservation(
         String error) {
 
     public static ClusterObservation failed(String clusterName, String error) {
-        return new ClusterObservation(clusterName, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+        return new ClusterObservation(clusterName, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                 BigDecimal.ZERO, List.of(), null, null, null, error);
     }
 

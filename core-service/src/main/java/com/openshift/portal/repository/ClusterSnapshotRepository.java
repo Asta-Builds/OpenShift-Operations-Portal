@@ -65,6 +65,6 @@ public interface ClusterSnapshotRepository extends JpaRepository<ClusterSnapshot
     long countInWindow(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to,
                        @Param("environment") Environment environment);
 
-    record ClusterWindowTotals(UUID clusterId, Long snapshots, Long cpuRequestCores, BigDecimal memoryRequestGb) {
+    record ClusterWindowTotals(UUID clusterId, Long snapshots, BigDecimal cpuRequestCores, BigDecimal memoryRequestGb) {
     }
 }

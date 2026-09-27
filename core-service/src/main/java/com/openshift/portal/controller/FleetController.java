@@ -33,7 +33,7 @@ public class FleetController {
         List<ClusterSnapshot> latestSnapshots = snapshotRepository.findLatestSnapshotsForAllClusters();
 
         int totalCores = 0;
-        int allocatedCores = 0;
+        double allocatedCores = 0.0;
         double totalMem = 0.0;
         double allocatedMem = 0.0;
         double totalStorage = 0.0;
@@ -42,7 +42,7 @@ public class FleetController {
 
         for (ClusterSnapshot snap : latestSnapshots) {
             totalCores += snap.getTotalCpuCores() != null ? snap.getTotalCpuCores() : 0;
-            allocatedCores += snap.getAllocatedCpuCores() != null ? snap.getAllocatedCpuCores() : 0;
+            allocatedCores += snap.getAllocatedCpuCores() != null ? snap.getAllocatedCpuCores().doubleValue() : 0.0;
             totalMem += snap.getTotalMemoryGb() != null ? snap.getTotalMemoryGb().doubleValue() : 0.0;
             allocatedMem += snap.getAllocatedMemoryGb() != null ? snap.getAllocatedMemoryGb().doubleValue() : 0.0;
             totalStorage += snap.getTotalStorageGb() != null ? snap.getTotalStorageGb().doubleValue() : 0.0;
@@ -50,7 +50,7 @@ public class FleetController {
             totalLicenseCores += snap.getLicenseCoresCount() != null ? snap.getLicenseCoresCount() : 0;
         }
 
-        double cpuUtil = (totalCores > 0) ? Math.round(((double) allocatedCores / totalCores) * 10000.0) / 100.0 : 0.0;
+        double cpuUtil = (totalCores > 0) ? Math.round((allocatedCores / totalCores) * 10000.0) / 100.0 : 0.0;
         double memUtil = (totalMem > 0) ? Math.round((allocatedMem / totalMem) * 10000.0) / 100.0 : 0.0;
         double storageUtil = (totalStorage > 0) ? Math.round((allocatedStorage / totalStorage) * 10000.0) / 100.0 : 0.0;
 
@@ -68,7 +68,7 @@ public class FleetController {
                 .totalClusters(totalClusters)
                 .activeAcmHubs(activeHubs)
                 .totalCpuCores(totalCores)
-                .allocatedCpuCores(allocatedCores)
+                .allocatedCpuCores(Math.round(allocatedCores * 100.0) / 100.0)
                 .cpuUtilizationPercent(cpuUtil)
                 .totalMemoryGb(Math.round(totalMem * 100.0) / 100.0)
                 .allocatedMemoryGb(Math.round(allocatedMem * 100.0) / 100.0)

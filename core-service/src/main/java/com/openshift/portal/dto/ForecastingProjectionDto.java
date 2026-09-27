@@ -18,8 +18,8 @@ public class ForecastingProjectionDto {
     private boolean insufficientData;
     /** Number of daily points the regression was fitted on. */
     private int dataPoints;
-    private int currentCores;
-    private int projectedCores;
+    private double currentCores;
+    private double projectedCores;
     private double estimatedGrowthPercent;
     private double currentMemoryGb;
     private double projectedMemoryGb;
@@ -44,7 +44,7 @@ public class ForecastingProjectionDto {
     @AllArgsConstructor
     public static class TrendPointDto {
         private LocalDate date;
-        private int cores;
+        private double cores;
         private double memoryGb;
     }
 }
