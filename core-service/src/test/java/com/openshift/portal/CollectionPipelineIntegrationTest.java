@@ -1,5 +1,6 @@
 package com.openshift.portal;
 
+import com.openshift.portal.acm.HubResilience;
 import com.openshift.portal.domain.entity.ClusterSnapshot;
 import com.openshift.portal.dto.ForecastingProjectionDto;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
@@ -9,6 +10,8 @@ import com.openshift.portal.repository.ClusterSnapshotRepository;
 import com.openshift.portal.repository.NodeMetricsSnapshotRepository;
 import com.openshift.portal.service.AcmCollectorService;
 import com.openshift.portal.service.ForecastingService;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -44,6 +47,8 @@ class CollectionPipelineIntegrationTest {
     @Autowired
     private NodeMetricsSnapshotRepository nodeMetricsRepository;
     @Autowired
+    private RetryRegistry retryRegistry;
+    @Autowired
     private MockMvc mockMvc;
 
     @Test
@@ -69,11 +74,26 @@ class CollectionPipelineIntegrationTest {
     }
 
     @Test
-    void hubsEndpointListsHubsWithoutCredentials() throws Exception {
+    void hubsEndpointReportsSyncStateWithoutCredentials() throws Exception {
+        collectorService.triggerCollection();
+
         mockMvc.perform(get("/hubs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value((int) acmHubRepository.count()))
-                .andExpect(jsonPath("$[0].status").exists())
+                .andExpect(jsonPath("$[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$[0].consecutiveFailures").value(0))
+                .andExpect(jsonPath("$[0].circuitBreakerState").value("CLOSED"))
+                .andExpect(jsonPath("$[0].latestSyncRun.status").value("SUCCESS"))
+                .andExpect(jsonPath("$[0].latestSyncRun.attempts").value(1))
                 .andExpect(jsonPath("$[0].authToken").doesNotExist());
+    }
+
+    @Test
+    void retryBackoffDoublesFromTwoSeconds() {
+        RetryConfig config = retryRegistry.getConfiguration(HubResilience.CONFIG).orElseThrow();
+
+        assertThat(config.getMaxAttempts()).isEqualTo(3);
+        assertThat(config.getIntervalBiFunction().apply(1, null)).isEqualTo(2000L);
+        assertThat(config.getIntervalBiFunction().apply(2, null)).isEqualTo(4000L);
     }
 }

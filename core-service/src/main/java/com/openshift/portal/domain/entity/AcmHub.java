@@ -39,6 +39,11 @@ public class AcmHub {
     @Column(name = "last_sync_timestamp")
     private LocalDateTime lastSyncTimestamp;
 
+    /** Collection cycles in a row that got no cluster data from this hub; reset by any successful read. */
+    @Column(name = "consecutive_failures", nullable = false)
+    @Builder.Default
+    private Integer consecutiveFailures = 0;
+
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

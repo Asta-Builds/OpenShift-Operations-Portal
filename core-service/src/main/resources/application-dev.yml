@@ -11,13 +11,13 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         format_sql: true
   flyway:
-    enabled: false # H2 dev mode uses ddl-auto; Flyway is enabled in prod profile with PostgreSQL
+    enabled: true # H2 runs the same migrations as PostgreSQL in prod
 
 openshift:
   portal:

@@ -131,12 +131,32 @@ export interface ForecastingProjection {
   projectedPoints: TrendPoint[];
 }
 
+export interface HubSyncRun {
+  status: 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED_CIRCUIT_OPEN';
+  startedAt: string;
+  finishedAt: string | null;
+  attempts: number;
+  clustersOk: number;
+  clustersFailed: number;
+  errorMessage: string | null;
+}
+
 export interface AcmHubSummary {
   id: string;
   name: string;
   apiUrl: string;
   status: 'ACTIVE' | 'UNREACHABLE' | 'DEGRADED' | 'ERROR';
   lastSyncTimestamp: string | null;
+  consecutiveFailures: number;
+  /** Held in memory by the backend instance that answered. */
+  circuitBreakerState: string;
+  latestSyncRun: HubSyncRun | null;
+}
+
+export interface SimulatorStatus {
+  simulateFailureActive: boolean;
+  hubOutages: string[];
+  failingClusters: string[];
 }
 
 export interface SnapshotTriggerResult {

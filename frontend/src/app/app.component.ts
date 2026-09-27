@@ -1,9 +1,14 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, of, switchMap, timer } from 'rxjs';
 import { IconComponent } from './shared/icon.component';
 import { PortalService } from './services/portal.service';
 import { AcmHubSummary } from './models/portal.models';
+
+/** How often the header refreshes hub status. */
+const HUB_STATUS_REFRESH_MS = 30_000;
 
 @Component({
   selector: 'app-root',
@@ -14,6 +19,7 @@ import { AcmHubSummary } from './models/portal.models';
 })
 export class AppComponent implements OnInit {
   private portalService = inject(PortalService);
+  private destroyRef = inject(DestroyRef);
 
   title = 'OpenShift Operations Portal';
   hubs: AcmHubSummary[] = [];
@@ -25,10 +31,13 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.portalService.getHubs().subscribe({
-      next: (res) => (this.hubs = res),
-      error: (err) => console.error('Failed to load ACM hubs', err)
-    });
+    timer(0, HUB_STATUS_REFRESH_MS)
+      .pipe(
+        // Keep the last known status when a refresh fails
+        switchMap(() => this.portalService.getHubs().pipe(catchError(() => of(this.hubs)))),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((hubs) => (this.hubs = hubs));
 
     this.portalService.getSimulatorStatus().subscribe({
       next: () => (this.simulatorAvailable = true),

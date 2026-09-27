@@ -45,7 +45,7 @@ import { IconComponent } from '../../shared/icon.component';
           </div>
           <h3 class="control-title">Resilience4j Fault Injection</h3>
           <p class="control-desc">
-            Simulate an ACM Hub connection timeout on the next collection.
+            Simulate a one-off ACM Hub connection timeout on the next collection; the collector retries it.
           </p>
           <button
             class="btn"
@@ -79,22 +79,46 @@ import { IconComponent } from '../../shared/icon.component';
             <thead>
               <tr>
                 <th>Hub Name</th>
-                <th>API Endpoint</th>
                 <th>Status</th>
+                <th>Last Run</th>
+                <th>Failures in a Row</th>
+                <th>Circuit Breaker</th>
                 <th>Last Sync</th>
+                <th>Simulated Outage</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let hub of hubs">
-                <td><strong>{{ hub.name }}</strong></td>
-                <td><code>{{ hub.apiUrl }}</code></td>
                 <td>
-                  <span class="badge" [ngClass]="hub.status === 'ACTIVE' ? 'badge-ready' : 'badge-prod'">{{ hub.status }}</span>
+                  <strong>{{ hub.name }}</strong>
+                  <div><code>{{ hub.apiUrl }}</code></div>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="hubStatusClass(hub.status)">{{ hub.status }}</span>
+                </td>
+                <td>
+                  <ng-container *ngIf="hub.latestSyncRun as run; else noRun">
+                    <div class="run-status" [title]="run.errorMessage ?? ''">{{ run.status }}</div>
+                    <div class="run-detail">
+                      {{ run.attempts }} attempt(s) · {{ run.clustersOk }}/{{ run.clustersOk + run.clustersFailed }} clusters
+                    </div>
+                  </ng-container>
+                  <ng-template #noRun>Not collected yet</ng-template>
+                </td>
+                <td>{{ hub.consecutiveFailures }}</td>
+                <td>
+                  <span class="badge" [ngClass]="circuitClass(hub.circuitBreakerState)">{{ hub.circuitBreakerState }}</span>
                 </td>
                 <td>{{ (hub.lastSyncTimestamp | date:'yyyy-MM-dd HH:mm:ss') ?? 'Never' }}</td>
+                <td>
+                  <button class="btn" [ngClass]="isHubDown(hub.name) ? 'btn-primary' : 'btn-secondary'"
+                          (click)="toggleHubOutage(hub.name)">
+                    {{ isHubDown(hub.name) ? 'End Outage' : 'Start Outage' }}
+                  </button>
+                </td>
               </tr>
               <tr *ngIf="hubs.length === 0">
-                <td colspan="4" class="empty-state">No ACM hubs are registered.</td>
+                <td colspan="7" class="empty-state">No ACM hubs are registered.</td>
               </tr>
             </tbody>
           </table>
@@ -186,6 +210,13 @@ import { IconComponent } from '../../shared/icon.component';
       color: #6B7280;
       padding: 1.5rem;
     }
+    .run-status {
+      font-weight: 600;
+    }
+    .run-detail {
+      font-size: 0.75rem;
+      color: #6B7280;
+    }
   `]
 })
 export class SimulatorComponent implements OnInit {
@@ -195,6 +226,37 @@ export class SimulatorComponent implements OnInit {
   faultActive = false;
   statusMessage = '';
   hubs: AcmHubSummary[] = [];
+  hubOutages: string[] = [];
+
+  isHubDown(hubName: string): boolean {
+    return this.hubOutages.includes(hubName);
+  }
+
+  toggleHubOutage(hubName: string): void {
+    this.portalService.setHubOutage(hubName, !this.isHubDown(hubName)).subscribe({
+      next: (res) => {
+        this.statusMessage = res.message;
+        this.checkSimulatorStatus();
+      },
+      error: (err) => console.error('Error toggling hub outage', err)
+    });
+  }
+
+  hubStatusClass(status: string): string {
+    switch (status) {
+      case 'ACTIVE': return 'badge-ready';
+      case 'DEGRADED': return 'badge-staging';
+      default: return 'badge-prod';
+    }
+  }
+
+  circuitClass(state: string): string {
+    switch (state) {
+      case 'CLOSED': return 'badge-ready';
+      case 'HALF_OPEN': return 'badge-staging';
+      default: return 'badge-prod';
+    }
+  }
 
   ngOnInit(): void {
     this.checkSimulatorStatus();
@@ -210,7 +272,10 @@ export class SimulatorComponent implements OnInit {
 
   checkSimulatorStatus(): void {
     this.portalService.getSimulatorStatus().subscribe({
-      next: (res) => (this.faultActive = res.simulateFailureActive),
+      next: (res) => {
+        this.faultActive = res.simulateFailureActive;
+        this.hubOutages = res.hubOutages;
+      },
       error: (err) => console.error('Failed to get simulator status', err)
     });
   }

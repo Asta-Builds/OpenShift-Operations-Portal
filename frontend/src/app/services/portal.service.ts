@@ -9,7 +9,8 @@ import {
   ForecastingProjection,
   SnapshotTriggerResult,
   ReportDefinition,
-  AcmHubSummary
+  AcmHubSummary,
+  SimulatorStatus
 } from '../models/portal.models';
 
 @Injectable({
@@ -82,8 +83,12 @@ export class PortalService {
     );
   }
 
-  getSimulatorStatus(): Observable<{ simulateFailureActive: boolean }> {
-    return this.http.get<{ simulateFailureActive: boolean }>(`${this.baseUrl}/simulator/status`);
+  getSimulatorStatus(): Observable<SimulatorStatus> {
+    return this.http.get<SimulatorStatus>(`${this.baseUrl}/simulator/status`);
+  }
+
+  setHubOutage(hub: string, down: boolean): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/simulator/outage`, {}, { params: { hub, down } });
   }
 
   seedFleet(): Observable<{ message: string }> {

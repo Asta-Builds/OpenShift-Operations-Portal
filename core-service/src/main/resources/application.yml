@@ -28,24 +28,31 @@ openshift:
       default-core-multiplier: 1.0
       bare-metal-socket-factor: 16
 
-# Resilience4j Circuit Breaker & Retry for ACM Hub calls
+# Resilience4j for ACM Hub calls: each hub gets its own circuit breaker and retry built from these configs
 resilience4j:
   circuitbreaker:
-    instances:
-      acmHubService:
+    configs:
+      acmHub:
         sliding-window-type: COUNT_BASED
         sliding-window-size: 10
         minimum-number-of-calls: 5
         failure-rate-threshold: 50
         wait-duration-in-open-state: 15s
-        permitted-number-of-calls-in-half-open-state: 3
+        # A hub is called once per collection cycle, so a single successful probe closes the breaker again
+        permitted-number-of-calls-in-half-open-state: 1
         automatic-transition-from-open-to-half-open-enabled: true
   retry:
-    instances:
-      acmHubService:
+    configs:
+      acmHub:
         max-attempts: 3
+        # Waits T_base x 2^(k-1) before retry k: 2s, then 4s
         wait-duration: 2s
+        enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
+        exponential-max-wait-duration: 30s
+        # Only transport failures and 5xx answers are retried; authentication/authorization errors are not
+        retry-exceptions:
+          - com.openshift.portal.exception.AcmConnectionException
 
 # Actuator Endpoints
 management:

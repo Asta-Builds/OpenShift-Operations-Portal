@@ -33,10 +33,36 @@ public class SimulatorController {
         ));
     }
 
+    @PostMapping("/outage")
+    public ResponseEntity<Map<String, Object>> setHubOutage(@RequestParam String hub,
+                                                            @RequestParam(defaultValue = "true") boolean down) {
+        simulatorService.setHubOutage(hub, down);
+        return ResponseEntity.ok(Map.of(
+                "hub", hub,
+                "down", down,
+                "message", down ? "Every call to ACM Hub " + hub + " will fail until the outage is cleared."
+                        : "Outage of ACM Hub " + hub + " cleared."
+        ));
+    }
+
+    @PostMapping("/cluster-failure")
+    public ResponseEntity<Map<String, Object>> setClusterFailure(@RequestParam String cluster,
+                                                                 @RequestParam(defaultValue = "true") boolean failing) {
+        simulatorService.setClusterFailure(cluster, failing);
+        return ResponseEntity.ok(Map.of(
+                "cluster", cluster,
+                "failing", failing,
+                "message", failing ? "Cluster " + cluster + " will fail to report until cleared."
+                        : "Failure of cluster " + cluster + " cleared."
+        ));
+    }
+
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getSimulatorStatus() {
         return ResponseEntity.ok(Map.of(
-                "simulateFailureActive", simulatorService.isSimulateFailure()
+                "simulateFailureActive", simulatorService.isSimulateFailure(),
+                "hubOutages", simulatorService.getHubOutages(),
+                "failingClusters", simulatorService.getFailingClusters()
         ));
     }
 }

@@ -1,29 +1,35 @@
 package com.openshift.portal.service;
 
+import com.openshift.portal.acm.AcmHubClient;
+import com.openshift.portal.acm.ClusterObservation;
+import com.openshift.portal.acm.HubResilience;
 import com.openshift.portal.config.AcmProperties;
 import com.openshift.portal.domain.entity.AcmHub;
 import com.openshift.portal.domain.entity.Cluster;
-import com.openshift.portal.domain.entity.ClusterSnapshot;
-import com.openshift.portal.domain.entity.NodeMetricsSnapshot;
+import com.openshift.portal.domain.entity.HubSyncRun;
 import com.openshift.portal.domain.enums.HubStatus;
+import com.openshift.portal.domain.enums.SyncStatus;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
 import com.openshift.portal.exception.AcmConnectionException;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
-import com.openshift.portal.repository.ClusterSnapshotRepository;
-import com.openshift.portal.repository.NodeMetricsSnapshotRepository;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
-import jakarta.annotation.PostConstruct;
+import com.openshift.portal.repository.HubSyncRunRepository;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,23 +38,17 @@ public class AcmCollectorService {
 
     private final AcmHubRepository acmHubRepository;
     private final ClusterRepository clusterRepository;
-    private final ClusterSnapshotRepository snapshotRepository;
-    private final NodeMetricsSnapshotRepository nodeMetricsRepository;
-    private final LicensingService licensingService;
-    private final AcmSimulatorService simulatorService;
+    private final HubSyncRunRepository syncRunRepository;
+    private final SnapshotIngestionService ingestionService;
+    private final ObjectProvider<AcmHubClient> hubClientProvider;
+    private final HubResilience hubResilience;
     private final AcmProperties properties;
 
-    @PostConstruct
-    public void init() {
-        if (properties.getSimulator().isEnabled()) {
-            simulatorService.seedInitialFleetIfEmpty();
-        }
-    }
-
     /**
-     * Periodic scheduled collection across all configured ACM Hubs.
+     * Periodic scheduled collection across all configured ACM Hubs; the lock keeps each cycle to one replica.
      */
     @Scheduled(cron = "${openshift.portal.collector.cron:0 */15 * * * *}")
+    @SchedulerLock(name = "acm-collection", lockAtMostFor = "PT14M", lockAtLeastFor = "PT1M")
     public void scheduledCollection() {
         if (!properties.getCollector().isEnabled()) {
             log.info("Collector is disabled in configuration. Skipping scheduled run.");
@@ -59,103 +59,120 @@ public class AcmCollectorService {
     }
 
     /**
-     * Executes snapshot collection across all registered ACM Hubs with Resilience4j fault protection.
+     * Collects every registered ACM Hub. Hubs are isolated from each other: a failing hub is recorded and the
+     * others carry on.
      */
     public SnapshotTriggerResultDto triggerCollection() {
         long start = System.currentTimeMillis();
-        List<AcmHub> hubs = acmHubRepository.findAll();
-        int totalClustersProcessed = 0;
-        int totalSnapshotsCreated = 0;
+        AcmHubClient hubClient = hubClientProvider.getIfAvailable();
+        if (hubClient == null) {
+            String message = "No ACM client is configured; enable the simulator or configure a live ACM client.";
+            log.warn(message);
+            return SnapshotTriggerResultDto.builder().status("SKIPPED").message(message).build();
+        }
 
-        for (AcmHub hub : hubs) {
-            try {
-                int created = collectFromHubWithResilience(hub);
-                totalSnapshotsCreated += created;
-                totalClustersProcessed += created; // one snapshot per collected cluster
-            } catch (Exception e) {
-                log.error("Failed to collect snapshots for ACM Hub {}: {}", hub.getName(), e.getMessage());
+        int clustersProcessed = 0;
+        int snapshotsCreated = 0;
+        List<String> hubsNeedingAttention = new ArrayList<>();
+        for (AcmHub hub : acmHubRepository.findAll(Sort.by("name"))) {
+            HubSyncRun run = syncHub(hub, hubClient);
+            clustersProcessed += run.getClustersOk() + run.getClustersFailed();
+            snapshotsCreated += run.getClustersOk();
+            if (run.getStatus() != SyncStatus.SUCCESS) {
+                hubsNeedingAttention.add(hub.getName() + " (" + run.getStatus() + ")");
             }
         }
 
         long duration = System.currentTimeMillis() - start;
+        String message = String.format("Processed %d clusters and captured %d snapshots in %d ms.",
+                clustersProcessed, snapshotsCreated, duration);
+        if (!hubsNeedingAttention.isEmpty()) {
+            message += " Hubs needing attention: " + String.join(", ", hubsNeedingAttention) + ".";
+        }
         return SnapshotTriggerResultDto.builder()
-                .clustersProcessed(totalClustersProcessed)
-                .snapshotsCreated(totalSnapshotsCreated)
+                .clustersProcessed(clustersProcessed)
+                .snapshotsCreated(snapshotsCreated)
                 .durationMs(duration)
-                .status("COMPLETED")
-                .message(String.format("Successfully processed %d clusters and captured %d snapshots in %d ms.",
-                        totalClustersProcessed, totalSnapshotsCreated, duration))
+                .status(hubsNeedingAttention.isEmpty() ? "COMPLETED" : "PARTIAL")
+                .message(message)
                 .build();
-    }
-
-    @CircuitBreaker(name = "acmHubService", fallbackMethod = "collectionFallback")
-    @Retry(name = "acmHubService")
-    @Transactional
-    public int collectFromHubWithResilience(AcmHub hub) {
-        log.info("Polling ACM Hub: {} ({})", hub.getName(), hub.getApiUrl());
-
-        // In simulator / offline mode or when live ACM is simulated
-        if (properties.getSimulator().isEnabled()) {
-            simulatorService.fetchFromHub(hub);
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        int createdCount = 0;
-
-        for (Cluster cluster : clusterRepository.findByAcmHubId(hub.getId())) {
-            // No live ACM client exists yet (plan Phase 3), so the node inventory comes from the simulated topology
-            AcmSimulatorService.SimulatedTopology topology = simulatorService.simulateTopology(cluster, now, 0);
-            ClusterSnapshot snapshot = snapshotRepository.save(createSnapshotForCluster(cluster, now, topology));
-            for (NodeMetricsSnapshot node : topology.nodes()) {
-                node.setSnapshot(snapshot);
-            }
-            nodeMetricsRepository.saveAll(topology.nodes());
-            createdCount++;
-        }
-
-        hub.setStatus(HubStatus.ACTIVE);
-        hub.setLastSyncTimestamp(now);
-        acmHubRepository.save(hub);
-
-        return createdCount;
     }
 
     /**
-     * Fallback method invoked when Circuit Breaker is open or retries are exhausted.
+     * Syncs one hub: the remote read runs under the hub's retry and circuit breaker outside any transaction, each
+     * cluster is then stored in its own short transaction, and the outcome is recorded as a sync run.
      */
-    public int collectionFallback(AcmHub hub, Throwable t) {
-        log.warn("Resilience fallback triggered for ACM Hub {}: {}", hub.getName(), t.getMessage());
-        hub.setStatus(HubStatus.UNREACHABLE);
+    private HubSyncRun syncHub(AcmHub hub, AcmHubClient hubClient) {
+        HubSyncRun run = HubSyncRun.builder().hub(hub).startedAt(LocalDateTime.now()).build();
+        AtomicInteger attempts = new AtomicInteger();
+        HubStatus hubStatus;
+        try {
+            List<ClusterObservation> observations = hubResilience.call(hub, () -> {
+                attempts.incrementAndGet();
+                return hubClient.fetchClusters(hub);
+            });
+            ingestObservations(hub, observations, run);
+            hubStatus = run.getStatus() == SyncStatus.SUCCESS ? HubStatus.ACTIVE : HubStatus.DEGRADED;
+        } catch (Exception e) {
+            boolean breakerOpen = e instanceof CallNotPermittedException;
+            run.setStatus(breakerOpen && attempts.get() == 0 ? SyncStatus.SKIPPED_CIRCUIT_OPEN : SyncStatus.FAILED);
+            run.setErrorMessage(describe(e));
+            hubStatus = breakerOpen || e instanceof AcmConnectionException ? HubStatus.UNREACHABLE : HubStatus.ERROR;
+            log.warn("ACM Hub {} sync {} after {} attempt(s): {}", hub.getName(), run.getStatus(), attempts.get(), describe(e));
+        }
+        run.setAttempts(attempts.get());
+        run.setFinishedAt(LocalDateTime.now());
+
+        if (run.getClustersOk() > 0 || run.getStatus() == SyncStatus.SUCCESS) {
+            hub.setLastSyncTimestamp(run.getFinishedAt());
+            hub.setConsecutiveFailures(0);
+        } else {
+            hub.setConsecutiveFailures(hub.getConsecutiveFailures() + 1);
+        }
+        hub.setStatus(hubStatus);
         acmHubRepository.save(hub);
-        return 0;
+        return syncRunRepository.save(run);
     }
 
-    private ClusterSnapshot createSnapshotForCluster(Cluster cluster, LocalDateTime timestamp,
-                                                     AcmSimulatorService.SimulatedTopology topology) {
-        int totalCores = topology.totalCpuCores();
-        int allocatedCores = (int) Math.round(totalCores * (0.60 + Math.random() * 0.25));
-        BigDecimal totalMem = topology.totalMemoryGb();
-        BigDecimal allocatedMem = totalMem.multiply(BigDecimal.valueOf(0.55 + Math.random() * 0.25));
+    private void ingestObservations(AcmHub hub, List<ClusterObservation> observations, HubSyncRun run) {
+        Map<String, Cluster> clustersByName = clusterRepository.findByAcmHubId(hub.getId()).stream()
+                .collect(Collectors.toMap(Cluster::getClusterName, Function.identity()));
+        LocalDateTime timestamp = LocalDateTime.now();
+        int ok = 0;
+        int failed = 0;
 
-        int licenseCores = licensingService.calculateLicenseCores(topology.nodes(), cluster.getInfrastructureType());
+        for (ClusterObservation observation : observations) {
+            Cluster cluster = clustersByName.get(observation.clusterName());
+            if (cluster == null) {
+                // Registering newly discovered clusters comes with live ACM ingestion; until then only known ones are stored
+                log.warn("ACM Hub {} reported unknown cluster {}; skipping it", hub.getName(), observation.clusterName());
+                continue;
+            }
+            if (observation.isFailed()) {
+                failed++;
+                log.warn("Could not read cluster {} from ACM Hub {}: {}", observation.clusterName(), hub.getName(),
+                        observation.error());
+                continue;
+            }
+            try {
+                ingestionService.ingest(cluster, observation, timestamp, true);
+                ok++;
+            } catch (Exception e) {
+                failed++;
+                log.error("Failed to store the snapshot of cluster {} from ACM Hub {}", observation.clusterName(),
+                        hub.getName(), e);
+            }
+        }
 
-        BigDecimal totalStorage = BigDecimal.valueOf(totalCores * 40.0);
-        BigDecimal allocatedStorage = totalStorage.multiply(BigDecimal.valueOf(0.55 + Math.random() * 0.25));
+        run.setClustersOk(ok);
+        run.setClustersFailed(failed);
+        run.setStatus(failed == 0 ? SyncStatus.SUCCESS : ok > 0 ? SyncStatus.PARTIAL : SyncStatus.FAILED);
+        if (failed > 0) {
+            run.setErrorMessage(failed + " of " + (ok + failed) + " clusters could not be collected");
+        }
+    }
 
-        return ClusterSnapshot.builder()
-                .cluster(cluster)
-                .snapshotTimestamp(timestamp)
-                .totalCpuCores(totalCores)
-                .allocatedCpuCores(allocatedCores)
-                .totalMemoryGb(totalMem)
-                .allocatedMemoryGb(allocatedMem)
-                .totalStorageGb(totalStorage)
-                .allocatedStorageGb(allocatedStorage)
-                .licenseCoresCount(licenseCores)
-                .totalNodes(topology.nodes().size())
-                .workerNodes(topology.workerNodes())
-                .rawPayload(String.format("{\"cluster\": \"%s\", \"collectedAt\": \"%s\"}",
-                        cluster.getClusterName(), timestamp))
-                .build();
+    private static String describe(Throwable t) {
+        return t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
     }
 }

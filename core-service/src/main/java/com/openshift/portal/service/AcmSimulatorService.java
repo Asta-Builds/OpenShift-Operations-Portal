@@ -1,11 +1,14 @@
 package com.openshift.portal.service;
 
+import com.openshift.portal.acm.ClusterObservation;
+import com.openshift.portal.acm.NodeObservation;
 import com.openshift.portal.domain.entity.*;
 import com.openshift.portal.domain.enums.Environment;
 import com.openshift.portal.domain.enums.HubStatus;
 import com.openshift.portal.domain.enums.InfrastructureType;
 import com.openshift.portal.domain.enums.NodeRole;
 import com.openshift.portal.exception.AcmConnectionException;
+import com.openshift.portal.exception.ResourceNotFoundException;
 import com.openshift.portal.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,28 +16,34 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AcmSimulatorService {
 
+    /** Days of seeded history; on the growth curve, day 0 is its first day and this value is the seeding day. */
+    private static final int SEED_HISTORY_DAYS = 30;
+
     private final AcmHubRepository acmHubRepository;
     private final TeamRepository teamRepository;
     private final ClusterRepository clusterRepository;
-    private final ClusterSnapshotRepository snapshotRepository;
-    private final NodeMetricsSnapshotRepository nodeMetricsRepository;
     private final NamespaceRepository namespaceRepository;
     private final NamespaceSnapshotRepository namespaceSnapshotRepository;
     private final LicenseWatermarkRepository watermarkRepository;
-    private final LicensingService licensingService;
-    private final ProviderIdParserService providerIdParser;
+    private final SnapshotIngestionService ingestionService;
 
-    private boolean failNextCall = false;
+    private volatile boolean failNextCall = false;
+    private final Set<String> hubOutages = ConcurrentHashMap.newKeySet();
+    private final Set<String> failingClusters = ConcurrentHashMap.newKeySet();
 
+    /** One-shot fault: the next hub call fails once, whichever hub it targets. */
     public void setSimulateFailure(boolean fail) {
         this.failNextCall = fail;
         log.warn("Simulator failure injection set to: {}", fail);
@@ -42,6 +51,44 @@ public class AcmSimulatorService {
 
     public boolean isSimulateFailure() {
         return this.failNextCall;
+    }
+
+    /** Persistent outage: every call to the hub fails until the outage is cleared. */
+    public void setHubOutage(String hubName, boolean down) {
+        acmHubRepository.findByName(hubName)
+                .orElseThrow(() -> new ResourceNotFoundException("ACM hub not found: " + hubName));
+        if (down) {
+            hubOutages.add(hubName);
+        } else {
+            hubOutages.remove(hubName);
+        }
+        log.warn("Simulated outage of ACM hub {} set to: {}", hubName, down);
+    }
+
+    /** Persistent cluster failure: the hub answers, but this cluster's data cannot be read. */
+    public void setClusterFailure(String clusterName, boolean failing) {
+        clusterRepository.findByClusterName(clusterName)
+                .orElseThrow(() -> new ResourceNotFoundException("Cluster not found: " + clusterName));
+        if (failing) {
+            failingClusters.add(clusterName);
+        } else {
+            failingClusters.remove(clusterName);
+        }
+        log.warn("Simulated failure of cluster {} set to: {}", clusterName, failing);
+    }
+
+    public List<String> getHubOutages() {
+        return hubOutages.stream().sorted().toList();
+    }
+
+    public List<String> getFailingClusters() {
+        return failingClusters.stream().sorted().toList();
+    }
+
+    public void clearFaults() {
+        failNextCall = false;
+        hubOutages.clear();
+        failingClusters.clear();
     }
 
     /**
@@ -156,49 +203,13 @@ public class AcmSimulatorService {
             // Seed Namespaces for owner-aware namespace level attribution
             seedNamespacesForCluster(cluster);
 
-            // Generate 3 history points: 30 days ago, 15 days ago, and today
+            // Generate 3 history points: 30 days ago, 15 days ago, and today (only today's keeps its node rows)
             for (int daysAgo : List.of(30, 15, 0)) {
                 LocalDateTime snapshotTime = now.minusDays(daysAgo);
-                SimulatedTopology topology = simulateTopology(cluster, snapshotTime, daysAgo);
-                List<NodeMetricsSnapshot> nodes = topology.nodes();
-
-                int totalCores = topology.totalCpuCores();
-                int allocatedCores = (int) Math.round(totalCores * (0.65 + (30 - daysAgo) * 0.005));
-                BigDecimal totalMem = topology.totalMemoryGb();
-                BigDecimal allocatedMem = totalMem.multiply(BigDecimal.valueOf(0.60 + (30 - daysAgo) * 0.004));
-
-                BigDecimal totalStorage = BigDecimal.valueOf(totalCores * 40.0);
-                BigDecimal allocatedStorage = totalStorage.multiply(BigDecimal.valueOf(0.55 + (30 - daysAgo) * 0.003));
-
-                int licenseCores = licensingService.calculateLicenseCores(nodes, cluster.getInfrastructureType());
+                ClusterObservation observation = simulateObservation(cluster, snapshotTime, SEED_HISTORY_DAYS - daysAgo);
+                ClusterSnapshot snapshot = ingestionService.ingest(cluster, observation, snapshotTime, daysAgo == 0);
                 if (daysAgo == 0) {
-                    totalPeakWorkerCores += licenseCores;
-                }
-
-                ClusterSnapshot snapshot = ClusterSnapshot.builder()
-                        .cluster(cluster)
-                        .snapshotTimestamp(snapshotTime)
-                        .totalCpuCores(totalCores)
-                        .allocatedCpuCores(allocatedCores)
-                        .totalMemoryGb(totalMem)
-                        .allocatedMemoryGb(allocatedMem)
-                        .totalStorageGb(totalStorage)
-                        .allocatedStorageGb(allocatedStorage)
-                        .licenseCoresCount(licenseCores)
-                        .totalNodes(nodes.size())
-                        .workerNodes(topology.workerNodes())
-                        .rawPayload(String.format("{\"cluster\": \"%s\", \"simulated\": true, \"timestamp\": \"%s\"}",
-                                cluster.getClusterName(), snapshotTime))
-                        .build();
-
-                ClusterSnapshot savedSnapshot = snapshotRepository.save(snapshot);
-
-                // Set backreference and save node metrics for current snapshot
-                if (daysAgo == 0) {
-                    for (NodeMetricsSnapshot node : nodes) {
-                        node.setSnapshot(savedSnapshot);
-                    }
-                    nodeMetricsRepository.saveAll(nodes);
+                    totalPeakWorkerCores += snapshot.getLicenseCoresCount();
                 }
             }
         }
@@ -216,58 +227,82 @@ public class AcmSimulatorService {
     }
 
     /**
-     * Simulated node inventory of a cluster {@code daysAgo} days before the end of the seeded history. The worker
-     * count grows along that history, so live collections (daysAgo = 0) keep the latest seeded topology.
+     * Simulated answer of an ACM hub: the current state of each of its clusters, continuing the seeded growth curve.
+     *
+     * @throws AcmConnectionException for an injected one-shot fault or hub outage
      */
-    public SimulatedTopology simulateTopology(Cluster cluster, LocalDateTime timestamp, int daysAgo) {
+    public List<ClusterObservation> observeHub(AcmHub hub, LocalDateTime timestamp) {
+        if (failNextCall) {
+            failNextCall = false; // Reset after triggering
+            throw new AcmConnectionException("Simulated connection timeout to ACM Hub: " + hub.getApiUrl());
+        }
+        if (hubOutages.contains(hub.getName())) {
+            throw new AcmConnectionException("Simulated outage of ACM Hub: " + hub.getApiUrl());
+        }
+
+        List<ClusterObservation> observations = new ArrayList<>();
+        for (Cluster cluster : clusterRepository.findByAcmHubId(hub.getId())) {
+            if (failingClusters.contains(cluster.getClusterName())) {
+                observations.add(ClusterObservation.failed(cluster.getClusterName(),
+                        "Simulated metrics query timeout for cluster " + cluster.getClusterName()));
+                continue;
+            }
+            // Clusters are created on the seeding day, so their age extends the seeded history
+            long daysSinceSeeding = cluster.getCreatedAt() != null
+                    ? ChronoUnit.DAYS.between(cluster.getCreatedAt(), timestamp) : 0;
+            observations.add(simulateObservation(cluster, timestamp, SEED_HISTORY_DAYS + (int) daysSinceSeeding));
+        }
+        return observations;
+    }
+
+    /**
+     * Simulated state of a cluster {@code growthDays} days into its growth curve: workers, allocation and storage
+     * all grow with it, so seeded history and later collections form one consistent series.
+     */
+    private ClusterObservation simulateObservation(Cluster cluster, LocalDateTime timestamp, int growthDays) {
         boolean bareMetal = cluster.getInfrastructureType() == InfrastructureType.BARE_METAL;
-        int workerCount = (bareMetal ? 8 : 6) + (30 - daysAgo) / 10;
+        int workerCount = (bareMetal ? 8 : 6) + growthDays / 10;
         int coresPerWorker = bareMetal ? 32 : 16;
         int memGbPerWorker = bareMetal ? 128 : 64;
 
-        List<NodeMetricsSnapshot> nodes = new ArrayList<>();
+        List<NodeObservation> nodes = new ArrayList<>();
         // Master nodes
         for (int m = 1; m <= 3; m++) {
-            String providerId = generateProviderId(cluster.getInfrastructureType(), "master", m);
-            var providerInfo = providerIdParser.parseProviderId(providerId);
-
-            nodes.add(NodeMetricsSnapshot.builder()
-                    .cluster(cluster)
-                    .snapshotTimestamp(timestamp)
-                    .nodeName(String.format("%s-master-%d", cluster.getClusterName(), m))
-                    .role(NodeRole.MASTER)
-                    .hostType(cluster.getInfrastructureType().name())
-                    .cpuCores(8)
-                    .memoryGb(BigDecimal.valueOf(32))
-                    .underlyingHostId(providerInfo.getInstanceId())
-                    .providerId(providerId)
-                    .hypervisorHost(providerInfo.getHypervisorHost())
-                    .sockets(2)
-                    .build());
+            nodes.add(new NodeObservation(String.format("%s-master-%d", cluster.getClusterName(), m), NodeRole.MASTER,
+                    8, BigDecimal.valueOf(32), generateProviderId(cluster.getInfrastructureType(), "master", m), 2));
         }
         // Worker nodes
         for (int w = 1; w <= workerCount; w++) {
-            String providerId = generateProviderId(cluster.getInfrastructureType(), "worker", w);
-            var providerInfo = providerIdParser.parseProviderId(providerId);
-
-            nodes.add(NodeMetricsSnapshot.builder()
-                    .cluster(cluster)
-                    .snapshotTimestamp(timestamp)
-                    .nodeName(String.format("%s-worker-%02d", cluster.getClusterName(), w))
-                    .role(NodeRole.WORKER)
-                    .hostType(cluster.getInfrastructureType().name())
-                    .cpuCores(coresPerWorker)
-                    .memoryGb(BigDecimal.valueOf(memGbPerWorker))
-                    .underlyingHostId(providerInfo.getInstanceId())
-                    .providerId(providerId)
-                    .hypervisorHost(providerInfo.getHypervisorHost())
-                    .sockets(bareMetal ? 2 : 1)
-                    .build());
+            nodes.add(new NodeObservation(String.format("%s-worker-%02d", cluster.getClusterName(), w), NodeRole.WORKER,
+                    coresPerWorker, BigDecimal.valueOf(memGbPerWorker),
+                    generateProviderId(cluster.getInfrastructureType(), "worker", w), bareMetal ? 2 : 1));
         }
 
         int totalCores = (workerCount * coresPerWorker) + (3 * 8);
         BigDecimal totalMem = BigDecimal.valueOf((workerCount * memGbPerWorker) + (3 * 32));
-        return new SimulatedTopology(nodes, workerCount, totalCores, totalMem);
+        BigDecimal totalStorage = BigDecimal.valueOf(totalCores * 40.0);
+
+        return new ClusterObservation(
+                cluster.getClusterName(),
+                totalCores,
+                (int) Math.round(totalCores * growthFraction(0.65, 0.005, growthDays)),
+                totalMem,
+                scaleBy(totalMem, growthFraction(0.60, 0.004, growthDays)),
+                totalStorage,
+                scaleBy(totalStorage, growthFraction(0.55, 0.003, growthDays)),
+                nodes,
+                String.format("{\"cluster\": \"%s\", \"simulated\": true, \"timestamp\": \"%s\"}",
+                        cluster.getClusterName(), timestamp),
+                null);
+    }
+
+    /** Share of capacity in use after {@code growthDays}, capped below full. */
+    private static double growthFraction(double start, double dailyIncrease, int growthDays) {
+        return Math.min(0.95, start + (growthDays * dailyIncrease));
+    }
+
+    private static BigDecimal scaleBy(BigDecimal value, double fraction) {
+        return value.multiply(BigDecimal.valueOf(fraction)).setScale(2, RoundingMode.HALF_UP);
     }
 
     private void seedNamespacesForCluster(Cluster cluster) {
@@ -301,27 +336,4 @@ public class AcmSimulatorService {
         };
     }
 
-    /**
-     * Poll simulated ACM Hub for updated metrics (checks for failure injection).
-     */
-    public List<SimulatedClusterPayload> fetchFromHub(AcmHub hub) {
-        if (failNextCall) {
-            failNextCall = false; // Reset after triggering
-            throw new AcmConnectionException("Simulated connection timeout to ACM Hub: " + hub.getApiUrl());
-        }
-
-        List<SimulatedClusterPayload> payloads = new ArrayList<>();
-        List<Cluster> clusters = clusterRepository.findAll();
-        for (Cluster c : clusters) {
-            if (c.getAcmHub() != null && c.getAcmHub().getId().equals(hub.getId())) {
-                payloads.add(new SimulatedClusterPayload(c.getClusterName(), c.getInfrastructureType()));
-            }
-        }
-        return payloads;
-    }
-
-    public record SimulatedClusterPayload(String clusterName, InfrastructureType infrastructureType) {}
-
-    public record SimulatedTopology(List<NodeMetricsSnapshot> nodes, int workerNodes, int totalCpuCores,
-                                    BigDecimal totalMemoryGb) {}
 }

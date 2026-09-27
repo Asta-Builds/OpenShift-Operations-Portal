@@ -1,28 +1,38 @@
 package com.openshift.portal.service;
 
+import com.openshift.portal.acm.AcmHubClient;
+import com.openshift.portal.acm.ClusterObservation;
+import com.openshift.portal.acm.HubResilience;
 import com.openshift.portal.config.AcmProperties;
 import com.openshift.portal.domain.entity.AcmHub;
 import com.openshift.portal.domain.entity.Cluster;
-import com.openshift.portal.domain.entity.ClusterSnapshot;
-import com.openshift.portal.domain.entity.NodeMetricsSnapshot;
+import com.openshift.portal.domain.entity.HubSyncRun;
 import com.openshift.portal.domain.enums.Environment;
 import com.openshift.portal.domain.enums.HubStatus;
 import com.openshift.portal.domain.enums.InfrastructureType;
-import com.openshift.portal.domain.enums.NodeRole;
+import com.openshift.portal.domain.enums.SyncStatus;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
+import com.openshift.portal.exception.AcmConnectionException;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
-import com.openshift.portal.repository.ClusterSnapshotRepository;
-import com.openshift.portal.repository.NodeMetricsSnapshotRepository;
+import com.openshift.portal.repository.HubSyncRunRepository;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,94 +48,169 @@ class AcmCollectorServiceTest {
     @Mock
     private ClusterRepository clusterRepository;
     @Mock
-    private ClusterSnapshotRepository snapshotRepository;
+    private HubSyncRunRepository syncRunRepository;
     @Mock
-    private NodeMetricsSnapshotRepository nodeMetricsRepository;
+    private SnapshotIngestionService ingestionService;
     @Mock
-    private LicensingService licensingService;
+    private ObjectProvider<AcmHubClient> hubClientProvider;
     @Mock
-    private AcmSimulatorService simulatorService;
+    private AcmHubClient hubClient;
 
-    private AcmProperties properties;
+    private AcmHub hub;
+    private Cluster clusterA;
+    private Cluster clusterB;
     private AcmCollectorService collectorService;
 
     @BeforeEach
     void setUp() {
-        properties = new AcmProperties();
-        properties.getSimulator().setEnabled(false);
-        collectorService = new AcmCollectorService(
-                acmHubRepository,
-                clusterRepository,
-                snapshotRepository,
-                nodeMetricsRepository,
-                licensingService,
-                simulatorService,
-                properties
-        );
+        RetryConfig retryConfig = RetryConfig.custom()
+                .maxAttempts(3)
+                .waitDuration(Duration.ofMillis(1))
+                .retryExceptions(AcmConnectionException.class)
+                .build();
+        CircuitBreakerConfig breakerConfig = CircuitBreakerConfig.custom()
+                .slidingWindowSize(10)
+                .minimumNumberOfCalls(5)
+                .failureRateThreshold(50)
+                .build();
+        HubResilience hubResilience = new HubResilience(
+                CircuitBreakerRegistry.of(Map.of(HubResilience.CONFIG, breakerConfig)),
+                RetryRegistry.of(Map.of(HubResilience.CONFIG, retryConfig)));
+
+        collectorService = new AcmCollectorService(acmHubRepository, clusterRepository, syncRunRepository,
+                ingestionService, hubClientProvider, hubResilience, new AcmProperties());
+
+        hub = AcmHub.builder().id(UUID.randomUUID()).name("hub-test").apiUrl("https://hub.example.com").build();
+        clusterA = cluster("ocp-a");
+        clusterB = cluster("ocp-b");
     }
 
     @Test
-    void triggerCollection_processesHubsAndCreatesSnapshots() {
-        UUID hubId = UUID.randomUUID();
-        AcmHub hub = AcmHub.builder()
-                .id(hubId)
-                .name("hub-test")
-                .apiUrl("https://hub.example.com")
-                .status(HubStatus.ACTIVE)
-                .build();
-
-        Cluster cluster = Cluster.builder()
-                .id(UUID.randomUUID())
-                .clusterName("ocp-test-01")
-                .acmHub(hub)
-                .environment(Environment.PRODUCTION)
-                .infrastructureType(InfrastructureType.BARE_METAL)
-                .build();
-
-        NodeMetricsSnapshot master = NodeMetricsSnapshot.builder().cluster(cluster).nodeName("master-1").role(NodeRole.MASTER).cpuCores(8).build();
-        NodeMetricsSnapshot worker = NodeMetricsSnapshot.builder().cluster(cluster).nodeName("worker-1").role(NodeRole.WORKER).cpuCores(32).build();
-        var topology = new AcmSimulatorService.SimulatedTopology(List.of(master, worker), 1, 40, BigDecimal.valueOf(160));
-
-        when(acmHubRepository.findAll()).thenReturn(List.of(hub));
-        when(clusterRepository.findByAcmHubId(hubId)).thenReturn(List.of(cluster));
-        when(simulatorService.simulateTopology(eq(cluster), any(), eq(0))).thenReturn(topology);
-        when(snapshotRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(licensingService.calculateLicenseCores(any(), any())).thenReturn(32);
+    void successfulSync_ingestsEveryClusterAndRecordsSuccess() {
+        givenHubWithClusters();
+        when(hubClient.fetchClusters(hub)).thenReturn(List.of(observation("ocp-a"), observation("ocp-b")));
 
         SnapshotTriggerResultDto result = collectorService.triggerCollection();
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
-        assertThat(result.getSnapshotsCreated()).isEqualTo(1);
-        // Counted from the repository query, not from the hub's lazy cluster collection (empty here)
-        assertThat(result.getClustersProcessed()).isEqualTo(1);
+        assertThat(result.getClustersProcessed()).isEqualTo(2);
+        assertThat(result.getSnapshotsCreated()).isEqualTo(2);
+        verify(ingestionService).ingest(eq(clusterA), any(), any(), eq(true));
+        verify(ingestionService).ingest(eq(clusterB), any(), any(), eq(true));
 
-        ArgumentCaptor<ClusterSnapshot> snapshotCaptor = ArgumentCaptor.forClass(ClusterSnapshot.class);
-        verify(snapshotRepository, times(1)).save(snapshotCaptor.capture());
-        ClusterSnapshot saved = snapshotCaptor.getValue();
-        assertThat(saved.getTotalNodes()).isEqualTo(2);
-        assertThat(saved.getWorkerNodes()).isEqualTo(1);
-        assertThat(saved.getTotalCpuCores()).isEqualTo(40);
-        assertThat(saved.getLicenseCoresCount()).isEqualTo(32);
-
-        // Node rows are persisted with every collected snapshot and point back to it
-        verify(nodeMetricsRepository, times(1)).saveAll(List.of(master, worker));
-        assertThat(master.getSnapshot()).isSameAs(saved);
-        assertThat(worker.getSnapshot()).isSameAs(saved);
-        verify(acmHubRepository, times(1)).save(hub);
+        HubSyncRun run = savedRun();
+        assertThat(run.getStatus()).isEqualTo(SyncStatus.SUCCESS);
+        assertThat(run.getAttempts()).isEqualTo(1);
+        assertThat(run.getClustersOk()).isEqualTo(2);
+        assertThat(hub.getStatus()).isEqualTo(HubStatus.ACTIVE);
+        assertThat(hub.getConsecutiveFailures()).isZero();
+        assertThat(hub.getLastSyncTimestamp()).isNotNull();
     }
 
     @Test
-    void collectionFallback_marksHubAsUnreachable() {
-        AcmHub hub = AcmHub.builder()
-                .id(UUID.randomUUID())
-                .name("hub-failed")
-                .status(HubStatus.ACTIVE)
-                .build();
+    void transportFailure_isRetriedAndThenSucceeds() {
+        givenHubWithClusters();
+        when(hubClient.fetchClusters(hub))
+                .thenThrow(new AcmConnectionException("connect timed out"))
+                .thenReturn(List.of(observation("ocp-a"), observation("ocp-b")));
 
-        int result = collectorService.collectionFallback(hub, new RuntimeException("Connection timed out"));
+        collectorService.triggerCollection();
 
-        assertThat(result).isEqualTo(0);
+        HubSyncRun run = savedRun();
+        assertThat(run.getStatus()).isEqualTo(SyncStatus.SUCCESS);
+        assertThat(run.getAttempts()).isEqualTo(2);
+    }
+
+    @Test
+    void persistentTransportFailure_failsAfterAllAttemptsAndMarksHubUnreachable() {
+        when(hubClientProvider.getIfAvailable()).thenReturn(hubClient);
+        when(acmHubRepository.findAll(any(Sort.class))).thenReturn(List.of(hub));
+        when(syncRunRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(hubClient.fetchClusters(hub)).thenThrow(new AcmConnectionException("connection refused"));
+
+        SnapshotTriggerResultDto result = collectorService.triggerCollection();
+
+        assertThat(result.getStatus()).isEqualTo("PARTIAL");
+        HubSyncRun run = savedRun();
+        assertThat(run.getStatus()).isEqualTo(SyncStatus.FAILED);
+        assertThat(run.getAttempts()).isEqualTo(3);
+        assertThat(run.getErrorMessage()).isEqualTo("connection refused");
         assertThat(hub.getStatus()).isEqualTo(HubStatus.UNREACHABLE);
-        verify(acmHubRepository, times(1)).save(hub);
+        assertThat(hub.getConsecutiveFailures()).isEqualTo(1);
+        verifyNoInteractions(ingestionService);
+    }
+
+    @Test
+    void nonTransportFailure_isNotRetriedAndMarksHubInError() {
+        when(hubClientProvider.getIfAvailable()).thenReturn(hubClient);
+        when(acmHubRepository.findAll(any(Sort.class))).thenReturn(List.of(hub));
+        when(syncRunRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        // e.g. an expired token: retrying cannot help
+        when(hubClient.fetchClusters(hub)).thenThrow(new IllegalStateException("401 Unauthorized"));
+
+        collectorService.triggerCollection();
+
+        HubSyncRun run = savedRun();
+        assertThat(run.getStatus()).isEqualTo(SyncStatus.FAILED);
+        assertThat(run.getAttempts()).isEqualTo(1);
+        assertThat(hub.getStatus()).isEqualTo(HubStatus.ERROR);
+    }
+
+    @Test
+    void failedClusterObservation_marksRunPartialAndHubDegraded() {
+        givenHubWithClusters();
+        when(hubClient.fetchClusters(hub)).thenReturn(List.of(
+                observation("ocp-a"),
+                ClusterObservation.failed("ocp-b", "metrics query timed out")));
+
+        collectorService.triggerCollection();
+
+        HubSyncRun run = savedRun();
+        assertThat(run.getStatus()).isEqualTo(SyncStatus.PARTIAL);
+        assertThat(run.getClustersOk()).isEqualTo(1);
+        assertThat(run.getClustersFailed()).isEqualTo(1);
+        assertThat(hub.getStatus()).isEqualTo(HubStatus.DEGRADED);
+        // Some data arrived, so the hub is not counted as failing
+        assertThat(hub.getConsecutiveFailures()).isZero();
+        verify(ingestionService, times(1)).ingest(any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    void missingClient_skipsCollection() {
+        when(hubClientProvider.getIfAvailable()).thenReturn(null);
+
+        SnapshotTriggerResultDto result = collectorService.triggerCollection();
+
+        assertThat(result.getStatus()).isEqualTo("SKIPPED");
+        verifyNoInteractions(acmHubRepository, syncRunRepository, ingestionService);
+    }
+
+    private void givenHubWithClusters() {
+        when(hubClientProvider.getIfAvailable()).thenReturn(hubClient);
+        when(acmHubRepository.findAll(any(Sort.class))).thenReturn(List.of(hub));
+        when(clusterRepository.findByAcmHubId(hub.getId())).thenReturn(List.of(clusterA, clusterB));
+        when(syncRunRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    private HubSyncRun savedRun() {
+        ArgumentCaptor<HubSyncRun> runCaptor = ArgumentCaptor.forClass(HubSyncRun.class);
+        verify(syncRunRepository).save(runCaptor.capture());
+        verify(acmHubRepository).save(hub);
+        return runCaptor.getValue();
+    }
+
+    private Cluster cluster(String name) {
+        return Cluster.builder()
+                .id(UUID.randomUUID())
+                .clusterName(name)
+                .acmHub(hub)
+                .environment(Environment.PRODUCTION)
+                .infrastructureType(InfrastructureType.BARE_METAL)
+                .build();
+    }
+
+    private static ClusterObservation observation(String clusterName) {
+        return new ClusterObservation(clusterName, 100, 60, BigDecimal.valueOf(400), BigDecimal.valueOf(240),
+                BigDecimal.valueOf(4000), BigDecimal.valueOf(2000), List.of(), "{}", null);
     }
 }
