@@ -1,8 +1,8 @@
-apiVersion: tekton.dev/v1beta1
+# oc create -f pipelinerun-sample.yaml   (create, not apply: the name is generated)
+apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
   generateName: ocp-portal-unit-tests-run-
-  namespace: openshift-operations-portal
   labels:
     tekton.dev/pipeline: ocp-portal-unit-tests-pipeline
 spec:

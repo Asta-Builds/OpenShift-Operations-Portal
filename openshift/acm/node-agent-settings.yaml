@@ -1,0 +1,32 @@
+# Apply on the ACM hub, next to node-agent-policy.yaml, after filling in the values. The Policy copies them into each
+# managed cluster; hub templates may only read objects in the Policy's own namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-portal-policies
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-agent-settings
+  namespace: openshift-portal-policies
+data:
+  # Portal API as the managed clusters reach it: the portal's Route plus /api/v1
+  PORTAL_URL: https://openshift-operations-portal.apps.hub.example.com/api/v1
+  PORTAL_TOKEN_URI: https://keycloak.apps.hub.example.com/realms/openshift-portal/protocol/openid-connect/token
+  # A registry every managed cluster can pull from
+  IMAGE: quay.example.com/openshift-portal/node-agent:1.0.0
+  REPORT_INTERVAL: PT5M
+---
+# The agents' Keycloak client (see node-agent/README.md). Better created from the command line than from a file:
+#   oc -n openshift-portal-policies create secret generic node-agent-credentials \
+#     --from-literal=client-id=portal-node-agent --from-literal=client-secret=<secret>
+apiVersion: v1
+kind: Secret
+metadata:
+  name: node-agent-credentials
+  namespace: openshift-portal-policies
+type: Opaque
+stringData:
+  client-id: portal-node-agent
+  client-secret: REPLACE_WITH_CLIENT_SECRET

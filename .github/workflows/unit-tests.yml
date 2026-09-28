@@ -9,6 +9,7 @@ on:
       - 'core-service/**'
       - 'node-agent/**'
       - 'frontend/**'
+      - 'openshift/**'
       - '.github/workflows/unit-tests.yml'
   pull_request:
     branches:
@@ -157,13 +158,98 @@ jobs:
           retention-days: 14
 
   # =========================================================================
-  # 4. Aggregated Pipeline Verification
+  # 4. OpenShift Manifests: Kustomize overlays, ACM Policy and Tekton pipeline
+  # =========================================================================
+  openshift-manifests:
+    name: OpenShift Manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KUSTOMIZE_VERSION: v5.4.3
+      KUBECONFORM_VERSION: v0.6.7
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install kustomize, kubeconform and PyYAML
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/bin" kustomize
+          curl -sSfL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/bin" kubeconform
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          pip install pyyaml
+
+      - name: Validate Manifests
+        run: ./openshift/validate.sh
+
+  # =========================================================================
+  # 5. Container Images, run the way OpenShift runs them: an arbitrary UID in group 0, no capabilities, and a
+  #    read-only root filesystem for the Java services
+  # =========================================================================
+  container-images:
+    name: Container Images (OpenShift Security Context)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RUN_AS: --user 1000770000:0 --cap-drop ALL --security-opt no-new-privileges
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Images
+        run: |
+          docker build -t portal-core-service:ci core-service
+          docker build -t portal-node-agent:ci node-agent
+          docker build -t portal-ui:ci frontend
+
+      - name: UI Serves the App and Proxies the API
+        run: |
+          # Nothing listens on port 9, so a proxied API call must come back as 502 from nginx
+          docker run -d --name ui $RUN_AS -e PORTAL_API_URL=http://127.0.0.1:9 -p 8080:8080 portal-ui:ci
+          for i in $(seq 1 30); do curl -sf http://localhost:8080/healthz && break; sleep 1; done
+          curl -sf http://localhost:8080/healthz | grep -qx ok
+          curl -sf http://localhost:8080/ | grep -q '<app-root'
+          curl -sf http://localhost:8080/clusters | grep -q '<app-root'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/v1/auth/config)" = 502
+          docker exec ui grep -q 'proxy_pass http://127.0.0.1:9/api/v1/' /etc/nginx/conf.d/default.conf
+
+      - name: Core Service Starts Read-Only
+        run: |
+          docker run -d --name core $RUN_AS --read-only --tmpfs /tmp -e SPRING_PROFILES_ACTIVE=dev -p 8081:8080 portal-core-service:ci
+          for i in $(seq 1 90); do curl -sf http://localhost:8081/api/v1/actuator/health/liveness && break; sleep 2; done
+          curl -sf http://localhost:8081/api/v1/actuator/health/liveness | grep -q '"UP"'
+          curl -sf http://localhost:8081/api/v1/actuator/health/readiness | grep -q '"UP"'
+
+      - name: Node Agent Starts Read-Only
+        run: |
+          # No cluster to read here; the agent must still start and report itself alive
+          docker run -d --name node-agent $RUN_AS --read-only --tmpfs /tmp -e CLUSTER_NAME=ci -e PORTAL_URL=http://127.0.0.1:9/api/v1 \
+            -e REPORT_INITIAL_DELAY=PT1H -p 8082:8080 portal-node-agent:ci
+          for i in $(seq 1 60); do curl -sf http://localhost:8082/actuator/health/liveness && break; sleep 2; done
+          curl -sf http://localhost:8082/actuator/health/liveness | grep -q '"UP"'
+
+      - name: Container Logs
+        if: always()
+        run: |
+          for c in ui core node-agent; do echo "::group::$c"; docker logs "$c" 2>&1 | tail -100 || true; echo "::endgroup::"; done
+
+  # =========================================================================
+  # 6. Aggregated Pipeline Verification
   # =========================================================================
   pipeline-success:
     name: Pipeline Verification Gate
-    needs: [backend-unit-tests, node-agent-unit-tests, frontend-unit-tests]
+    needs: [backend-unit-tests, node-agent-unit-tests, frontend-unit-tests, openshift-manifests, container-images]
     runs-on: ubuntu-latest
     steps:
       - name: Final Quality Gate
         run: |
-          echo "All unit tests and builds for Core Service, Node Agent and Frontend passed the CI Quality Gate!" >> $GITHUB_STEP_SUMMARY
+          echo "All unit tests, builds, OpenShift manifests and container images passed the CI Quality Gate!" >> $GITHUB_STEP_SUMMARY

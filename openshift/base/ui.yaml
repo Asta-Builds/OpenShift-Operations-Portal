@@ -1,0 +1,100 @@
+# The UI: nginx serving the Angular app and proxying /api/v1 to the core service on the same origin. Node agents
+# report through the same Route.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-operations-portal-ui
+  labels:
+    app.kubernetes.io/name: openshift-operations-portal-ui
+    app.kubernetes.io/component: ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openshift-operations-portal-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openshift-operations-portal-ui
+        app.kubernetes.io/component: ui
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ui
+          image: ui
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: PORTAL_API_URL
+              value: http://openshift-operations-portal-core:8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-operations-portal-ui
+  labels:
+    app.kubernetes.io/name: openshift-operations-portal-ui
+spec:
+  selector:
+    app.kubernetes.io/name: openshift-operations-portal-ui
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# TLS ends at the router (edge). Overlays set the host; without one, OpenShift assigns one under the apps domain.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openshift-operations-portal
+  labels:
+    app.kubernetes.io/name: openshift-operations-portal-ui
+  annotations:
+    # PDF exports of large fleets
+    haproxy.router.openshift.io/timeout: 120s
+spec:
+  to:
+    kind: Service
+    name: openshift-operations-portal-ui
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: openshift-operations-portal-ui
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openshift-operations-portal-ui

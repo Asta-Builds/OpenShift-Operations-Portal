@@ -1,0 +1,24 @@
+# The portal on OpenShift: core service (API) and UI behind one Route. PostgreSQL and RabbitMQ come from your
+# platform, or from components/ for a proof of concept. Deploy an overlay, not the base: it sets the namespace,
+# images and environment settings (see overlays/example and openshift/README.md).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: openshift-operations-portal
+    includeSelectors: false
+
+resources:
+  - core-service.yaml
+  - ui.yaml
+  - network-policies.yaml
+
+# Non-secret settings; overlays merge their own. Credentials are in the Secret
+# openshift-operations-portal-secrets, created outside Git (see openshift/README.md).
+configMapGenerator:
+  - name: openshift-operations-portal-config
+    envs:
+      - config.env
+
+# Images are set by the overlay (your registry or mirror): core-service and ui are placeholders.

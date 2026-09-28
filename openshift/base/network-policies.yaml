@@ -1,0 +1,48 @@
+# Ingress allowed only along the request path: router -> UI -> core service. The components add their own rules
+# for PostgreSQL and RabbitMQ. Egress is not restricted: the core service calls the ACM hubs, Keycloak and SMTP.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openshift-operations-portal-default-deny
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openshift-operations-portal-ui-from-router
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openshift-operations-portal-ui
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              policy-group.network.openshift.io/ingress: ""
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openshift-operations-portal-core-from-ui
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openshift-operations-portal-core
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: openshift-operations-portal-ui
+      ports:
+        - port: 8080
+          protocol: TCP

@@ -1,0 +1,34 @@
+# Example environment: copy this folder, then change the settings, images, Route host and hubs.
+#   oc apply -k openshift/overlays/<your-environment>
+# Before the first apply, create the namespace and the Secret (see openshift/README.md).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: openshift-operations-portal
+
+resources:
+  - ../../base
+
+# Leave out a component when the platform provides the service; then set its host and port in config.env
+components:
+  - ../../components/postgresql
+  - ../../components/rabbitmq
+
+configMapGenerator:
+  - name: openshift-operations-portal-config
+    behavior: merge
+    envs:
+      - config.env
+
+# Your registry, or the one your cluster mirrors (ImageDigestMirrorSet) in an air-gapped installation
+images:
+  - name: core-service
+    newName: quay.example.com/openshift-portal/core-service
+    newTag: 1.0.0
+  - name: ui
+    newName: quay.example.com/openshift-portal/ui
+    newTag: 1.0.0
+
+patches:
+  - path: route-host.yaml
+  - path: hub-credentials.yaml

@@ -1,110 +1,171 @@
-apiVersion: tekton.dev/v1beta1
+# Unit tests of the core service and node agent, and the UI production build, in OpenShift Pipelines. The tasks are
+# inline, so the pipeline needs no ClusterTask (removed in OpenShift Pipelines 1.17) and no catalog task, and every
+# image can point at a mirror for air-gapped clusters. The UI unit tests need a browser and run in GitHub Actions.
+apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   name: ocp-portal-unit-tests-pipeline
-  namespace: openshift-operations-portal
   labels:
     app.kubernetes.io/name: openshift-operations-portal
     app.kubernetes.io/component: ci-pipeline
 spec:
   description: >-
-    Continuous Integration pipeline for OpenShift Operations Portal.
-    Executes unit tests and code coverage for Core Service (Spring Boot)
-    and Frontend (Angular) in an air-gapped OpenShift environment.
+    Unit tests and JaCoCo coverage of the core service and node agent, and the UI production build.
   params:
     - name: git-url
       type: string
-      description: The Git repository URL to clone
+      description: Repository to clone
       default: https://github.com/Asta-Builds/OpenShift-Operations-Portal.git
     - name: git-revision
       type: string
-      description: The Git branch or commit revision
+      description: Branch, tag or commit
       default: dev
+    - name: git-image
+      type: string
+      default: docker.io/alpine/git:2.45.2
+    - name: maven-image
+      type: string
+      default: docker.io/library/maven:3.9-eclipse-temurin-17
+    - name: node-image
+      type: string
+      default: docker.io/library/node:20-alpine
+    - name: maven-mirror-url
+      type: string
+      description: Maven repository mirror (e.g. a Nexus group); empty uses Maven Central
+      default: ""
   workspaces:
     - name: shared-workspace
-      description: Shared PVC volume storing source code and build artifacts
+      description: Source checkout, shared by the tasks
     - name: maven-cache
-      description: Maven repository cache PVC volume
+      description: Local Maven repository kept between runs
+      optional: true
   tasks:
-    # -------------------------------------------------------------------------
-    # 1. Clone Source Repository
-    # -------------------------------------------------------------------------
     - name: fetch-repository
-      taskRef:
-        name: git-clone
-        kind: ClusterTask
-      workspaces:
-        - name: output
-          workspace: shared-workspace
       params:
         - name: url
           value: $(params.git-url)
         - name: revision
           value: $(params.git-revision)
-        - name: depth
-          value: "1"
+        - name: image
+          value: $(params.git-image)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+      taskSpec:
+        params:
+          - name: url
+            type: string
+          - name: revision
+            type: string
+          - name: image
+            type: string
+        workspaces:
+          - name: output
+        steps:
+          - name: clone
+            image: $(params.image)
+            workingDir: $(workspaces.output.path)
+            env: &writable-home
+              # Steps run under a random UID whose image home directory is not writable
+              - name: HOME
+                value: /tmp
+            script: |
+              #!/bin/sh
+              set -eu
+              # The workspace belongs to another UID; git refuses such checkouts unless told otherwise
+              git config --global --add safe.directory "$(workspaces.output.path)"
+              find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+              git init -q .
+              git remote add origin "$(params.url)"
+              git fetch -q --depth 1 origin "$(params.revision)"
+              git checkout -q FETCH_HEAD
+              git log -1 --oneline
 
-    # -------------------------------------------------------------------------
-    # 2. Core Service Unit Tests & JaCoCo Report
-    # -------------------------------------------------------------------------
     - name: backend-unit-tests
       runAfter:
         - fetch-repository
-      taskRef:
-        name: maven
-        kind: ClusterTask
+      params:
+        - name: project
+          value: core-service
+        - name: image
+          value: $(params.maven-image)
+        - name: mirror-url
+          value: $(params.maven-mirror-url)
       workspaces:
         - name: source
           workspace: shared-workspace
-        - name: maven-settings
+        - name: maven-cache
           workspace: maven-cache
-      params:
-        - name: CONTEXT_DIR
-          value: core-service
-        - name: GOALS
-          value:
-            - clean
-            - test
-            - -Dspring.profiles.active=dev
+      taskSpec: &maven-tests
+        params:
+          - name: project
+            type: string
+          - name: image
+            type: string
+          - name: mirror-url
+            type: string
+        workspaces:
+          - name: source
+          - name: maven-cache
+            optional: true
+        steps:
+          - name: test
+            image: $(params.image)
+            workingDir: $(workspaces.source.path)/$(params.project)
+            env: *writable-home
+            script: |
+              #!/bin/sh
+              set -eu
+              REPO="$HOME/.m2/repository"
+              if [ "$(workspaces.maven-cache.bound)" = "true" ]; then REPO="$(workspaces.maven-cache.path)/repository"; fi
+              SETTINGS=""
+              if [ -n "$(params.mirror-url)" ]; then
+                cat > /tmp/settings.xml <<XML
+              <settings><mirrors><mirror><id>mirror</id><mirrorOf>*</mirrorOf><url>$(params.mirror-url)</url></mirror></mirrors></settings>
+              XML
+                SETTINGS="-s /tmp/settings.xml"
+              fi
+              mvn -B $SETTINGS -Dmaven.repo.local="$REPO" clean test -Dspring.profiles.active=dev
 
-    # -------------------------------------------------------------------------
-    # 3. Node Agent Unit Tests & JaCoCo Report
-    # -------------------------------------------------------------------------
     - name: node-agent-unit-tests
       runAfter:
         - fetch-repository
-      taskRef:
-        name: maven
-        kind: ClusterTask
+      params:
+        - name: project
+          value: node-agent
+        - name: image
+          value: $(params.maven-image)
+        - name: mirror-url
+          value: $(params.maven-mirror-url)
       workspaces:
         - name: source
           workspace: shared-workspace
-        - name: maven-settings
+        - name: maven-cache
           workspace: maven-cache
-      params:
-        - name: CONTEXT_DIR
-          value: node-agent
-        - name: GOALS
-          value:
-            - clean
-            - test
+      taskSpec: *maven-tests
 
-    # -------------------------------------------------------------------------
-    # 4. Frontend Angular Unit Tests
-    # -------------------------------------------------------------------------
-    - name: frontend-unit-tests
+    - name: frontend-build
       runAfter:
         - fetch-repository
+      params:
+        - name: image
+          value: $(params.node-image)
       workspaces:
         - name: source
           workspace: shared-workspace
       taskSpec:
+        params:
+          - name: image
+            type: string
         workspaces:
           - name: source
         steps:
-          - name: run-ng-test
-            image: node:20-alpine
+          - name: build
+            image: $(params.image)
             workingDir: $(workspaces.source.path)/frontend
+            env: *writable-home
             script: |
-              npm ci
+              #!/bin/sh
+              set -eu
+              npm ci --no-audit --no-fund
               npm run build -- --configuration production

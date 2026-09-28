@@ -1,0 +1,208 @@
+# Apply on the ACM hub: installs the node agent in every managed cluster of the global cluster set, with each
+# cluster's own name, and keeps it installed. Needs node-agent-settings.yaml applied first.
+#   oc apply -f node-agent-settings.yaml -f node-agent-policy.yaml
+#   oc -n openshift-portal-policies get policy openshift-portal-node-agent   (COMPLIANCE STATE: Compliant)
+# The objects match node-agent/deploy/node-agent.yaml, the single-cluster version.
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  # Must be named after the cluster set; global holds every managed cluster
+  name: global
+  namespace: openshift-portal-policies
+spec:
+  clusterSet: global
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: openshift-portal-node-agent
+  namespace: openshift-portal-policies
+spec:
+  clusterSets:
+    - global
+  # To stage the rollout, select clusters by label instead, e.g.:
+  # predicates:
+  #   - requiredClusterSelector:
+  #       labelSelector:
+  #         matchLabels:
+  #           environment: dev
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: openshift-portal-node-agent
+  namespace: openshift-portal-policies
+placementRef:
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+  name: openshift-portal-node-agent
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: openshift-portal-node-agent
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: openshift-portal-node-agent
+  namespace: openshift-portal-policies
+  annotations:
+    policy.open-cluster-management.io/standards: OpenShift Operations Portal
+    policy.open-cluster-management.io/categories: Inventory
+    policy.open-cluster-management.io/controls: Node inventory for license counting
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: openshift-portal-node-agent
+        spec:
+          remediationAction: enforce
+          severity: low
+          # Removing the Policy removes the agent
+          pruneObjectBehavior: DeleteIfCreated
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: openshift-portal-node-agent
+                  labels:
+                    app.kubernetes.io/name: openshift-portal-node-agent
+                    app.kubernetes.io/part-of: openshift-operations-portal
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ServiceAccount
+                metadata:
+                  name: node-agent
+                  namespace: openshift-portal-node-agent
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRole
+                metadata:
+                  name: openshift-portal-node-reader
+                rules:
+                  - apiGroups: [""]
+                    resources: ["nodes"]
+                    verbs: ["get", "list"]
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: openshift-portal-node-reader
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: openshift-portal-node-reader
+                subjects:
+                  - kind: ServiceAccount
+                    name: node-agent
+                    namespace: openshift-portal-node-agent
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: node-agent-credentials
+                  namespace: openshift-portal-node-agent
+                type: Opaque
+                data:
+                  # fromSecret returns the value base64-encoded, as data expects
+                  client-id: '{{hub fromSecret "openshift-portal-policies" "node-agent-credentials" "client-id" hub}}'
+                  client-secret: '{{hub fromSecret "openshift-portal-policies" "node-agent-credentials" "client-secret" hub}}'
+            - complianceType: mustonlyhave
+              objectDefinition:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: node-agent-config
+                  namespace: openshift-portal-node-agent
+                data:
+                  # The ManagedCluster name, which is how the portal names the cluster
+                  CLUSTER_NAME: '{{hub .ManagedClusterName hub}}'
+                  PORTAL_URL: '{{hub fromConfigMap "openshift-portal-policies" "node-agent-settings" "PORTAL_URL" hub}}'
+                  PORTAL_TOKEN_URI: '{{hub fromConfigMap "openshift-portal-policies" "node-agent-settings" "PORTAL_TOKEN_URI" hub}}'
+                  REPORT_INTERVAL: '{{hub fromConfigMap "openshift-portal-policies" "node-agent-settings" "REPORT_INTERVAL" hub}}'
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: node-agent
+                  namespace: openshift-portal-node-agent
+                  labels:
+                    app.kubernetes.io/name: openshift-portal-node-agent
+                    app.kubernetes.io/part-of: openshift-operations-portal
+                spec:
+                  replicas: 1
+                  selector:
+                    matchLabels:
+                      app.kubernetes.io/name: openshift-portal-node-agent
+                  template:
+                    metadata:
+                      labels:
+                        app.kubernetes.io/name: openshift-portal-node-agent
+                        app.kubernetes.io/part-of: openshift-operations-portal
+                    spec:
+                      serviceAccountName: node-agent
+                      securityContext:
+                        runAsNonRoot: true
+                        seccompProfile:
+                          type: RuntimeDefault
+                      containers:
+                        - name: node-agent
+                          image: '{{hub fromConfigMap "openshift-portal-policies" "node-agent-settings" "IMAGE" hub}}'
+                          ports:
+                            - containerPort: 8080
+                              name: http
+                          envFrom:
+                            - configMapRef:
+                                name: node-agent-config
+                          env:
+                            - name: PORTAL_CLIENT_ID
+                              valueFrom:
+                                secretKeyRef:
+                                  name: node-agent-credentials
+                                  key: client-id
+                            - name: PORTAL_CLIENT_SECRET
+                              valueFrom:
+                                secretKeyRef:
+                                  name: node-agent-credentials
+                                  key: client-secret
+                          securityContext:
+                            allowPrivilegeEscalation: false
+                            readOnlyRootFilesystem: true
+                            capabilities:
+                              drop: ["ALL"]
+                          resources:
+                            requests:
+                              cpu: 20m
+                              memory: 256Mi
+                            limits:
+                              cpu: 500m
+                              memory: 384Mi
+                          livenessProbe:
+                            httpGet:
+                              path: /actuator/health/liveness
+                              port: 8080
+                            initialDelaySeconds: 30
+                            periodSeconds: 20
+                          readinessProbe:
+                            httpGet:
+                              path: /actuator/health/readiness
+                              port: 8080
+                            initialDelaySeconds: 15
+                            periodSeconds: 10
+                          volumeMounts:
+                            - name: tmp
+                              mountPath: /tmp
+                      volumes:
+                        - name: tmp
+                          emptyDir: {}

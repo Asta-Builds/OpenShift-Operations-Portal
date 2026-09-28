@@ -1,0 +1,6 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openshift-operations-portal
+spec:
+  host: openshift-operations-portal.apps.hub.example.com

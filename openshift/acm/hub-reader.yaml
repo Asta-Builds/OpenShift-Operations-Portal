@@ -1,0 +1,53 @@
+# Apply on each ACM hub the portal reads: a read-only identity and a long-lived token for it.
+#   oc apply -f hub-reader.yaml
+#   oc -n openshift-portal-reader get secret openshift-portal-reader-token -o jsonpath='{.data.token}' | base64 -d > token
+#   oc -n openshift-portal-reader get secret openshift-portal-reader-token -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
+#   oc -n openshift-config-managed get configmap default-ingress-cert -o jsonpath='{.data.ca-bundle\.crt}' >> ca.crt
+# (the second CA is the ingress certificate's, for the Observability and Search routes) then, on the portal's cluster:
+#   oc -n openshift-operations-portal create secret generic hub-east-credentials --from-file=token --from-file=ca.crt
+#
+# The token lists ManagedClusters and nothing else. ACM Observability (rbac-query-proxy) and Search filter their
+# answers by what the caller may see on the hub: if namespace metrics or labels come back empty, the identity also
+# needs read access to the managed clusters' namespaces on the hub (for example the "view" ClusterRole bound in each).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-portal-reader
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openshift-portal-reader
+  namespace: openshift-portal-reader
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: openshift-portal-reader
+rules:
+  - apiGroups: ["cluster.open-cluster-management.io"]
+    resources: ["managedclusters"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: openshift-portal-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: openshift-portal-reader
+subjects:
+  - kind: ServiceAccount
+    name: openshift-portal-reader
+    namespace: openshift-portal-reader
+---
+# A token that does not expire; delete and recreate the Secret to rotate it
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openshift-portal-reader-token
+  namespace: openshift-portal-reader
+  annotations:
+    kubernetes.io/service-account.name: openshift-portal-reader
+type: kubernetes.io/service-account-token

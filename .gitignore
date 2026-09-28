@@ -41,3 +41,6 @@ tmp/
 temp/
 # Hub lab credentials, tokens and kubeconfigs (the lab scripts themselves are tracked)
 hub-lab/.state/
+
+# Credentials for oc create secret (openshift/overlays/*/secrets.env.example)
+openshift/**/secrets.env

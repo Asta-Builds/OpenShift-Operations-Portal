@@ -1,0 +1,22 @@
+# A single RabbitMQ node, and the portal switched to it: report generation and email dispatch then run from the
+# report.generation.queue and report.email.queue queues. In production prefer your enterprise broker or the RabbitMQ
+# Cluster Operator, and set SPRING_RABBITMQ_HOST instead. Without RabbitMQ both steps run in the core service.
+# Its user and password are the portal's SPRING_RABBITMQ_USERNAME / SPRING_RABBITMQ_PASSWORD.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - rabbitmq.yaml
+
+configMapGenerator:
+  - name: openshift-operations-portal-config
+    behavior: merge
+    literals:
+      - OPENSHIFT_PORTAL_RABBITMQ_ENABLED=true
+      - SPRING_RABBITMQ_HOST=openshift-operations-portal-rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+
+images:
+  - name: rabbitmq
+    newName: docker.io/library/rabbitmq
+    newTag: 3.13-alpine

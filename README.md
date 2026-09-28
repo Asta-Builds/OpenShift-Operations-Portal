@@ -49,17 +49,20 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 │   ├── src/app/pages/          # Overview, Clusters, Licensing, Forecast, Reports, Simulator
 │   ├── src/app/shared/         # Pure Lucide SVG Icons Component
 │   ├── src/app/services/       # PortalService HTTP Client
-│   ├── Dockerfile              # Multi-stage container build with Nginx
+│   ├── nginx/                  # Nginx config template: serves the app on 8080, proxies /api/v1 to PORTAL_API_URL
+│   ├── Dockerfile              # Multi-stage container build with unprivileged Nginx
 │   └── package.json            # Node / Angular configuration
 ├── docker-compose.yml          # Local sandbox (PostgreSQL, RabbitMQ, Mailpit, OpenLDAP, Keycloak, Backend, Frontend)
 ├── keycloak/                   # Sandbox realm imported by Keycloak (clients, roles, LDAP federation)
 │   └── themes/portal/          # Login theme matching the portal UI (the realm's loginTheme)
 ├── ldap/                       # Sandbox directory: users and portal groups
-├── nginx/                      # Nginx reverse proxy configuration for air-gapped web bundle
-│   └── nginx.conf
-├── openshift/                  # Kubernetes & OpenShift deployment manifests
-│   ├── deployment.yaml
-│   └── service-and-route.yaml
+├── openshift/                  # OpenShift deployment (see openshift/README.md)
+│   ├── base/                   # Core service and UI: Deployments, Services, Route, NetworkPolicies
+│   ├── components/             # Optional PostgreSQL and RabbitMQ
+│   ├── overlays/example/       # One environment's settings, images, Route host and hub credentials
+│   ├── acm/                    # Hub read-only identity and the ACM Policy installing the node agent everywhere
+│   ├── pipeline/               # Tekton v1 unit test pipeline for OpenShift Pipelines
+│   └── validate.sh             # Schema and consistency checks of all of the above
 └── openshift_operations_portal_technical_architecture (1).md
 ```
 
@@ -184,6 +187,20 @@ Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OP
 
 ---
 
+## Deploying on OpenShift
+
+[openshift/README.md](openshift/README.md) is the deployment guide. It covers building the images, the Keycloak realm, hub tokens, the Kustomize overlay (core service, UI, Route, NetworkPolicies, and optionally PostgreSQL and RabbitMQ), rolling the node agent out to every managed cluster with an ACM Policy, and the Tekton unit test pipeline. In short:
+
+```bash
+oc new-project openshift-operations-portal
+oc create secret generic openshift-operations-portal-secrets --from-env-file=secrets.env
+oc apply -k openshift/overlays/<your-environment>
+```
+
+The UI container listens on port 8080 (unprivileged Nginx) and proxies `/api/v1` to the core service named in `PORTAL_API_URL`; `docker compose` publishes it on `localhost:4200` as before.
+
+---
+
 ## Core REST API Reference
 
 | Method | Endpoint | Role | Description |
@@ -232,3 +249,5 @@ cd core-service
 cd ..\node-agent
 .\mvnw.cmd test
 ```
+
+Check the OpenShift manifests (needs `kustomize`, `kubeconform`, `python3` and PyYAML) with `./openshift/validate.sh`.

@@ -80,6 +80,9 @@ management:
   endpoint:
     health:
       show-details: always
+      # /actuator/health/liveness and /readiness for the OpenShift probes, also outside Kubernetes
+      probes:
+        enabled: true
 
 # OpenAPI / Swagger UI
 springdoc:
