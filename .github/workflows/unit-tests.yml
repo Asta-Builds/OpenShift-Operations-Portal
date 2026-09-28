@@ -225,9 +225,10 @@ jobs:
       - name: Core Service Starts Read-Only
         run: |
           docker run -d --name core $RUN_AS --read-only --tmpfs /tmp -e SPRING_PROFILES_ACTIVE=dev -p 8081:8080 portal-core-service:ci
-          for i in $(seq 1 90); do curl -sf http://localhost:8081/api/v1/actuator/health/liveness && break; sleep 2; done
-          curl -sf http://localhost:8081/api/v1/actuator/health/liveness | grep -q '"UP"'
+          # Live once the context has started, ready only after the startup runners (the dev profile's simulator seed)
+          for i in $(seq 1 90); do curl -sf http://localhost:8081/api/v1/actuator/health/readiness && break; sleep 2; done
           curl -sf http://localhost:8081/api/v1/actuator/health/readiness | grep -q '"UP"'
+          curl -sf http://localhost:8081/api/v1/actuator/health/liveness | grep -q '"UP"'
 
       - name: Node Agent Starts Read-Only
         run: |
