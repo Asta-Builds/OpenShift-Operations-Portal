@@ -16,6 +16,22 @@ public class AcmProperties {
     private Attribution attribution = new Attribution();
     private Inventory inventory = new Inventory();
     private NodeAgent nodeAgent = new NodeAgent();
+    private Notifications notifications = new Notifications();
+
+    /** Scheduled report emails and alerts. The SMTP server itself is Spring's {@code spring.mail.*}. */
+    @Data
+    public static class Notifications {
+        /** Sender address of every email. */
+        private String from = "openshift-portal@localhost";
+        /** Comma-separated addresses receiving license breach and capacity runway alerts; empty sends no alerts. */
+        private String alertRecipients = "";
+        /** A capacity alert is sent when CPU or memory requests are projected to reach capacity within this many days. */
+        private int runwayAlertDays = 60;
+        /** Base URL of the portal UI for links in emails, e.g. https://portal.apps.example.com; empty leaves links out. */
+        private String portalUrl = "";
+        /** Checks for due report schedules every minute; tests turn it off and run the check themselves. */
+        private boolean schedulerEnabled = true;
+    }
 
     /** Node reports pushed by the node agent in each managed cluster (plan decision D2). */
     @Data

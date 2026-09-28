@@ -251,14 +251,50 @@ export interface SnapshotTriggerResult {
   message: string;
 }
 
-export interface ReportDefinition {
+export type ReportType = 'FLEET_CAPACITY' | 'LICENSE_AUDIT' | 'COST_ATTRIBUTION' | 'GROWTH_FORECAST';
+export type ReportFormat = 'CSV' | 'PDF';
+/** NOT_SENT: no SMTP server is configured. */
+export type NotificationStatus = 'QUEUED' | 'SENT' | 'NOT_SENT' | 'FAILED';
+export type NotificationKind = 'SCHEDULED_REPORT' | 'LICENSE_BREACH' | 'CAPACITY_RUNWAY';
+
+/** A report emailed to its recipients on a cron schedule. */
+export interface ReportSchedule {
   id: string;
   title: string;
-  reportType: 'FLEET_CAPACITY' | 'LICENSE_AUDIT' | 'COST_ATTRIBUTION' | 'GROWTH_FORECAST';
-  cronSchedule?: string;
-  recipients?: string;
-  isEnabled: boolean;
+  reportType: ReportType;
+  format: ReportFormat;
+  /** Six-field Spring cron (seconds first), in the portal's time zone. */
+  cronSchedule: string;
+  recipients: string;
+  enabled: boolean;
   createdAt: string;
+  /** When the schedule last came due; "send now" leaves it alone. */
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  lastDelivery: { status: NotificationStatus; at: string; detail: string | null } | null;
+}
+
+export interface NewReportSchedule {
+  title: string;
+  reportType: ReportType;
+  format: ReportFormat;
+  /** Five-field Unix cron, e.g. "0 7 * * MON". */
+  cronSchedule: string;
+  /** Addresses separated by commas, semicolons or spaces. */
+  recipients: string;
+}
+
+/** One email the portal sent or could not send: a scheduled report or an alert. */
+export interface PortalNotification {
+  id: number;
+  kind: NotificationKind;
+  reportId: string | null;
+  subject: string;
+  recipients: string;
+  status: NotificationStatus;
+  detail: string | null;
+  createdAt: string;
+  sentAt: string | null;
 }
 
 export interface SavedReport {

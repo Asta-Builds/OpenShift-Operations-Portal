@@ -10,7 +10,9 @@ import {
   LicenseAudit,
   ForecastingProjection,
   SnapshotTriggerResult,
-  ReportDefinition,
+  ReportSchedule,
+  NewReportSchedule,
+  PortalNotification,
   AcmHubSummary,
   SimulatorStatus,
   AttributionReport,
@@ -116,8 +118,32 @@ export class PortalService {
     });
   }
 
-  getReports(): Observable<ReportDefinition[]> {
-    return this.http.get<ReportDefinition[]>(`${this.baseUrl}/reports`);
+  getReports(): Observable<ReportSchedule[]> {
+    return this.http.get<ReportSchedule[]>(`${this.baseUrl}/reports`);
+  }
+
+  /** Admin only; cron and recipients are validated by the API, which explains what is wrong. */
+  createReportSchedule(schedule: NewReportSchedule): Observable<ReportSchedule> {
+    return this.http.post<ReportSchedule>(`${this.baseUrl}/reports`, schedule);
+  }
+
+  /** Admin only; only the fields given are changed. */
+  updateReportSchedule(id: string, changes: Partial<NewReportSchedule> & { enabled?: boolean }): Observable<ReportSchedule> {
+    return this.http.patch<ReportSchedule>(`${this.baseUrl}/reports/${id}`, changes);
+  }
+
+  deleteReportSchedule(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/reports/${id}`);
+  }
+
+  /** Admin only: emails the report now; the outcome shows up as the schedule's last delivery. */
+  runReportSchedule(id: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/reports/${id}/run`, {});
+  }
+
+  /** Operator: every report email and alert, newest first. */
+  getNotifications(limit = 50): Observable<PortalNotification[]> {
+    return this.http.get<PortalNotification[]>(`${this.baseUrl}/notifications`, { params: { limit } });
   }
 
   /** Fetched through HttpClient so the bearer token is sent; a plain link would not carry it. */

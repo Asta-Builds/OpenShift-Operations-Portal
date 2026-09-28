@@ -52,6 +52,8 @@ public class SecurityConfig {
                         // Only node agents report nodes; the role grants nothing else, not even reading
                         .requestMatchers(mvc.pattern(HttpMethod.POST, "/node-reports")).hasRole("NODE_AGENT")
                         .requestMatchers(mvc.pattern(HttpMethod.POST, "/reports")).hasRole("ADMIN")
+                        // The delivery log shows recipients' addresses
+                        .requestMatchers(mvc.pattern(HttpMethod.GET, "/notifications/**")).hasRole("OPERATOR")
                         .requestMatchers(mvc.pattern(HttpMethod.POST, "/clusters/collect"),
                                 mvc.pattern("/reports/export/**"), mvc.pattern("/reports/saved/**")).hasRole("OPERATOR")
                         .requestMatchers(mvc.pattern(HttpMethod.GET, "/**")).hasRole("VIEWER")

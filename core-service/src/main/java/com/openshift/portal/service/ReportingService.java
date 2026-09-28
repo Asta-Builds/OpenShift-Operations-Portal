@@ -3,12 +3,10 @@ package com.openshift.portal.service;
 import com.opencsv.CSVWriter;
 import com.openshift.portal.domain.entity.Cluster;
 import com.openshift.portal.domain.entity.ClusterSnapshot;
-import com.openshift.portal.domain.entity.ReportDefinition;
 import com.openshift.portal.domain.enums.ReportType;
 import com.openshift.portal.dto.AttributionReportDto;
 import com.openshift.portal.repository.ClusterRepository;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
-import com.openshift.portal.repository.ReportDefinitionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,7 +27,6 @@ public class ReportingService {
 
     private final ClusterRepository clusterRepository;
     private final ClusterSnapshotRepository snapshotRepository;
-    private final ReportDefinitionRepository reportRepository;
     private final AttributionService attributionService;
 
     @Transactional(readOnly = true)
@@ -92,23 +89,5 @@ public class ReportingService {
             log.error("Error generating CSV report for type {}: {}", type, e.getMessage(), e);
             throw new RuntimeException("Report generation error: " + e.getMessage(), e);
         }
-    }
-
-    @Transactional
-    public ReportDefinition createReportSchedule(String title, ReportType type, String cronSchedule, String recipients) {
-        ReportDefinition report = ReportDefinition.builder()
-                .title(title)
-                .reportType(type)
-                .cronSchedule(cronSchedule)
-                .recipients(recipients)
-                .isEnabled(true)
-                .createdAt(LocalDateTime.now())
-                .build();
-        return reportRepository.save(report);
-    }
-
-    @Transactional(readOnly = true)
-    public List<ReportDefinition> listReports() {
-        return reportRepository.findAll();
     }
 }

@@ -3,6 +3,7 @@ package com.openshift.portal.exception;
 import com.openshift.portal.config.AcmProperties;
 import com.openshift.portal.config.SecurityConfig;
 import com.openshift.portal.controller.ReportController;
+import com.openshift.portal.notification.ReportScheduleService;
 import com.openshift.portal.repository.SavedReportRepository;
 import com.openshift.portal.service.PdfReportGeneratorService;
 import com.openshift.portal.service.ReportingService;
@@ -37,6 +38,9 @@ class GlobalExceptionHandlerTest {
     @MockBean
     private SavedReportRepository savedReportRepository;
 
+    @MockBean
+    private ReportScheduleService scheduleService;
+
     @Test
     void invalidParameterValue_returns400WithoutClassNames() throws Exception {
         mockMvc.perform(get("/reports/export").param("type", "NOPE"))
@@ -55,7 +59,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void accessDenied_returns403() throws Exception {
-        when(reportingService.listReports()).thenThrow(new AccessDeniedException("denied"));
+        when(scheduleService.list()).thenThrow(new AccessDeniedException("denied"));
 
         mockMvc.perform(get("/reports"))
                 .andExpect(status().isForbidden())
@@ -64,7 +68,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void unexpectedError_returns500WithoutInternalDetails() throws Exception {
-        when(reportingService.listReports()).thenThrow(new IllegalStateException("jdbc:postgresql://db:5432 password=secret"));
+        when(scheduleService.list()).thenThrow(new IllegalStateException("jdbc:postgresql://db:5432 password=secret"));
 
         mockMvc.perform(get("/reports"))
                 .andExpect(status().isInternalServerError())

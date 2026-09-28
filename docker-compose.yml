@@ -34,6 +34,14 @@ services:
       retries: 5
       start_period: 15s
 
+  # Sandbox SMTP server: catches every report and alert email; read them at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: ocp-portal-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
   # Sandbox directory standing in for the corporate LDAP / Active Directory (users and groups: ldap/bootstrap.ldif)
   openldap:
     image: osixia/openldap:1.5.0
@@ -94,11 +102,19 @@ services:
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: http://keycloak:8081/realms/openshift-portal/protocol/openid-connect/certs
       OPENSHIFT_PORTAL_SIMULATOR_ENABLED: "true"
       OPENSHIFT_PORTAL_RABBITMQ_ENABLED: "true"
+      # Report schedules and alerts are emailed through Mailpit (sandbox only)
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+      OPENSHIFT_PORTAL_NOTIFICATIONS_FROM: portal@openshift-portal.local
+      OPENSHIFT_PORTAL_NOTIFICATIONS_ALERTRECIPIENTS: platform-ops@openshift-portal.local
+      OPENSHIFT_PORTAL_NOTIFICATIONS_PORTALURL: http://localhost:4200
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   # Angular Operations Portal Frontend & Nginx Proxy
   frontend:

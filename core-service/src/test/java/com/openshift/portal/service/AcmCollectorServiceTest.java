@@ -16,6 +16,7 @@ import com.openshift.portal.domain.enums.NodeRole;
 import com.openshift.portal.domain.enums.SyncStatus;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
 import com.openshift.portal.exception.AcmConnectionException;
+import com.openshift.portal.notification.AlertService;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
 import com.openshift.portal.repository.HubSyncRunRepository;
@@ -64,6 +65,8 @@ class AcmCollectorServiceTest {
     private NodeAgentReportService nodeAgentReports;
     @Mock
     private LicensingService licensingService;
+    @Mock
+    private AlertService alertService;
 
     private AcmHub hub;
     private Cluster clusterA;
@@ -88,7 +91,7 @@ class AcmCollectorServiceTest {
 
         collectorService = new AcmCollectorService(acmHubRepository, clusterRepository, syncRunRepository,
                 ingestionService, new ClusterDiscovery(), hubClientProvider, hubResilience, new AcmProperties(),
-                nodeAgentReports, licensingService);
+                nodeAgentReports, licensingService, alertService);
 
         hub = AcmHub.builder().id(UUID.randomUUID()).name("hub-test").apiUrl("https://hub.example.com").build();
         clusterA = cluster("ocp-a");
@@ -253,6 +256,7 @@ class AcmCollectorServiceTest {
         collectorService.triggerCollection();
 
         verify(licensingService).recordDailyWatermark();
+        verify(alertService).evaluate();
     }
 
     @Test
@@ -265,6 +269,7 @@ class AcmCollectorServiceTest {
         collectorService.triggerCollection();
 
         verify(licensingService, never()).recordDailyWatermark();
+        verify(alertService, never()).evaluate();
     }
 
     @Test
@@ -277,6 +282,17 @@ class AcmCollectorServiceTest {
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSnapshotsCreated()).isEqualTo(2);
+    }
+
+    @Test
+    void failedAlertEvaluation_doesNotFailTheCollection() {
+        givenHubWithClusters();
+        when(hubClient.fetchClusters(hub)).thenReturn(List.of(observation("ocp-a"), observation("ocp-b")));
+        doThrow(new IllegalStateException("template missing")).when(alertService).evaluate();
+
+        SnapshotTriggerResultDto result = collectorService.triggerCollection();
+
+        assertThat(result.getStatus()).isEqualTo("COMPLETED");
     }
 
     @Test

@@ -51,7 +51,7 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 │   ├── src/app/services/       # PortalService HTTP Client
 │   ├── Dockerfile              # Multi-stage container build with Nginx
 │   └── package.json            # Node / Angular configuration
-├── docker-compose.yml          # Local sandbox (PostgreSQL, RabbitMQ, OpenLDAP, Keycloak, Backend, Frontend)
+├── docker-compose.yml          # Local sandbox (PostgreSQL, RabbitMQ, Mailpit, OpenLDAP, Keycloak, Backend, Frontend)
 ├── keycloak/                   # Sandbox realm imported by Keycloak (clients, roles, LDAP federation)
 │   └── themes/portal/          # Login theme matching the portal UI (the realm's loginTheme)
 ├── ldap/                       # Sandbox directory: users and portal groups
@@ -89,7 +89,7 @@ npm start
 
 The portal UI will be accessible at `http://localhost:4200`.
 
-### 3. Run Everything with Docker Compose (PostgreSQL, RabbitMQ, OpenLDAP, Keycloak, Backend & Frontend)
+### 3. Run Everything with Docker Compose (PostgreSQL, RabbitMQ, Mailpit, OpenLDAP, Keycloak, Backend & Frontend)
 
 ```powershell
 docker compose up -d
@@ -104,7 +104,7 @@ Open `http://localhost:4200` and sign in with a sandbox directory user (defined 
 | `carol` | `carol-sandbox` | `portal-viewer` | VIEWER |
 | `dave` | `dave-sandbox` | none | no access |
 
-The Keycloak admin console is at `http://localhost:8081` (`admin` / `admin`). For scripts, the sandbox realm has a `portal-cli` client that accepts the password grant:
+Report schedule and alert emails land in Mailpit at `http://localhost:8025`; alerts go to `platform-ops@openshift-portal.local`. The Keycloak admin console is at `http://localhost:8081` (`admin` / `admin`). For scripts, the sandbox realm has a `portal-cli` client that accepts the password grant:
 
 ```powershell
 curl.exe -d grant_type=password -d client_id=portal-cli -d username=bob -d password=bob-sandbox `
@@ -159,6 +159,19 @@ vsphere://4237c5f4-2a4b-d3c9-1b6e-6e1f2d3a4b5c,esx-07.fra.corp,vsan-prod,dc-fran
 baremetalhost:///openshift-machine-api/rack3-host7/5d1a8b3c-7e2f-4a6b-9c0d-1e2f3a4b5c6d,,,dc-frankfurt,2,32,2
 ```
 
+### Scheduled reports and alerts
+
+Admins create report schedules on the Reports page or with `POST /api/v1/reports`: a title, the report (`FLEET_CAPACITY`, `LICENSE_AUDIT` or `COST_ATTRIBUTION`), a PDF or CSV attachment, a five-field cron schedule in the portal's time zone (`0 7 * * MON` is Mondays at 07:00) and the recipients. Every minute one replica starts the schedules that are due; one missed while the portal was down runs once when it is back. "Send now" (`POST /api/v1/reports/{id}/run`) emails a report at once without changing its schedule. Each email carries the report as an attachment and a short summary of its headline figures.
+
+After every collection the portal also checks two alerts and emails them to `openshift.portal.notifications.alert-recipients` (comma-separated; empty sends none), each at most once a day:
+
+* **License cap exceeded**: the license audit is `BREACH`.
+* **Capacity runway**: CPU or memory requests are projected, from the last 30 days of growth, to reach capacity within `openshift.portal.notifications.runway-alert-days` (default 60).
+
+Emails go out through the SMTP server in Spring's `spring.mail.*` settings (`SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, and `SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true` for STARTTLS), from `openshift.portal.notifications.from`. Set `openshift.portal.notifications.portal-url` to add links to the portal. With RabbitMQ enabled (`OPENSHIFT_PORTAL_RABBITMQ_ENABLED`, on in the `prod` profile) report generation runs from `report.generation.queue` and sending from `report.email.queue`, so a slow report never holds up the scheduler; without it both steps run in-process.
+
+Every email is logged with its outcome: `SENT`, `FAILED` with the error, or `NOT_SENT` when no SMTP server is configured. Operators see the log as the Delivery History on the Reports page, or with `GET /api/v1/notifications`, and each schedule shows its last delivery. A failed email is not retried, so recipients never get a report twice; it runs again at its next scheduled time.
+
 ### Owner attribution
 
 Each namespace's owner comes from its `openshift.io/owner-team` label and its cost center from `cost-center` (set `openshift.portal.attribution.owner-label` and `cost-center-label` to use your own keys; an organisation-owned prefix is recommended). An owner value maps to a team when it equals the team's name with case and punctuation ignored (`payments-platform` matches "Payments Platform"), or one of the team's aliases. Admins add aliases on the Cost Attribution page or with `POST /api/v1/teams/{id}/aliases`; namespaces carrying the value move to the team immediately.
@@ -199,7 +212,11 @@ Roles build on each other: an ADMIN can do everything an OPERATOR can, and an OP
 | `GET` | `/api/v1/forecasting/projection?horizonDays=30` | VIEWER | Predictive resource growth projection (30/60/90 days) |
 | `GET` | `/api/v1/reports/export?type=FLEET_CAPACITY` | OPERATOR | Export CSV report (`FLEET_CAPACITY`, `LICENSE_AUDIT`, `COST_ATTRIBUTION`); `/export/pdf` for PDF |
 | `GET`/`POST` | `/api/v1/reports/saved` | OPERATOR | The caller's own saved report presets |
-| `POST` | `/api/v1/reports` | ADMIN | Create a scheduled report definition |
+| `GET` | `/api/v1/reports` | VIEWER | Report schedules with their next run and last delivery |
+| `POST` | `/api/v1/reports` | ADMIN | Create a report schedule (title, report type, `PDF`/`CSV`, five-field cron, recipients) |
+| `PATCH`/`DELETE` | `/api/v1/reports/{id}` | ADMIN | Change (title, format, cron, recipients, `enabled`) or delete a schedule; its delivery history is kept |
+| `POST` | `/api/v1/reports/{id}/run` | ADMIN | Email the report now, without changing its schedule |
+| `GET` | `/api/v1/notifications?limit=50` | OPERATOR | Delivery history: every report email and alert with its outcome, newest first |
 | `POST` | `/api/v1/simulator/fault?fail=true` | ADMIN | Inject a one-off simulated ACM connection failure (simulator only) |
 | `POST` | `/api/v1/simulator/outage?hub=...&down=true` | ADMIN | Start or end a simulated outage of one hub (simulator only) |
 

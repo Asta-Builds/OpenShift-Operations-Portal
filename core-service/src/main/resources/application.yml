@@ -28,6 +28,14 @@ openshift:
     attribution:
       owner-label: openshift.io/owner-team
       cost-center-label: cost-center
+    # Report schedule emails and alerts; the SMTP server is spring.mail.host / port / username / password
+    notifications:
+      from: openshift-portal@localhost
+      # Comma-separated; empty sends no license breach or capacity runway alerts
+      alert-recipients: ""
+      runway-alert-days: 60
+      # UI base URL for links in emails, e.g. https://portal.apps.example.com
+      portal-url: ""
     # Nodes of live clusters come from the node agent in each cluster; older reports are ignored
     node-agent:
       max-report-age: PT1H

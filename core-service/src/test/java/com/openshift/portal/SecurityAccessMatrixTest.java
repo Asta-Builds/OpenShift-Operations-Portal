@@ -110,7 +110,8 @@ class SecurityAccessMatrixTest {
                 arguments(GET, "/fleet/overview", Caller.ADMIN, 200),
                 arguments(POST, "/clusters/collect", Caller.ADMIN, 200),
                 arguments(GET, "/reports/export", Caller.ADMIN, 200),
-                arguments(POST, "/reports", Caller.ADMIN, 200),
+                // Authorized: the matrix body lacks a cron schedule and recipients
+                arguments(POST, "/reports", Caller.ADMIN, 400),
                 arguments(GET, "/simulator/status", Caller.ADMIN, 200),
                 arguments(POST, "/simulator/fault?fail=false", Caller.ADMIN, 200),
                 arguments(GET, "/actuator/metrics", Caller.ADMIN, 200),
@@ -139,7 +140,18 @@ class SecurityAccessMatrixTest {
                 arguments(GET, "/node-reports", Caller.VIEWER, 200),
                 arguments(GET, "/node-reports", Caller.NODE_AGENT, 403),
                 arguments(GET, "/fleet/overview", Caller.NODE_AGENT, 403),
-                arguments(POST, "/clusters/collect", Caller.NODE_AGENT, 403)
+                arguments(POST, "/clusters/collect", Caller.NODE_AGENT, 403),
+                // Report schedules are changed and sent by admins; the delivery log (recipients' addresses) is for operators
+                arguments(POST, "/reports/00000000-0000-0000-0000-000000000000/run", Caller.OPERATOR, 403),
+                arguments(POST, "/reports/00000000-0000-0000-0000-000000000000/run", Caller.ADMIN, 404),
+                arguments(PATCH, "/reports/00000000-0000-0000-0000-000000000000", Caller.OPERATOR, 403),
+                arguments(DELETE, "/reports/00000000-0000-0000-0000-000000000000", Caller.VIEWER, 403),
+                arguments(DELETE, "/reports/00000000-0000-0000-0000-000000000000", Caller.ADMIN, 404),
+                arguments(GET, "/notifications", Caller.ANONYMOUS, 401),
+                arguments(GET, "/notifications", Caller.VIEWER, 403),
+                arguments(GET, "/notifications", Caller.OPERATOR, 200),
+                arguments(GET, "/notifications?limit=5", Caller.ADMIN, 200),
+                arguments(GET, "/notifications", Caller.NODE_AGENT, 403)
         );
     }
 

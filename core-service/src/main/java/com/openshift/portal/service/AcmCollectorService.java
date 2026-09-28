@@ -11,6 +11,7 @@ import com.openshift.portal.domain.enums.HubStatus;
 import com.openshift.portal.domain.enums.SyncStatus;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
 import com.openshift.portal.exception.AcmConnectionException;
+import com.openshift.portal.notification.AlertService;
 import com.openshift.portal.repository.AcmHubRepository;
 import com.openshift.portal.repository.ClusterRepository;
 import com.openshift.portal.repository.HubSyncRunRepository;
@@ -46,6 +47,7 @@ public class AcmCollectorService {
     private final AcmProperties properties;
     private final NodeAgentReportService nodeAgentReports;
     private final LicensingService licensingService;
+    private final AlertService alertService;
 
     /**
      * Periodic scheduled collection across all configured ACM Hubs; the lock keeps each cycle to one replica.
@@ -88,6 +90,7 @@ public class AcmCollectorService {
 
         if (snapshotsCreated > 0) {
             recordWatermark();
+            evaluateAlerts();
         }
 
         long duration = System.currentTimeMillis() - start;
@@ -192,6 +195,15 @@ public class AcmCollectorService {
             licensingService.recordDailyWatermark();
         } catch (Exception e) {
             log.warn("Could not update today's license watermark: {}", describe(e));
+        }
+    }
+
+    /** Alerts read the data just stored; a failure there is logged and does not fail the collection. */
+    private void evaluateAlerts() {
+        try {
+            alertService.evaluate();
+        } catch (Exception e) {
+            log.warn("Could not evaluate alerts: {}", describe(e));
         }
     }
 

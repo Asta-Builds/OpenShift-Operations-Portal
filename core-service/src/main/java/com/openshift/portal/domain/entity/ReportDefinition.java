@@ -1,5 +1,6 @@
 package com.openshift.portal.domain.entity;
 
+import com.openshift.portal.domain.enums.ReportFormat;
 import com.openshift.portal.domain.enums.ReportType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -27,15 +28,23 @@ public class ReportDefinition {
     @Column(name = "report_type", nullable = false)
     private ReportType reportType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "report_format", nullable = false)
+    @Builder.Default
+    private ReportFormat format = ReportFormat.PDF;
+
+    /** Six-field Spring cron (second first), evaluated in the portal's time zone. */
     @Column(name = "cron_schedule")
     private String cronSchedule;
 
     @Column(name = "filter_criteria", columnDefinition = "TEXT")
     private String filterCriteria;
 
+    /** Comma-separated addresses. */
     @Column(name = "recipients", columnDefinition = "TEXT")
     private String recipients;
 
+    /** When the schedule last came due; manual runs leave it alone. */
     @Column(name = "last_generated_at")
     private LocalDateTime lastGeneratedAt;
 

@@ -18,6 +18,10 @@ spring:
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        # A failed report or email is recorded as a notification; redelivering it could email recipients twice
+        default-requeue-rejected: false
   security:
     oauth2:
       resourceserver:
