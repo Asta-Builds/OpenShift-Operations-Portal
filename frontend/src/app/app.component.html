@@ -1,7 +1,7 @@
-<div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200">
+<div class="h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 overflow-hidden">
   
   <!-- HeroUI Glassmorphic Top Header -->
-  <header class="sticky top-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-divider px-6 py-3 flex items-center justify-between transition-colors">
+  <header class="flex-shrink-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-divider px-6 py-3 flex items-center justify-between transition-colors">
     <!-- Left: Brand identity & Workspace switcher -->
     <div class="flex items-center gap-4">
       <div class="flex items-center gap-3">
@@ -81,10 +81,10 @@
   </header>
 
   <!-- Body Layout: Sidebar + Main Canvas -->
-  <div class="flex-1 flex overflow-hidden">
+  <div class="flex-1 flex overflow-hidden min-h-0">
     
     <!-- HeroUI Left Sidebar Navigation (Enhanced) -->
-    <aside class="w-64 border-r border-divider bg-background/95 backdrop-blur-md flex flex-col justify-between p-3.5 flex-shrink-0 select-none overflow-y-auto">
+    <aside class="w-64 h-full border-r border-divider bg-background/95 backdrop-blur-md flex flex-col justify-between p-3.5 flex-shrink-0 select-none overflow-y-auto">
       <div class="space-y-5">
         
         <!-- Workspace Pill / Cluster Fleet Header -->
@@ -314,7 +314,7 @@
     </aside>
 
     <!-- Main Content Canvas -->
-    <main class="flex-1 overflow-y-auto p-6 md:p-8 bg-background">
+    <main class="flex-1 h-full overflow-y-auto p-6 md:p-8 bg-background">
       <div *ngIf="auth.user()?.roles?.length === 0; else portalOutlet" class="max-w-md mx-auto mt-20 p-8 rounded-3xl bg-content1 border border-divider text-center">
         <div class="w-12 h-12 rounded-2xl bg-danger/10 text-danger flex items-center justify-center mx-auto mb-4">
           <app-icon name="alert-triangle" [size]="24"></app-icon>
