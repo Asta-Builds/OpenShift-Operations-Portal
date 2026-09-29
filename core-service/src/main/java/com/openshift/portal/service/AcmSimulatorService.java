@@ -48,22 +48,74 @@ public class AcmSimulatorService {
      * Namespaces every simulated cluster runs, with their share of the cluster's requests. Owner values cover each
      * matching rule: a team name slug, an alias, a team that does not exist, and no owner label at all.
      */
-    private static final List<SimulatedNamespace> SIMULATED_NAMESPACES = List.of(
-            new SimulatedNamespace("payments-engine", "payments-platform", "CC-FIN-104", 5, Integer.MAX_VALUE),
-            new SimulatedNamespace("api-gateway", "digital-channels", "CC-DIG-205", 4, Integer.MAX_VALUE),
-            new SimulatedNamespace("frontend-ui", "digital-channels", null, 3, Integer.MAX_VALUE),
-            new SimulatedNamespace("data-pipeline", "data-science", "CC-AI-900", 3, Integer.MAX_VALUE),
-            new SimulatedNamespace("legacy-batch", "core-banking", "CC-FIN-001", 2, Integer.MAX_VALUE),
-            new SimulatedNamespace("openshift-monitoring", null, null, 2, Integer.MAX_VALUE),
-            new SimulatedNamespace("sandbox-tmp", null, null, 1, Integer.MAX_VALUE),
-            // Removed from every cluster 20 days into the growth curve, so seeded history shows a deleted namespace
-            new SimulatedNamespace("migration-2025", "payments-platform", null, 1, 20));
+    private record SimulatedNamespace(String name, String owner, String costCenter, int weight, double cpuRatio, double memRatio, int removedAfterDays) {
+        SimulatedNamespace(String name, String owner, String costCenter, int weight, double cpuRatio, double memRatio) {
+            this(name, owner, costCenter, weight, cpuRatio, memRatio, Integer.MAX_VALUE);
+        }
+    }
+
+    /**
+     * Realistic enterprise workloads per cluster profile:
+     * - Banking/Payments core services (well tuned & batch workers)
+     * - AI & Data pipelines (LLM inference, vector DB, Feast feature store)
+     * - Digital channels (API gateways, web portal, Redis caches)
+     * - Staging & integration testbeds
+     * - Abandoned developer sandboxes with severe waste
+     * - Under-provisioned services operating near saturation (alert triggers)
+     */
+    private static List<SimulatedNamespace> getClusterNamespaces(Cluster cluster) {
+        String name = cluster.getClusterName();
+        if (name.contains("prod-eu-west-01")) {
+            return List.of(
+                    new SimulatedNamespace("payments-core-gateway", "payments-platform", "CC-FIN-104", 6, 0.74, 0.78),
+                    new SimulatedNamespace("card-authorization-svc", "payments-platform", "CC-FIN-104", 5, 0.88, 0.86),
+                    new SimulatedNamespace("fraud-detection-streaming", "payments-platform", "CC-FIN-104", 4, 1.09, 1.05),
+                    new SimulatedNamespace("settlement-batch-worker", "payments-platform", "CC-FIN-104", 5, 0.16, 0.24),
+                    new SimulatedNamespace("compliance-audit-vault", "core-banking", "CC-FIN-001", 3, 0.31, 0.38),
+                    new SimulatedNamespace("openshift-monitoring", null, null, 2, 0.75, 0.80),
+                    new SimulatedNamespace("migration-legacy", "payments-platform", null, 1, 0.12, 0.20, 20)
+            );
+        } else if (name.contains("prod-eu-central-02")) {
+            return List.of(
+                    new SimulatedNamespace("customer-web-portal", "digital-channels", "CC-DIG-205", 5, 0.75, 0.78),
+                    new SimulatedNamespace("mobile-api-gateway", "digital-channels", "CC-DIG-205", 6, 0.71, 0.74),
+                    new SimulatedNamespace("notification-dispatcher", "digital-channels", "CC-DIG-205", 4, 0.22, 0.28),
+                    new SimulatedNamespace("redis-distributed-cache", "digital-channels", "CC-DIG-205", 3, 0.86, 0.90),
+                    new SimulatedNamespace("graphql-federation-mesh", "digital-channels", "CC-DIG-205", 4, 0.52, 0.58),
+                    new SimulatedNamespace("ingress-nginx-edge", null, null, 3, 0.80, 0.78)
+            );
+        } else if (name.contains("ai-training-prod")) {
+            return List.of(
+                    new SimulatedNamespace("llm-vllm-inference", "data-science", "CC-AI-900", 7, 0.91, 0.89),
+                    new SimulatedNamespace("feature-store-feast", "data-science", "CC-AI-900", 4, 0.48, 0.54),
+                    new SimulatedNamespace("spark-batch-analytics", "data-science", "CC-AI-900", 6, 0.23, 0.31),
+                    new SimulatedNamespace("vector-database-milvus", "data-science", "CC-AI-900", 4, 1.08, 1.04),
+                    new SimulatedNamespace("jupyter-notebook-hub", "data-science", "CC-AI-900", 5, 0.14, 0.22),
+                    new SimulatedNamespace("gpu-operator-system", null, null, 2, 0.85, 0.82)
+            );
+        } else if (name.contains("staging")) {
+            return List.of(
+                    new SimulatedNamespace("staging-payments-api", "payments-platform", "CC-FIN-104", 4, 0.19, 0.26),
+                    new SimulatedNamespace("staging-digital-hub", "digital-channels", "CC-DIG-205", 4, 0.24, 0.30),
+                    new SimulatedNamespace("integration-test-suite", "digital-channels", "CC-DIG-205", 5, 0.42, 0.52),
+                    new SimulatedNamespace("mock-partner-gateways", "payments-platform", "CC-FIN-104", 3, 0.15, 0.22),
+                    new SimulatedNamespace("staging-monitoring", null, null, 2, 0.65, 0.70)
+            );
+        } else {
+            // Development cluster (dev sandbox with idle pods)
+            return List.of(
+                    new SimulatedNamespace("dev-sandbox-alice", "digital-channels", "CC-DIG-205", 4, 0.08, 0.15),
+                    new SimulatedNamespace("dev-sandbox-bob", "payments-platform", "CC-FIN-104", 4, 0.06, 0.12),
+                    new SimulatedNamespace("qa-automated-e2e", "payments-platform", "CC-FIN-104", 4, 0.36, 0.44),
+                    new SimulatedNamespace("ci-cd-ephemeral-runners", "digital-channels", "CC-DIG-205", 5, 0.58, 0.62),
+                    new SimulatedNamespace("zombie-feature-branch", null, null, 3, 0.02, 0.08),
+                    new SimulatedNamespace("sandbox-tmp", null, null, 2, 0.10, 0.18, 20)
+            );
+        }
+    }
 
     /** Owner values the simulated namespaces use that differ from a team name. */
     private static final Map<String, String> SIMULATED_ALIASES = Map.of("data-science", "Data & AI Analytics");
-
-    private record SimulatedNamespace(String name, String owner, String costCenter, int weight, int removedAfterDays) {
-    }
 
     private volatile boolean failNextCall = false;
     private final Set<String> hubOutages = ConcurrentHashMap.newKeySet();
@@ -336,7 +388,7 @@ public class AcmSimulatorService {
                 totalStorage,
                 allocatedStorage,
                 nodes,
-                simulateNamespaces(growthDays, BigDecimal.valueOf(allocatedCores), allocatedMem, allocatedStorage),
+                simulateNamespaces(cluster, growthDays, BigDecimal.valueOf(allocatedCores), allocatedMem, allocatedStorage),
                 String.format("{\"cluster\": \"%s\", \"simulated\": true, \"timestamp\": \"%s\"}",
                         cluster.getClusterName(), timestamp),
                 null,
@@ -344,12 +396,12 @@ public class AcmSimulatorService {
     }
 
     /**
-     * Splits the cluster's requests across its namespaces by weight, to the hundredth, so namespace requests always
-     * add up exactly to the cluster's. Usage is a fixed fraction of each namespace's requests.
+     * Splits the cluster's requests across its realistic namespaces by weight, to the hundredth, so namespace requests always
+     * add up exactly to the cluster's. Usage reflects real production, staging or developer idle patterns.
      */
-    private NamespaceInventory simulateNamespaces(int growthDays, BigDecimal cpuRequests, BigDecimal memoryRequests,
+    private NamespaceInventory simulateNamespaces(Cluster cluster, int growthDays, BigDecimal cpuRequests, BigDecimal memoryRequests,
                                                   BigDecimal pvcRequests) {
-        List<SimulatedNamespace> present = SIMULATED_NAMESPACES.stream()
+        List<SimulatedNamespace> present = getClusterNamespaces(cluster).stream()
                 .filter(ns -> growthDays < ns.removedAfterDays())
                 .toList();
         List<BigDecimal> cpu = splitByWeight(cpuRequests, present);
@@ -370,8 +422,8 @@ public class AcmSimulatorService {
                 labels.put(costCenterLabel, ns.costCenter());
             }
             namespaces.add(new NamespaceObservation(ns.name(), labels, cpu.get(i), memory.get(i),
-                    scaleBy(cpu.get(i), 0.45 + 0.05 * (i % 5)),
-                    scaleBy(memory.get(i), 0.70 + 0.04 * (i % 5)),
+                    scaleBy(cpu.get(i), ns.cpuRatio()),
+                    scaleBy(memory.get(i), ns.memRatio()),
                     storage.get(i)));
         }
         return new NamespaceInventory(namespaces, true);
