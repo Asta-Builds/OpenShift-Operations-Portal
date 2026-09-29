@@ -261,6 +261,11 @@ import { CommonModule } from '@angular/common';
         <path d="M12 5v14" />
       </ng-container>
 
+      <!-- minus -->
+      <ng-container *ngIf="name === 'minus'">
+        <path d="M5 12h14" />
+      </ng-container>
+
       <!-- coins -->
       <ng-container *ngIf="name === 'coins'">
         <circle cx="8" cy="8" r="6" />

@@ -22,8 +22,8 @@ import {
 import { IconComponent } from '../../shared/icon.component';
 
 interface SimulationNode extends GraphNode {
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   vx?: number;
   vy?: number;
   fx?: number | null;
@@ -129,7 +129,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             <button
               (click)="toggleTypeFilter('HUB')"
               [class]="typeFilters.HUB ? 'bg-purple-600/20 text-purple-400 font-semibold border-purple-500/40' : 'text-default-400 opacity-60'"
-              class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5"
+              class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5 cursor-pointer"
               title="Afficher/Masquer les Hubs ACM"
             >
               <span class="w-2 h-2 rounded-full bg-purple-500"></span>
@@ -138,7 +138,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             <button
               (click)="toggleTypeFilter('CLUSTER')"
               [class]="typeFilters.CLUSTER ? 'bg-blue-600/20 text-blue-400 font-semibold border-blue-500/40' : 'text-default-400 opacity-60'"
-              class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5"
+              class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5 cursor-pointer"
               title="Afficher/Masquer les Clusters OpenShift"
             >
               <span class="w-2 h-2 rounded-full bg-blue-500"></span>
@@ -147,7 +147,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             <button
               (click)="toggleTypeFilter('NODE')"
               [class]="typeFilters.NODE ? 'bg-slate-600/20 text-slate-300 font-semibold border-slate-500/40' : 'text-default-400 opacity-60'"
-              class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5"
+              class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5 cursor-pointer"
               title="Afficher/Masquer les Noeuds physiques et workers"
             >
               <span class="w-2 h-2 rounded-full bg-slate-400"></span>
@@ -156,7 +156,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             <button
               (click)="toggleTypeFilter('NAMESPACE')"
               [class]="typeFilters.NAMESPACE ? 'bg-emerald-600/20 text-emerald-400 font-semibold border-emerald-500/40' : 'text-default-400 opacity-60'"
-              class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5"
+              class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5 cursor-pointer"
               title="Afficher/Masquer les Namespaces FinOps"
             >
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -182,28 +182,28 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
         <div class="flex items-center gap-1.5">
           <button
             (click)="zoomIn()"
-            class="p-1.5 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all"
+            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all cursor-pointer"
             title="Zoom Avant"
           >
             <app-icon name="plus" [size]="14"></app-icon>
           </button>
           <button
             (click)="zoomOut()"
-            class="p-1.5 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all"
+            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all cursor-pointer"
             title="Zoom Arrière"
           >
             <app-icon name="minus" [size]="14"></app-icon>
           </button>
           <button
-            (click)="resetView()"
-            class="p-1.5 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all"
-            title="Centrer la Vue"
+            (click)="fitToScreen()"
+            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all cursor-pointer"
+            title="Ajuster à l'écran (Fit to View)"
           >
             <app-icon name="crosshair" [size]="14"></app-icon>
           </button>
           <button
             (click)="reheatSimulation()"
-            class="p-1.5 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all"
+            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all cursor-pointer"
             title="Réorganiser la Force Graphique"
           >
             <app-icon name="refresh" [size]="14"></app-icon>
@@ -212,7 +212,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
       </div>
 
       <!-- Main Visualization Stage -->
-      <div class="relative w-full h-[680px] rounded-2xl border border-divider bg-[#07090e] overflow-hidden shadow-2xl flex">
+      <div class="relative w-full h-[700px] rounded-2xl border border-divider/80 bg-[#090d16] overflow-hidden shadow-2xl flex flex-col">
         <!-- Loading Overlay -->
         <div *ngIf="loading" class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm gap-3">
           <div class="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -220,12 +220,12 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
         </div>
 
         <!-- D3 SVG Canvas Container -->
-        <div #chartContainer class="w-full h-full relative cursor-grab active:cursor-grabbing">
+        <div #chartContainer class="w-full h-full relative cursor-grab active:cursor-grabbing flex-1">
           <!-- Canvas SVG is appended here by D3 -->
         </div>
 
         <!-- Floating Interactive Legend -->
-        <div class="absolute bottom-4 left-4 z-10 bg-content1/80 backdrop-blur-md border border-divider/60 rounded-xl p-3 text-[11px] shadow-xl space-y-2 pointer-events-auto">
+        <div class="absolute bottom-4 left-4 z-10 bg-content1/85 backdrop-blur-md border border-divider/60 rounded-xl p-3 text-[11px] shadow-xl space-y-2 pointer-events-auto">
           <div class="font-bold text-foreground tracking-wide uppercase text-[9px] text-default-400 mb-1">Légende Topologique</div>
           <div class="grid grid-cols-2 gap-x-4 gap-y-1.5">
             <div class="flex items-center gap-2">
@@ -261,7 +261,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
         <!-- Floating Selected Node Inspector Drawer -->
         <div
           *ngIf="selectedNode"
-          class="absolute top-4 right-4 z-20 w-80 md:w-96 bg-content1/90 backdrop-blur-xl border border-divider/80 rounded-2xl p-4 shadow-2xl space-y-4 animate-in fade-in slide-in-from-right-4 duration-200"
+          class="absolute top-4 right-4 z-20 w-80 md:w-96 bg-content1/95 backdrop-blur-xl border border-divider/80 rounded-2xl p-4 shadow-2xl space-y-4 animate-in fade-in slide-in-from-right-4 duration-200"
         >
           <!-- Drawer Header -->
           <div class="flex items-start justify-between gap-2 border-b border-divider pb-3">
@@ -281,7 +281,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             </div>
             <button
               (click)="selectedNode = null"
-              class="p-1 rounded-lg text-default-400 hover:text-foreground hover:bg-content2 transition-all"
+              class="p-1 rounded-lg text-default-400 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
             >
               ✕
             </button>
@@ -293,7 +293,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
               <div class="bg-content2/50 p-2.5 rounded-xl border border-divider/40">
                 <span class="text-[10px] text-default-400 uppercase font-semibold">Statut</span>
                 <div class="font-semibold text-foreground mt-0.5 flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full" [ngClass]="selectedNode.status === 'ACTIVE' || selectedNode.status === 'READY' ? 'bg-success' : 'bg-warning'"></span>
+                  <span class="w-1.5 h-1.5 rounded-full" [ngClass]="selectedNode.status === 'ACTIVE' || selectedNode.status === 'READY' || selectedNode.status === 'HEALTHY' ? 'bg-success' : 'bg-warning'"></span>
                   {{ selectedNode.status || 'READY' }}
                 </div>
               </div>
@@ -311,9 +311,9 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
                 <span class="text-default-400">Score FinOps & Tier :</span>
                 <span
                   class="px-2 py-0.5 rounded-md font-bold text-xs"
-                  [ngClass]="selectedNode.rating === 'A' || selectedNode.rating === 'B' ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'"
+                  [ngClass]="selectedNode.rating === 'OPTIMAL' || selectedNode.rating === 'GOOD' || selectedNode.rating === 'A' || selectedNode.rating === 'B' ? 'bg-success/20 text-success' : selectedNode.rating === 'OVERPROVISIONED' || selectedNode.rating === 'D' ? 'bg-warning/20 text-warning' : 'bg-danger/20 text-danger'"
                 >
-                  Grade {{ selectedNode.rating || 'N/A' }} ({{ selectedNode.efficiencyPercent | number:'1.0-1' }}%)
+                  Tier {{ selectedNode.rating || 'N/A' }} ({{ selectedNode.efficiencyPercent | number:'1.0-1' }}%)
                 </span>
               </div>
               <div class="flex items-center justify-between text-[11px]">
@@ -346,11 +346,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
               </div>
               <div class="flex items-center justify-between text-[11px]">
                 <span class="text-default-400">Région / Provider :</span>
-                <span class="font-semibold text-foreground">{{ selectedNode.metadata?.['region'] || 'AWS eu-west-1' }}</span>
-              </div>
-              <div class="flex items-center justify-between text-[11px]">
-                <span class="text-default-400">Noeuds Hébergés :</span>
-                <span class="font-bold text-primary">{{ selectedNode.metadata?.['nodeCount'] || 12 }} noeuds</span>
+                <span class="font-semibold text-foreground">{{ selectedNode.metadata?.['infraType'] || 'AWS' }}</span>
               </div>
             </div>
 
@@ -365,7 +361,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
           <div class="pt-2 border-t border-divider flex items-center gap-2">
             <a
               *ngIf="selectedNode.type === 'CLUSTER'"
-              [routerLink]="['/clusters', selectedNode.metadata?.['clusterId'] || selectedNode.id]"
+              [routerLink]="['/clusters', selectedNode.id.replace('cluster-', '')]"
               class="w-full text-center py-2 px-3 bg-primary text-primary-foreground font-semibold rounded-xl text-xs hover:bg-primary/90 transition-all shadow-glow-primary"
             >
               Ouvrir Détails Cluster &rarr;
@@ -380,7 +376,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             <button
               *ngIf="selectedNode.type === 'NODE' || selectedNode.type === 'HUB'"
               (click)="unfixNode(selectedNode)"
-              class="w-full text-center py-2 px-3 bg-content2 hover:bg-content3 text-foreground font-semibold rounded-xl text-xs transition-all border border-divider"
+              class="w-full text-center py-2 px-3 bg-content2 hover:bg-content3 text-foreground font-semibold rounded-xl text-xs transition-all border border-divider cursor-pointer"
             >
               Libérer la position physique
             </button>
@@ -431,8 +427,9 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
   private simulation: any;
   private zoomBehavior: any;
   private width = 1200;
-  private height = 680;
+  private height = 700;
   private resizeObserver: ResizeObserver | null = null;
+  private simulationTicks = 0;
 
   // Render elements references
   private linkSelection: any;
@@ -459,7 +456,6 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
         this.summary = graph.summary;
         this.loading = false;
         this.cdr.detectChanges();
-        // Give the DOM time to render container
         setTimeout(() => this.initD3Graph(), 50);
       },
       error: (err) => {
@@ -471,79 +467,78 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
   }
 
   private initD3Graph(): void {
-    if (!this.chartContainer || !this.rawGraph) return;
+    try {
+      if (!this.chartContainer || !this.rawGraph) return;
 
-    const element = this.chartContainer.nativeElement;
-    this.width = element.clientWidth || 1200;
-    this.height = element.clientHeight || 680;
+      const element = this.chartContainer.nativeElement;
+      this.width = element.clientWidth || 1200;
+      this.height = element.clientHeight || 700;
 
-    // Remove any previous SVG
-    d3.select(element).selectAll('svg').remove();
+      d3.select(element).selectAll('svg').remove();
 
-    // Create Main SVG
-    this.svg = d3
-      .select(element)
-      .append('svg')
-      .attr('width', '100%')
-      .attr('height', '100%')
-      .attr('viewBox', `0 0 ${this.width} ${this.height}`)
-      .attr('class', 'select-none');
+      this.svg = d3
+        .select(element)
+        .append('svg')
+        .attr('width', '100%')
+        .attr('height', '100%')
+        .attr('viewBox', `0 0 ${this.width} ${this.height}`)
+        .attr('class', 'select-none');
 
-    // Add SVG Filters for Glow Effects
-    const defs = this.svg.append('defs');
+      const defs = this.svg.append('defs');
 
-    // Glow filter
-    const filter = defs.append('filter').attr('id', 'glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
-    filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'coloredBlur');
-    const feMerge = filter.append('feMerge');
-    feMerge.append('feMergeNode').attr('in', 'coloredBlur');
-    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+      // Glow filter
+      const filter = defs.append('filter').attr('id', 'glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+      filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'coloredBlur');
+      const feMerge = filter.append('feMerge');
+      feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+      feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-    // Background Subtle Grid Pattern
-    const pattern = defs
-      .append('pattern')
-      .attr('id', 'topo-grid')
-      .attr('width', 40)
-      .attr('height', 40)
-      .attr('patternUnits', 'userSpaceOnUse');
+      // Grid Pattern
+      const pattern = defs
+        .append('pattern')
+        .attr('id', 'topo-grid')
+        .attr('width', 36)
+        .attr('height', 36)
+        .attr('patternUnits', 'userSpaceOnUse');
 
-    pattern
-      .append('path')
-      .attr('d', 'M 40 0 L 0 0 0 40')
-      .attr('fill', 'none')
-      .attr('stroke', 'rgba(255, 255, 255, 0.03)')
-      .attr('stroke-width', 1);
+      pattern
+        .append('path')
+        .attr('d', 'M 36 0 L 0 0 0 36')
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(255, 255, 255, 0.04)')
+        .attr('stroke-width', 1);
 
-    this.svg
-      .append('rect')
-      .attr('width', '100%')
-      .attr('height', '100%')
-      .attr('fill', 'url(#topo-grid)');
+      this.svg
+        .append('rect')
+        .attr('width', '100%')
+        .attr('height', '100%')
+        .attr('fill', 'url(#topo-grid)');
 
-    // Zoom Layer
-    this.gZoom = this.svg.append('g').attr('class', 'zoom-layer');
+      // Zoom Layer
+      this.gZoom = this.svg.append('g').attr('class', 'zoom-layer');
 
-    // Zoom Behavior
-    this.zoomBehavior = d3
-      .zoom()
-      .scaleExtent([0.15, 4])
-      .on('zoom', (event: any) => {
-        this.gZoom.attr('transform', event.transform);
-      });
+      // Zoom Behavior
+      this.zoomBehavior = d3
+        .zoom()
+        .scaleExtent([0.15, 4])
+        .on('zoom', (event: any) => {
+          this.gZoom.attr('transform', event.transform);
+        });
 
-    this.svg.call(this.zoomBehavior).on('dblclick.zoom', null);
+      this.svg.call(this.zoomBehavior).on('dblclick.zoom', null);
 
-    // Initial Center Transform
-    this.svg.call(
-      this.zoomBehavior.transform,
-      d3.zoomIdentity.translate(this.width / 2, this.height / 2).scale(0.85)
-    );
+      // Initial Transform centered
+      this.svg.call(
+        this.zoomBehavior.transform,
+        d3.zoomIdentity.translate(this.width / 2, this.height / 2).scale(0.65)
+      );
 
-    // Setup Resize Observer
-    this.setupResizeObserver();
-
-    // Render Data
-    this.renderGraph();
+      this.setupResizeObserver();
+      this.renderGraph();
+    } catch (err: any) {
+      console.error('INIT_D3_GRAPH_ERROR:', err);
+      (window as any).__INIT_D3_GRAPH_ERROR__ = err?.stack || err?.message || String(err);
+    }
   }
 
   private setupResizeObserver(): void {
@@ -567,26 +562,22 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
   }
 
   private renderGraph(): void {
-    if (!this.rawGraph || !this.gZoom) return;
+    try {
+      if (!this.rawGraph || !this.gZoom) return;
 
-    // Filter nodes based on active filters
-    const filteredNodeIds = new Set<string>();
-    const nodesToRender: SimulationNode[] = [];
+      const filteredNodeIds = new Set<string>();
+      const nodesToRender: SimulationNode[] = [];
 
     this.rawGraph.nodes.forEach((node) => {
-      // Type filter
       if (!this.typeFilters[node.type]) return;
-
-      // Environment filter
       if (this.selectedEnv !== 'ALL' && node.environment && node.environment !== this.selectedEnv) {
         return;
       }
-
       filteredNodeIds.add(node.id);
-      nodesToRender.push({ ...node, x: node.x || 0, y: node.y || 0 });
+      // DO NOT force x=0, y=0! Preserve existing or let D3 phyllotaxis position them!
+      nodesToRender.push({ ...node });
     });
 
-    // Filter links connecting only visible nodes
     const linksToRender: SimulationLink[] = [];
     this.rawGraph.links.forEach((l) => {
       const sourceId = typeof l.source === 'object' ? (l.source as any).id : l.source;
@@ -602,18 +593,17 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Clear previous elements
     this.gZoom.selectAll('*').remove();
 
-    // Layers: Links layer below, Nodes layer above
     const gLinks = this.gZoom.append('g').attr('class', 'links-layer');
     const gNodes = this.gZoom.append('g').attr('class', 'nodes-layer');
 
-    // Create D3 Force Simulation
     if (this.simulation) {
       this.simulation.stop();
     }
+    this.simulationTicks = 0;
 
+    // Calibrated soft forces so nodes stay close together without exploding
     this.simulation = d3
       .forceSimulation(nodesToRender)
       .force(
@@ -622,50 +612,50 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
           .forceLink(linksToRender)
           .id((d: any) => d.id)
           .distance((d: any) => {
-            if (d.type === 'HUB_TO_CLUSTER') return 180;
-            if (d.type === 'CLUSTER_TO_NODE') return 80;
+            if (d.type === 'HUB_TO_CLUSTER') return 160;
+            if (d.type === 'CLUSTER_TO_NODE') return 70;
             if (d.type === 'NODE_TO_NAMESPACE') return 45;
-            return 70;
+            return 60;
           })
           .strength(0.7)
       )
       .force(
         'charge',
         d3.forceManyBody().strength((d: any) => {
-          if (d.type === 'HUB') return -800;
-          if (d.type === 'CLUSTER') return -450;
-          if (d.type === 'NODE') return -120;
-          return -60;
+          if (d.type === 'HUB') return -450;
+          if (d.type === 'CLUSTER') return -280;
+          if (d.type === 'NODE') return -90;
+          return -45;
         })
       )
       .force(
         'collision',
         d3.forceCollide().radius((d: any) => {
           if (d.type === 'HUB') return 36;
-          if (d.type === 'CLUSTER') return 28;
+          if (d.type === 'CLUSTER') return 30;
           if (d.type === 'NODE') return 18;
-          return 14;
+          return 16;
         })
       )
       .force('center', d3.forceCenter(0, 0))
-      .alphaDecay(0.025);
+      .alphaDecay(0.035);
 
-    // Render Links
+    // Links
     this.linkSelection = gLinks
       .selectAll('line')
       .data(linksToRender)
       .enter()
       .append('line')
       .attr('stroke', (d: any) => {
-        if (d.type === 'HUB_TO_CLUSTER') return 'rgba(168, 85, 247, 0.4)';
-        if (d.type === 'CLUSTER_TO_NODE') return 'rgba(59, 130, 246, 0.3)';
-        if (d.type === 'NODE_TO_NAMESPACE') return 'rgba(16, 185, 129, 0.25)';
-        return 'rgba(255, 255, 255, 0.15)';
+        if (d.type === 'HUB_TO_CLUSTER') return 'rgba(168, 85, 247, 0.6)';
+        if (d.type === 'CLUSTER_TO_NODE') return 'rgba(59, 130, 246, 0.45)';
+        if (d.type === 'NODE_TO_NAMESPACE') return 'rgba(16, 185, 129, 0.35)';
+        return 'rgba(255, 255, 255, 0.2)';
       })
       .attr('stroke-width', (d: any) => (d.type === 'HUB_TO_CLUSTER' ? 2 : 1.2))
       .attr('stroke-dasharray', (d: any) => (d.type === 'NODE_TO_NAMESPACE' ? '3,3' : 'none'));
 
-    // Render Nodes (Groups)
+    // Nodes
     this.nodeSelection = gNodes
       .selectAll('g.node')
       .data(nodesToRender, (d: any) => d.id)
@@ -683,17 +673,17 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
         this.selectNode(d);
       });
 
-    // Outer glow / aura circles for Hubs and Clusters
+    // Glowing aura for Hubs and Clusters
     this.nodeSelection
       .filter((d: any) => d.type === 'HUB' || d.type === 'CLUSTER')
       .append('circle')
-      .attr('r', (d: any) => (d.type === 'HUB' ? 26 : 20))
+      .attr('r', (d: any) => (d.type === 'HUB' ? 28 : 22))
       .attr('fill', 'none')
-      .attr('stroke', (d: any) => (d.type === 'HUB' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(59, 130, 246, 0.3)'))
+      .attr('stroke', (d: any) => (d.type === 'HUB' ? 'rgba(168, 85, 247, 0.45)' : 'rgba(59, 130, 246, 0.4)'))
       .attr('stroke-width', 2)
       .attr('filter', 'url(#glow)');
 
-    // Main Node Circle
+    // Main Circle
     this.nodeSelection
       .append('circle')
       .attr('r', (d: any) => this.getNodeRadius(d))
@@ -702,41 +692,50 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
       .attr('stroke-width', (d: any) => (d.type === 'HUB' ? 3 : 1.5))
       .attr('class', 'transition-all duration-150');
 
-    // Inner Glyph / Symbol
+    // Inner Glyph
     this.nodeSelection
       .append('text')
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'central')
       .attr('fill', '#ffffff')
-      .attr('font-size', (d: any) => (d.type === 'HUB' ? '12px' : d.type === 'CLUSTER' ? '10px' : '8px'))
+      .attr('font-size', (d: any) => (d.type === 'HUB' ? '11px' : d.type === 'CLUSTER' ? '9px' : '8px'))
       .attr('font-weight', 'bold')
       .attr('pointer-events', 'none')
       .text((d: any) => {
         if (d.type === 'HUB') return 'HUB';
-        if (d.type === 'CLUSTER') return d.label.substring(0, 3).toUpperCase();
+        if (d.type === 'CLUSTER') return 'OCP';
         if (d.role === 'MASTER') return 'M';
         if (d.type === 'NODE') return 'W';
-        if (d.type === 'NAMESPACE') return d.rating || 'NS';
+        if (d.type === 'NAMESPACE') {
+          if (d.rating === 'OPTIMAL' || d.rating === 'A') return 'A';
+          if (d.rating === 'GOOD' || d.rating === 'B') return 'B';
+          if (d.rating === 'ACCEPTABLE' || d.rating === 'C') return 'C';
+          if (d.rating === 'OVERPROVISIONED' || d.rating === 'D') return 'D';
+          if (d.rating === 'SEVERE_WASTE' || d.rating === 'F') return 'F';
+          return 'NS';
+        }
         return '';
       });
 
-    // Node Label under circle
+    // Label under circle
     this.nodeSelection
       .append('text')
       .attr('dy', (d: any) => this.getNodeRadius(d) + 12)
       .attr('text-anchor', 'middle')
-      .attr('fill', 'rgba(255, 255, 255, 0.85)')
+      .attr('fill', 'rgba(255, 255, 255, 0.9)')
       .attr('font-size', (d: any) => (d.type === 'HUB' ? '11px' : d.type === 'CLUSTER' ? '10px' : '8px'))
       .attr('font-family', 'ui-monospace, monospace')
       .attr('pointer-events', 'none')
       .text((d: any) => {
         if (d.type === 'HUB' || d.type === 'CLUSTER') return d.label;
-        if (d.type === 'NAMESPACE') return d.label.length > 12 ? d.label.substring(0, 10) + '..' : d.label;
+        if (d.type === 'NAMESPACE') return d.label.length > 15 ? d.label.substring(0, 13) + '…' : d.label;
         return '';
       });
 
-    // Simulation Tick Update
+    // Simulation tick
     this.simulation.on('tick', () => {
+      this.simulationTicks++;
+
       this.linkSelection
         .attr('x1', (d: any) => d.source.x)
         .attr('y1', (d: any) => d.source.y)
@@ -744,13 +743,57 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
         .attr('y2', (d: any) => d.target.y);
 
       this.nodeSelection.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+
+      // Once warm-up stabilized around 30 ticks, automatically fit to screen nicely
+      if (this.simulationTicks === 35) {
+        this.fitToScreen();
+      }
     });
 
-    // Apply search highlight if active
     this.applySearchHighlight();
+    } catch (err: any) {
+      console.error('RENDER_GRAPH_ERROR:', err);
+      (window as any).__RENDER_GRAPH_ERROR__ = err?.stack || err?.message || String(err);
+    }
   }
 
-  // Node radius styling
+  fitToScreen(): void {
+    if (!this.svg || !this.zoomBehavior) return;
+    const nodes = this.nodeSelection?.data();
+    if (!nodes || nodes.length === 0) return;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    nodes.forEach((d: any) => {
+      if (d.x != null && !isNaN(d.x)) {
+        if (d.x < minX) minX = d.x;
+        if (d.x > maxX) maxX = d.x;
+      }
+      if (d.y != null && !isNaN(d.y)) {
+        if (d.y < minY) minY = d.y;
+        if (d.y > maxY) maxY = d.y;
+      }
+    });
+
+    if (!isFinite(minX) || !isFinite(maxX)) return;
+
+    const graphWidth = maxX - minX + 120;
+    const graphHeight = maxY - minY + 120;
+    const scale = Math.min(1.2, Math.max(0.25, 0.85 / Math.max(graphWidth / this.width, graphHeight / this.height)));
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    this.svg
+      .transition()
+      .duration(500)
+      .call(
+        this.zoomBehavior.transform,
+        d3.zoomIdentity
+          .translate(this.width / 2, this.height / 2)
+          .scale(scale)
+          .translate(-centerX, -centerY)
+      );
+  }
+
   private getNodeRadius(d: GraphNode): number {
     switch (d.type) {
       case 'HUB':
@@ -766,28 +809,27 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Node fill color styling
   private getNodeFill(d: GraphNode): string {
     switch (d.type) {
       case 'HUB':
-        return '#7828C8'; // Deep Purple
+        return '#7828C8';
       case 'CLUSTER':
-        if (d.environment === 'PRODUCTION') return '#006FEE'; // Primary Blue
-        if (d.environment === 'STAGING') return '#F5A524'; // Amber
-        return '#06B6D4'; // Cyan
+        if (d.environment === 'PRODUCTION') return '#006FEE';
+        if (d.environment === 'STAGING') return '#F5A524';
+        return '#06B6D4';
       case 'NODE':
-        return d.role === 'MASTER' ? '#475569' : '#334155'; // Slate
+        return d.role === 'MASTER' ? '#475569' : '#334155';
       case 'NAMESPACE':
-        if (d.rating === 'A' || d.rating === 'B') return '#17C964'; // Emerald Optimal
-        if (d.rating === 'D') return '#F5A524'; // Warning
-        if (d.rating === 'F') return '#F31260'; // Severe Waste
+        if (d.rating === 'OPTIMAL' || d.rating === 'GOOD' || d.rating === 'A' || d.rating === 'B') return '#10B981';
+        if (d.rating === 'ACCEPTABLE' || d.rating === 'C') return '#06B6D4';
+        if (d.rating === 'OVERPROVISIONED' || d.rating === 'D') return '#F59E0B';
+        if (d.rating === 'SEVERE_WASTE' || d.rating === 'F') return '#EF4444';
         return '#10B981';
       default:
         return '#64748B';
     }
   }
 
-  // Node stroke color styling
   private getNodeStroke(d: GraphNode): string {
     if (this.selectedNode && this.selectedNode.id === d.id) {
       return '#FFFFFF';
@@ -806,7 +848,6 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Drag Handlers
   private dragStarted(event: any, d: SimulationNode): void {
     if (!event.active) this.simulation.alphaTarget(0.3).restart();
     d.fx = d.x;
@@ -893,7 +934,6 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Zoom Actions
   zoomIn(): void {
     if (this.svg && this.zoomBehavior) {
       this.svg.transition().duration(300).call(this.zoomBehavior.scaleBy, 1.3);
@@ -907,15 +947,7 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
   }
 
   resetView(): void {
-    if (this.svg && this.zoomBehavior) {
-      this.svg
-        .transition()
-        .duration(400)
-        .call(
-          this.zoomBehavior.transform,
-          d3.zoomIdentity.translate(this.width / 2, this.height / 2).scale(0.85)
-        );
-    }
+    this.fitToScreen();
   }
 
   reheatSimulation(): void {
@@ -928,7 +960,6 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Visual helper helpers for Drawer
   getNodeColorClass(node: GraphNode): string {
     switch (node.type) {
       case 'HUB':
@@ -938,8 +969,10 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
       case 'NODE':
         return 'bg-slate-600/20 text-slate-300 border border-slate-500/30';
       case 'NAMESPACE':
-        return node.rating === 'A' || node.rating === 'B'
+        return node.rating === 'OPTIMAL' || node.rating === 'GOOD' || node.rating === 'A' || node.rating === 'B'
           ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+          : node.rating === 'OVERPROVISIONED' || node.rating === 'D'
+          ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30'
           : 'bg-rose-600/20 text-rose-400 border border-rose-500/30';
       default:
         return 'bg-content3 text-default-400';
