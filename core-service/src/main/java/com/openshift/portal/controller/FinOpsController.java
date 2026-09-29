@@ -2,10 +2,9 @@ package com.openshift.portal.controller;
 
 import com.openshift.portal.domain.enums.Environment;
 import com.openshift.portal.domain.enums.FinOpsEfficiencyRating;
-import com.openshift.portal.dto.FinOpsNamespaceRecommendationDto;
-import com.openshift.portal.dto.FinOpsOverviewDto;
-import com.openshift.portal.dto.FinOpsPricingConfigDto;
+import com.openshift.portal.dto.*;
 import com.openshift.portal.service.FinOpsService;
+import com.openshift.portal.service.WhatIfSimulatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +25,7 @@ import java.util.List;
 public class FinOpsController {
 
     private final FinOpsService finOpsService;
+    private final WhatIfSimulatorService whatIfSimulatorService;
 
     @GetMapping("/overview")
     @Operation(summary = "Get FinOps overview, total spend, waste, savings, and team breakdown")
@@ -72,5 +72,17 @@ public class FinOpsController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType("text/csv"))
                 .body(csv);
+    }
+
+    @PostMapping("/simulator/simulate")
+    @Operation(summary = "Run interactive what-if capacity and cost simulation")
+    public ResponseEntity<WhatIfSimulationResultDto> simulate(@RequestBody(required = false) WhatIfSimulationRequestDto request) {
+        return ResponseEntity.ok(whatIfSimulatorService.simulate(request));
+    }
+
+    @GetMapping("/simulator/presets")
+    @Operation(summary = "Get predefined enterprise what-if simulation scenarios")
+    public ResponseEntity<List<WhatIfPresetDto>> getPresets() {
+        return ResponseEntity.ok(whatIfSimulatorService.getPresets());
     }
 }
