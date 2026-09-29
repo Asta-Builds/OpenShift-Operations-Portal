@@ -517,3 +517,92 @@ export interface FinOpsOverview {
   pricing: FinOpsPricingConfig;
 }
 
+export type HeadroomStatus = 'OPTIMAL' | 'HEALTHY' | 'WARNING_TIGHT' | 'CRITICAL_OVERCOMMITTED';
+export type InfrastructureType = 'BARE_METAL' | 'VMWARE' | 'OPENSTACK' | 'AWS' | 'AZURE' | 'GCP' | 'OTHER' | string;
+
+export interface WhatIfWorkload {
+  name: string;
+  targetClusterId?: string;
+  targetClusterName?: string;
+  requestedCpuCores: number;
+  requestedMemoryGb: number;
+  requestedStorageGb: number;
+  environment?: Environment;
+  ownerTeam?: string;
+}
+
+export interface WhatIfDecommission {
+  sourceClusterId?: string;
+  sourceClusterName?: string;
+  targetClusterId?: string;
+  targetClusterName?: string;
+}
+
+export interface WhatIfSimulationRequest {
+  rightsizingAdoptionPercent: number;
+  targetEfficiencyRatings?: FinOpsEfficiencyRating[];
+  additionalWorkloads?: WhatIfWorkload[];
+  clusterDecommissions?: WhatIfDecommission[];
+  fleetGrowthPercent?: number;
+}
+
+export interface WhatIfClusterImpact {
+  clusterId: string;
+  clusterName: string;
+  environment: Environment;
+  infrastructureType: InfrastructureType;
+  decommissioned: boolean;
+  totalCores: number;
+  baselineAllocatedCores: number;
+  simulatedAllocatedCores: number;
+  baselineCpuAllocPercent: number;
+  simulatedCpuAllocPercent: number;
+  totalMemoryGb: number;
+  baselineAllocatedMemoryGb: number;
+  simulatedAllocatedMemoryGb: number;
+  baselineMemoryAllocPercent: number;
+  simulatedMemoryAllocPercent: number;
+  totalStorageGb: number;
+  baselineAllocatedStorageGb: number;
+  simulatedAllocatedStorageGb: number;
+  headroomStatus: HeadroomStatus;
+  statusDescription: string;
+  suggestedWorkerNodeDelta: number;
+  estimatedLicenseCoreDelta: number;
+  monthlyCostDelta: number;
+  warnings: string[];
+}
+
+export interface WhatIfSimulationResult {
+  baselineMonthlySpend: number;
+  simulatedMonthlySpend: number;
+  monthlySavingsDelta: number;
+  annualizedSavingsDelta: number;
+  rightsizingMonthlySavings: number;
+  hardwareAndLicenseMonthlySavings: number;
+  newWorkloadsMonthlyCost: number;
+  totalFreedCpuCores: number;
+  totalFreedMemoryGb: number;
+  totalFreedStorageGb: number;
+  baselineFleetCpuAllocPercent: number;
+  simulatedFleetCpuAllocPercent: number;
+  baselineFleetMemoryAllocPercent: number;
+  simulatedFleetMemoryAllocPercent: number;
+  totalWorkerNodesDelta: number;
+  totalLicenseCoresDelta: number;
+  clusterImpacts: WhatIfClusterImpact[];
+  globalWarnings: string[];
+  strategicRecommendations: string[];
+}
+
+export interface WhatIfPreset {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  icon: string;
+  badge: string;
+  request: WhatIfSimulationRequest;
+}
+
+

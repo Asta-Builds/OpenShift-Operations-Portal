@@ -286,6 +286,32 @@ import { CommonModule } from '@angular/common';
       <ng-container *ngIf="name === 'sparkles'">
         <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
       </ng-container>
+
+      <!-- zap -->
+      <ng-container *ngIf="name === 'zap'">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </ng-container>
+
+      <!-- minimize-2 -->
+      <ng-container *ngIf="name === 'minimize-2'">
+        <polyline points="4 14 10 14 10 20" />
+        <polyline points="20 10 14 10 14 4" />
+        <line x1="14" x2="21" y1="10" y2="3" />
+        <line x1="3" x2="10" y1="21" y2="14" />
+      </ng-container>
+
+      <!-- trending-down -->
+      <ng-container *ngIf="name === 'trending-down'">
+        <polyline points="22 17 13.5 8.5 8.5 13.5 2 7" />
+        <polyline points="16 17 22 17 22 11" />
+      </ng-container>
+
+      <!-- box -->
+      <ng-container *ngIf="name === 'box'">
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+        <path d="m3.3 7 8.7 5 8.7-5" />
+        <path d="M12 22V12" />
+      </ng-container>
     </svg>
   `
 })

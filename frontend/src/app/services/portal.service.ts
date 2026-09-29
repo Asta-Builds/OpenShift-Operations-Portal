@@ -27,7 +27,10 @@ import {
   NodeAgentStatus,
   FinOpsOverview,
   FinOpsNamespaceRecommendation,
-  FinOpsPricingConfig
+  FinOpsPricingConfig,
+  WhatIfPreset,
+  WhatIfSimulationRequest,
+  WhatIfSimulationResult
 } from '../models/portal.models';
 
 @Injectable({
@@ -174,6 +177,14 @@ export class PortalService {
       responseType: 'blob',
       observe: 'response'
     });
+  }
+
+  getWhatIfPresets(): Observable<WhatIfPreset[]> {
+    return this.http.get<WhatIfPreset[]>(`${this.baseUrl}/finops/simulator/presets`);
+  }
+
+  simulateWhatIf(request: WhatIfSimulationRequest): Observable<WhatIfSimulationResult> {
+    return this.http.post<WhatIfSimulationResult>(`${this.baseUrl}/finops/simulator/simulate`, request);
   }
 
   getTeams(): Observable<Team[]> {

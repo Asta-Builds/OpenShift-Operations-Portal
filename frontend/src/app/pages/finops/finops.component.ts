@@ -25,10 +25,12 @@ function daysAgo(days: number): string {
   return isoDay(date);
 }
 
+import { RouterLink } from '@angular/router';
+
 @Component({
   selector: 'app-finops',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
   template: `
     <div class="space-y-6">
       
@@ -47,6 +49,16 @@ function daysAgo(days: number): string {
         </div>
 
         <div class="flex items-center gap-2">
+          <!-- Launch What-If Simulator Button -->
+          <a
+            routerLink="/what-if"
+            class="heroui-btn bg-secondary/15 hover:bg-secondary/25 border border-secondary/30 text-secondary text-xs font-semibold px-3.5 py-2 flex items-center gap-1.5"
+            title="Launch Interactive What-If Capacity and Cost Simulator"
+          >
+            <app-icon name="sparkles" [size]="15"></app-icon>
+            <span>What-If Simulator</span>
+          </a>
+
           <!-- Pricing Rates Button -->
           <button
             type="button"

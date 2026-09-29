@@ -10,6 +10,7 @@ import { AttributionComponent } from './pages/attribution/attribution.component'
 import { InfrastructureComponent } from './pages/infrastructure/infrastructure.component';
 import { HubManagementComponent } from './pages/hubs/hub-management.component';
 import { FinOpsComponent } from './pages/finops/finops.component';
+import { WhatIfSimulatorComponent } from './pages/finops/what-if-simulator.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'overview', pathMatch: 'full' },
@@ -19,6 +20,8 @@ export const routes: Routes = [
   { path: 'infrastructure', component: InfrastructureComponent },
   { path: 'attribution', component: AttributionComponent },
   { path: 'finops', component: FinOpsComponent },
+  { path: 'finops/what-if', component: WhatIfSimulatorComponent },
+  { path: 'what-if', component: WhatIfSimulatorComponent },
   { path: 'licensing', component: LicensingComponent },
   { path: 'forecasting', component: ForecastingComponent },
   { path: 'reports', component: ReportGeneratorComponent },
