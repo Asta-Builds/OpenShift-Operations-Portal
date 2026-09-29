@@ -67,11 +67,11 @@ public class AcmSimulatorService {
         String name = cluster.getClusterName();
         if (name.contains("prod-eu-west-01")) {
             return List.of(
-                    new SimulatedNamespace("payments-core-gateway", "payments-platform", "CC-FIN-104", 6, 0.74, 0.78),
-                    new SimulatedNamespace("card-authorization-svc", "payments-platform", "CC-FIN-104", 5, 0.88, 0.86),
+                    new SimulatedNamespace("payments-core-gateway", "payments-platform", "CC-FIN-104", 5, 0.74, 0.78),
+                    new SimulatedNamespace("card-authorization-svc", "payments-platform", "CC-FIN-104", 4, 0.88, 0.86),
                     new SimulatedNamespace("fraud-detection-streaming", "payments-platform", "CC-FIN-104", 4, 1.09, 1.05),
-                    new SimulatedNamespace("settlement-batch-worker", "payments-platform", "CC-FIN-104", 5, 0.16, 0.24),
-                    new SimulatedNamespace("compliance-audit-vault", "core-banking", "CC-FIN-001", 3, 0.31, 0.38),
+                    new SimulatedNamespace("legacy-batch", "core-banking", "CC-FIN-001", 4, 0.16, 0.24),
+                    new SimulatedNamespace("data-pipeline", "data-science", "CC-AI-900", 4, 0.85, 0.82),
                     new SimulatedNamespace("openshift-monitoring", null, null, 2, 0.75, 0.80),
                     new SimulatedNamespace("migration-legacy", "payments-platform", null, 1, 0.12, 0.20, 20)
             );
