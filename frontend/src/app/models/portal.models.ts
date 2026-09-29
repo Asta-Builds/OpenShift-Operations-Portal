@@ -445,3 +445,75 @@ export interface InventoryImportResult {
   /** Nodes of the latest snapshots now matched to an inventory row, from any source. */
   matchedNodes: number;
 }
+
+export type FinOpsEfficiencyRating = 'OPTIMAL' | 'ACCEPTABLE' | 'OVER_PROVISIONED' | 'SEVERE_WASTE' | 'UNDER_PROVISIONED';
+export type FinOpsRecommendationAction = 'DOWNSIZE_CPU_AND_RAM' | 'DOWNSIZE_CPU' | 'DOWNSIZE_RAM' | 'MAINTAIN_SIZING' | 'UPSIZE_RESOURCES';
+
+export interface FinOpsPricingConfig {
+  cpuHourlyRate: number;
+  memoryHourlyRate: number;
+  storageMonthlyRate: number;
+  currency: string;
+}
+
+export interface FinOpsNamespaceRecommendation {
+  namespaceId: string;
+  namespaceName: string;
+  clusterId: string;
+  clusterName: string;
+  environment: Environment;
+  teamName: string;
+  costCenter: string;
+  avgCpuRequestCores: number;
+  avgCpuUsageCores: number;
+  cpuEfficiencyPercent: number;
+  avgMemoryRequestGb: number;
+  avgMemoryUsageGb: number;
+  memoryEfficiencyPercent: number;
+  pvcRequestGb: number;
+  monthlyAllocatedCost: number;
+  monthlyActualCost: number;
+  monthlyWastedCost: number;
+  overallEfficiencyPercent: number;
+  rating: FinOpsEfficiencyRating;
+  action: FinOpsRecommendationAction;
+  recommendedCpuRequestCores: number;
+  recommendedMemoryRequestGb: number;
+  monthlyPotentialSavings: number;
+  suggestedResourceQuotaYaml: string;
+}
+
+export interface FinOpsTeamBreakdown {
+  teamName: string;
+  costCenter: string;
+  namespaceCount: number;
+  monthlyAllocatedCost: number;
+  monthlyActualCost: number;
+  monthlyWastedCost: number;
+  monthlyPotentialSavings: number;
+  costSharePercent: number;
+  efficiencyScorePercent: number;
+}
+
+export interface FinOpsOverview {
+  from: string;
+  to: string;
+  environment: Environment | null;
+  currency: string;
+  totalMonthlyAllocatedCost: number;
+  totalMonthlyActualCost: number;
+  totalMonthlyWastedCost: number;
+  totalAnnualizedSavingsPotential: number;
+  overallFleetEfficiencyPercent: number;
+  totalNamespacesAnalyzed: number;
+  severeWasteNamespacesCount: number;
+  overProvisionedNamespacesCount: number;
+  acceptableNamespacesCount: number;
+  optimalNamespacesCount: number;
+  underProvisionedNamespacesCount: number;
+  teamBreakdowns: FinOpsTeamBreakdown[];
+  costByEnvironment: Record<string, number>;
+  topWastefulNamespaces: FinOpsNamespaceRecommendation[];
+  pricing: FinOpsPricingConfig;
+}
+

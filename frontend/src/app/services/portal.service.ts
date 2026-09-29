@@ -24,7 +24,10 @@ import {
   InfrastructureTopology,
   InventoryRow,
   InventoryImportResult,
-  NodeAgentStatus
+  NodeAgentStatus,
+  FinOpsOverview,
+  FinOpsNamespaceRecommendation,
+  FinOpsPricingConfig
 } from '../models/portal.models';
 
 @Injectable({
@@ -125,6 +128,52 @@ export class PortalService {
     if (to) params['to'] = to;
     if (environment) params['environment'] = environment;
     return this.http.get<AttributionReport>(`${this.baseUrl}/attribution/teams`, { params });
+  }
+
+  getFinOpsOverview(from?: string, to?: string, environment?: Environment | ''): Observable<FinOpsOverview> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (environment) params['environment'] = environment;
+    return this.http.get<FinOpsOverview>(`${this.baseUrl}/finops/overview`, { params });
+  }
+
+  getFinOpsRecommendations(
+    from?: string,
+    to?: string,
+    environment?: Environment | '',
+    rating?: string,
+    teamName?: string,
+    minWaste?: number
+  ): Observable<FinOpsNamespaceRecommendation[]> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (environment) params['environment'] = environment;
+    if (rating) params['rating'] = rating;
+    if (teamName) params['teamName'] = teamName;
+    if (minWaste !== undefined) params['minWaste'] = minWaste.toString();
+    return this.http.get<FinOpsNamespaceRecommendation[]>(`${this.baseUrl}/finops/recommendations`, { params });
+  }
+
+  getFinOpsPricing(): Observable<FinOpsPricingConfig> {
+    return this.http.get<FinOpsPricingConfig>(`${this.baseUrl}/finops/pricing`);
+  }
+
+  updateFinOpsPricing(config: FinOpsPricingConfig): Observable<FinOpsPricingConfig> {
+    return this.http.put<FinOpsPricingConfig>(`${this.baseUrl}/finops/pricing`, config);
+  }
+
+  downloadFinOpsCsv(from?: string, to?: string, environment?: Environment | ''): Observable<HttpResponse<Blob>> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (environment) params['environment'] = environment;
+    return this.http.get(`${this.baseUrl}/finops/export`, {
+      params,
+      responseType: 'blob',
+      observe: 'response'
+    });
   }
 
   getTeams(): Observable<Team[]> {
