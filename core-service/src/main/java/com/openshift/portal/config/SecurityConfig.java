@@ -55,6 +55,7 @@ public class SecurityConfig {
                         // The delivery log shows recipients' addresses
                         .requestMatchers(mvc.pattern(HttpMethod.GET, "/notifications/**")).hasRole("OPERATOR")
                         .requestMatchers(mvc.pattern(HttpMethod.POST, "/clusters/collect"),
+                                mvc.pattern(HttpMethod.POST, "/hubs/*/collect"), mvc.pattern(HttpMethod.POST, "/hubs/*/test"),
                                 mvc.pattern("/reports/export/**"), mvc.pattern("/reports/saved/**")).hasRole("OPERATOR")
                         .requestMatchers(mvc.pattern(HttpMethod.GET, "/**")).hasRole("VIEWER")
                         .anyRequest().hasRole("ADMIN"))

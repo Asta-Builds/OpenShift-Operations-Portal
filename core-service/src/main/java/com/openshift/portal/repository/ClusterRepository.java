@@ -16,6 +16,7 @@ public interface ClusterRepository extends JpaRepository<Cluster, UUID> {
     List<Cluster> findByEnvironment(Environment environment);
     List<Cluster> findByOwnerTeamId(UUID teamId);
     List<Cluster> findByAcmHubId(UUID acmHubId);
+    long countByAcmHubId(UUID acmHubId);
 
     @Query("SELECT COUNT(c) FROM Cluster c")
     long countTotalClusters();

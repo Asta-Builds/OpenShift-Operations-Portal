@@ -195,8 +195,15 @@ export interface ForecastingProjection {
   projectedPoints: TrendPoint[];
 }
 
+/** SKIPPED_CIRCUIT_OPEN: the hub failed repeatedly, so its circuit breaker paused calls to it. */
+export type SyncStatus = 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED_CIRCUIT_OPEN';
+/** DEGRADED: some clusters could not be collected; ERROR: the hub refused the request (token or permissions). */
+export type HubStatus = 'ACTIVE' | 'UNREACHABLE' | 'DEGRADED' | 'ERROR';
+
+/** One collection of one hub. */
 export interface HubSyncRun {
-  status: 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED_CIRCUIT_OPEN';
+  id: number;
+  status: SyncStatus;
   startedAt: string;
   finishedAt: string | null;
   attempts: number;
@@ -213,12 +220,35 @@ export interface AcmHubSummary {
   observabilityUrl: string | null;
   /** ACM Search endpoint; namespace ownership is only read when it is set. */
   searchUrl: string | null;
-  status: 'ACTIVE' | 'UNREACHABLE' | 'DEGRADED' | 'ERROR';
+  status: HubStatus;
+  /** Last collection that got data from the hub. */
   lastSyncTimestamp: string | null;
   consecutiveFailures: number;
-  /** Held in memory by the backend instance that answered. */
+  /** CLOSED, OPEN or HALF_OPEN; held in memory by the backend instance that answered. */
   circuitBreakerState: string;
+  clusterCount: number;
+  /** Whether the hub's token Secret is mounted; null for simulated hubs, which read none. */
+  credentialsMounted: boolean | null;
   latestSyncRun: HubSyncRun | null;
+}
+
+/** What an admin enters to register or change a hub; empty optional URLs mean "not configured". */
+export interface HubSettings {
+  name: string;
+  apiUrl: string;
+  credentialsSecretRef: string;
+  observabilityUrl: string;
+  searchUrl: string;
+}
+
+export type HubCheckTarget = 'CREDENTIALS' | 'API' | 'OBSERVABILITY' | 'SEARCH';
+/** SKIPPED: not configured, or not tried because an earlier check failed. */
+export type HubCheckStatus = 'OK' | 'WARNING' | 'FAILED' | 'SKIPPED';
+
+export interface HubConnectionTest {
+  /** False when any check failed; warnings do not count. */
+  ok: boolean;
+  checks: { target: HubCheckTarget; status: HubCheckStatus; message: string; durationMs: number }[];
 }
 
 export type PortalRole = 'ADMIN' | 'OPERATOR' | 'VIEWER';

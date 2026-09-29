@@ -58,15 +58,16 @@ public class LiveAcmHubClient implements AcmHubClient {
     @Override
     public List<ClusterObservation> fetchClusters(AcmHub hub) {
         HubCredentialsResolver.HubCredentials credentials = credentialsResolver.resolve(hub);
-        List<ManagedClusterMapper.ManagedClusterState> clusters = listManagedClusters(hub, credentials);
+        List<ManagedClusterMapper.ManagedClusterState> clusters = listManagedClusters(hub, credentials, properties);
         Metrics metrics = readMetrics(hub, credentials);
         Map<String, Map<String, Map<String, String>>> labels = readLabels(hub, credentials);
 
         return clusters.stream().map(cluster -> toObservation(cluster, metrics, labels)).toList();
     }
 
-    private List<ManagedClusterMapper.ManagedClusterState> listManagedClusters(
-            AcmHub hub, HubCredentialsResolver.HubCredentials credentials) {
+    /** Also used by {@link LiveHubConnectionTester}, so it needs no instance of this client. */
+    static List<ManagedClusterMapper.ManagedClusterState> listManagedClusters(
+            AcmHub hub, HubCredentialsResolver.HubCredentials credentials, AcmProperties properties) {
         Config config = new ConfigBuilder()
                 .withMasterUrl(hub.getApiUrl())
                 .withOauthToken(credentials.token())

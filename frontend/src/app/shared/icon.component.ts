@@ -232,6 +232,34 @@ import { CommonModule } from '@angular/common';
       <ng-container *ngIf="name === 'filter'">
         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
       </ng-container>
+
+      <!-- network -->
+      <ng-container *ngIf="name === 'network'">
+        <rect x="16" y="16" width="6" height="6" rx="1" />
+        <rect x="2" y="16" width="6" height="6" rx="1" />
+        <rect x="9" y="2" width="6" height="6" rx="1" />
+        <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
+        <path d="M12 12V8" />
+      </ng-container>
+
+      <!-- x-circle -->
+      <ng-container *ngIf="name === 'x-circle'">
+        <circle cx="12" cy="12" r="10" />
+        <path d="m15 9-6 6" />
+        <path d="m9 9 6 6" />
+      </ng-container>
+
+      <!-- minus-circle -->
+      <ng-container *ngIf="name === 'minus-circle'">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M8 12h8" />
+      </ng-container>
+
+      <!-- plus -->
+      <ng-container *ngIf="name === 'plus'">
+        <path d="M5 12h14" />
+        <path d="M12 5v14" />
+      </ng-container>
     </svg>
   `
 })

@@ -39,6 +39,15 @@ public class HubCredentialsResolver {
         }
     }
 
+    /** Whether the hub's token can be read, without saying why not; for status displays. */
+    public boolean hasToken(AcmHub hub) {
+        try {
+            return !resolve(hub).token().isEmpty();
+        } catch (AcmAccessException e) {
+            return false;
+        }
+    }
+
     /** {@code caCertificate} is null when the hub's certificate is signed by a CA the JVM already trusts. */
     public record HubCredentials(String token, Path caCertificate) {
     }

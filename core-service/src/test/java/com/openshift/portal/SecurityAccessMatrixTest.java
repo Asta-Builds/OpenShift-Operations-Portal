@@ -131,6 +131,18 @@ class SecurityAccessMatrixTest {
                 arguments(POST, "/hubs", Caller.OPERATOR, 403),
                 arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.OPERATOR, 403),
                 arguments(DELETE, "/hubs/00000000-0000-0000-0000-000000000000", Caller.ADMIN, 404),
+                // Anyone may read a hub's history; operators collect and test registered hubs. Testing new settings
+                // can send a mounted token to any URL, like registering, so it is admin only (400: authorized, as
+                // the matrix body is no hub)
+                arguments(GET, "/hubs/00000000-0000-0000-0000-000000000000/sync-runs", Caller.ANONYMOUS, 401),
+                arguments(GET, "/hubs/00000000-0000-0000-0000-000000000000/sync-runs", Caller.VIEWER, 404),
+                arguments(POST, "/hubs/00000000-0000-0000-0000-000000000000/collect", Caller.VIEWER, 403),
+                arguments(POST, "/hubs/00000000-0000-0000-0000-000000000000/collect", Caller.NODE_AGENT, 403),
+                arguments(POST, "/hubs/00000000-0000-0000-0000-000000000000/collect", Caller.OPERATOR, 404),
+                arguments(POST, "/hubs/00000000-0000-0000-0000-000000000000/test", Caller.VIEWER, 403),
+                arguments(POST, "/hubs/00000000-0000-0000-0000-000000000000/test", Caller.OPERATOR, 404),
+                arguments(POST, "/hubs/test", Caller.OPERATOR, 403),
+                arguments(POST, "/hubs/test", Caller.ADMIN, 400),
                 // Only node agents report nodes (a 400 means authorized, as the matrix body is no node report);
                 // the agent role grants nothing else
                 arguments(POST, "/node-reports", Caller.ANONYMOUS, 401),

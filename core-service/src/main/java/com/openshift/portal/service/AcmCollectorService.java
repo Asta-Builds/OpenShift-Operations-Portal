@@ -37,6 +37,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AcmCollectorService {
 
+    /** Held by every collection, scheduled or manual, so collections never overlap on any replica. */
+    public static final String COLLECTION_LOCK = "acm-collection";
+
     private final AcmHubRepository acmHubRepository;
     private final ClusterRepository clusterRepository;
     private final HubSyncRunRepository syncRunRepository;
@@ -53,7 +56,7 @@ public class AcmCollectorService {
      * Periodic scheduled collection across all configured ACM Hubs; the lock keeps each cycle to one replica.
      */
     @Scheduled(cron = "${openshift.portal.collector.cron:0 */15 * * * *}")
-    @SchedulerLock(name = "acm-collection", lockAtMostFor = "PT14M", lockAtLeastFor = "PT1M")
+    @SchedulerLock(name = COLLECTION_LOCK, lockAtMostFor = "PT14M", lockAtLeastFor = "PT1M")
     public void scheduledCollection() {
         if (!properties.getCollector().isEnabled()) {
             log.info("Collector is disabled in configuration. Skipping scheduled run.");
@@ -106,6 +109,23 @@ public class AcmCollectorService {
                 .status(hubsNeedingAttention.isEmpty() ? "COMPLETED" : "PARTIAL")
                 .message(message)
                 .build();
+    }
+
+    /**
+     * Collects one hub now, as a collection cycle would. Callers outside the scheduler go through
+     * {@link ManualCollectionService}, which holds the collection lock.
+     */
+    public HubSyncRun collectHub(AcmHub hub) {
+        AcmHubClient hubClient = hubClientProvider.getIfAvailable();
+        if (hubClient == null) {
+            throw new IllegalStateException("No ACM client is configured; enable the simulator or configure a live ACM client.");
+        }
+        HubSyncRun run = syncHub(hub, hubClient);
+        if (run.getClustersOk() > 0) {
+            recordWatermark();
+            evaluateAlerts();
+        }
+        return run;
     }
 
     /**

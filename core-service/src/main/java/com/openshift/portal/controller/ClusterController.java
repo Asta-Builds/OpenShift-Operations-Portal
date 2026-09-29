@@ -12,8 +12,8 @@ import com.openshift.portal.dto.ClusterSummaryDto;
 import com.openshift.portal.dto.SnapshotTriggerResultDto;
 import com.openshift.portal.exception.ResourceNotFoundException;
 import com.openshift.portal.repository.*;
-import com.openshift.portal.service.AcmCollectorService;
 import com.openshift.portal.service.AttributionService;
+import com.openshift.portal.service.ManualCollectionService;
 import com.openshift.portal.service.NodeCorrelationService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +39,7 @@ public class ClusterController {
     private final NodeMetricsSnapshotRepository nodeMetricsRepository;
     private final NamespaceRepository namespaceRepository;
     private final NamespaceSnapshotRepository namespaceSnapshotRepository;
-    private final AcmCollectorService collectorService;
+    private final ManualCollectionService manualCollection;
     private final AcmProperties properties;
 
     @GetMapping
@@ -144,10 +144,10 @@ public class ClusterController {
         return ResponseEntity.ok(detail);
     }
 
+    /** Collects every hub now; 409 while another collection holds the lock. */
     @PostMapping("/collect")
     public ResponseEntity<SnapshotTriggerResultDto> triggerCollection() {
-        SnapshotTriggerResultDto result = collectorService.triggerCollection();
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(manualCollection.collectAll());
     }
 
     private ClusterDetailDto.NamespaceSummaryDto toNamespaceSummary(Namespace ns) {

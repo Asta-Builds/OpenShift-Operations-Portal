@@ -127,8 +127,9 @@ oc get route openshift-operations-portal
 
 The core service creates its schema with Flyway on first start; its startup probe allows three minutes for that.
 
-Finally register each hub as an ADMIN, with the Secret name as `credentialsSecretRef` (see
-[Connecting a real ACM hub](../README.md#connecting-a-real-acm-hub)):
+Finally register each hub as an ADMIN on the portal's **ACM Hubs** page, with the Secret's name as the credentials
+Secret, and use *Test connection*: it shows whether the token is mounted and what the hub API, Observability and
+Search answer (see [Connecting a real ACM hub](../README.md#connecting-a-real-acm-hub)). Or through the API:
 
 ```bash
 curl -X POST https://<route host>/api/v1/hubs -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \

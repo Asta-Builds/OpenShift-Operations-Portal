@@ -35,16 +35,18 @@
 
     <!-- Right Actions: Live ACM Status, Theme Switcher, User Profile -->
     <div class="flex items-center gap-3">
-      <!-- ACM Hubs Live Status Pill -->
-      <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-content2 border border-divider text-xs font-medium">
+      <!-- ACM Hubs Live Status Pill: opens the hubs page -->
+      <a routerLink="/hubs" title="ACM hubs and their collections"
+         class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-content2 hover:bg-content3 border border-divider text-xs font-medium transition-colors">
         <span class="relative flex h-2 w-2">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" [ngClass]="activeHubCount === hubs.length ? 'bg-success' : 'bg-warning'"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2" [ngClass]="activeHubCount === hubs.length ? 'bg-success' : 'bg-warning'"></span>
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" [ngClass]="hubs.length && activeHubCount === hubs.length ? 'bg-success' : 'bg-warning'"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2" [ngClass]="hubs.length && activeHubCount === hubs.length ? 'bg-success' : 'bg-warning'"></span>
         </span>
-        <span class="text-default-600">
-          <strong class="text-foreground">{{ activeHubCount }}</strong> of {{ hubs.length || 2 }} ACM Hubs
+        <span class="text-default-600" *ngIf="hubs.length; else noHubs">
+          <strong class="text-foreground">{{ activeHubCount }}</strong> of {{ hubs.length }} ACM Hubs active
         </span>
-      </div>
+        <ng-template #noHubs><span class="text-default-600">No ACM Hubs</span></ng-template>
+      </a>
 
       <!-- Theme Switcher Button (Dark / Light) -->
       <button
@@ -176,6 +178,15 @@
                 <app-icon name="file-text" [size]="17"></app-icon>
                 <span>Reports & Dispatch</span>
               </a>
+
+              <a
+                routerLink="/hubs"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+              >
+                <app-icon name="network" [size]="17"></app-icon>
+                <span>ACM Hubs</span>
+              </a>
             </div>
           </div>
 
@@ -291,6 +302,13 @@
           <span class="flex items-center gap-2.5">
             <app-icon name="file-text" [size]="15" className="text-primary"></app-icon>
             Reports Export (PDF & CSV)
+          </span>
+          <app-icon name="chevron-right" [size]="14" className="text-default-400"></app-icon>
+        </button>
+        <button (click)="executeQuickSearch('/hubs')" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
+          <span class="flex items-center gap-2.5">
+            <app-icon name="network" [size]="15" className="text-primary"></app-icon>
+            ACM Hubs & Collection Health
           </span>
           <app-icon name="chevron-right" [size]="14" className="text-default-400"></app-icon>
         </button>

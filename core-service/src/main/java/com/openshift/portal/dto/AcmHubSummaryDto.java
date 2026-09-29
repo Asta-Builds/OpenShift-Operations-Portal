@@ -26,6 +26,9 @@ public class AcmHubSummaryDto {
     private int consecutiveFailures;
     /** Circuit breaker state held in memory by the instance that served the request. */
     private String circuitBreakerState;
+    private long clusterCount;
+    /** Whether the hub's token is mounted and readable; null for simulated hubs, which read no Secret. */
+    private Boolean credentialsMounted;
     private SyncRunDto latestSyncRun;
 
     @Data
@@ -33,6 +36,7 @@ public class AcmHubSummaryDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SyncRunDto {
+        private Long id;
         private SyncStatus status;
         private LocalDateTime startedAt;
         private LocalDateTime finishedAt;

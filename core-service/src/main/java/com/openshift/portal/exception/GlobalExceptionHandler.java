@@ -33,6 +33,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return error(HttpStatus.BAD_GATEWAY, "ACM Hub Communication Failure", ex.getMessage());
     }
 
+    @ExceptionHandler(CollectionInProgressException.class)
+    public ResponseEntity<Map<String, Object>> handleCollectionInProgress(CollectionInProgressException ex) {
+        return error(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
+    }
+
     @ExceptionHandler(InventoryImportException.class)
     public ResponseEntity<Map<String, Object>> handleInventoryImport(InventoryImportException ex) {
         Map<String, Object> body = errorBody(HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage());

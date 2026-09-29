@@ -8,6 +8,7 @@ import { ReportGeneratorComponent } from './pages/reports/report-generator.compo
 import { SimulatorComponent } from './pages/simulator/simulator.component';
 import { AttributionComponent } from './pages/attribution/attribution.component';
 import { InfrastructureComponent } from './pages/infrastructure/infrastructure.component';
+import { HubManagementComponent } from './pages/hubs/hub-management.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'overview', pathMatch: 'full' },
@@ -19,6 +20,7 @@ export const routes: Routes = [
   { path: 'licensing', component: LicensingComponent },
   { path: 'forecasting', component: ForecastingComponent },
   { path: 'reports', component: ReportGeneratorComponent },
+  { path: 'hubs', component: HubManagementComponent },
   { path: 'simulator', component: SimulatorComponent },
   { path: '**', redirectTo: 'overview' }
 ];

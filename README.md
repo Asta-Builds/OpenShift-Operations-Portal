@@ -46,7 +46,7 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 ├── node-agent/                 # Spring Boot agent run in each managed cluster: reports its nodes to the portal
 │   └── deploy/                 # Namespace, read-only RBAC and Deployment for one managed cluster
 ├── frontend/                   # Angular 18 Single Page Dashboard
-│   ├── src/app/pages/          # Overview, Clusters, Licensing, Forecast, Reports, Simulator
+│   ├── src/app/pages/          # Overview, Clusters, Licensing, Forecast, Reports, ACM Hubs, Simulator
 │   ├── src/app/shared/         # Pure Lucide SVG Icons Component
 │   ├── src/app/services/       # PortalService HTTP Client
 │   ├── nginx/                  # Nginx config template: serves the app on 8080, proxies /api/v1 to PORTAL_API_URL
@@ -122,7 +122,7 @@ With the simulator off (`OPENSHIFT_PORTAL_SIMULATOR_ENABLED=false`, the `prod` d
 
 1. Create a read-only token on the hub (it must be able to list `managedclusters`) and put it in a Kubernetes Secret with key `token` (plus `ca.crt` if the hub uses a private CA).
 2. Mount the Secret into the portal at `/var/run/secrets/acm-hubs/<secret-name>/` (directory configurable with `openshift.portal.acm.credentials-dir`).
-3. Register the hub as an ADMIN:
+3. Register the hub as an ADMIN on the **ACM Hubs** page: fill in its API server, the Secret's name and the optional endpoints, and use *Test connection* before saving. The same through the API:
 
 ```powershell
 curl.exe -X POST http://localhost:4200/api/v1/hubs -H "Authorization: Bearer <token>" -H "Content-Type: application/json" `
@@ -130,6 +130,8 @@ curl.exe -X POST http://localhost:4200/api/v1/hubs -H "Authorization: Bearer <to
 ```
 
 The next collection registers every `ManagedCluster` it finds. It reads capacity, platform, version and region from the cluster's status and ClusterClaims, and the environment from its `environment` label. Clusters that are not Available are recorded as failed for that run. Hubs do not describe nodes: those come from the [node agent](#node-agent) in each managed cluster, and a live cluster without one shows no nodes or license cores.
+
+The ACM Hubs page (and `GET /api/v1/hubs`) shows each hub's status, whether its token is mounted, its circuit breaker, its cluster count and its last collection with the error, and the history of its collections. Operators can *Test connection* on a registered hub: it checks, in order, that the token can be read, what the hub API returns, and whether Observability and Search answer with data, and says which step fails and why. They can also collect one hub, or all, at once. Manual collections take the same lock as the scheduled ones, so they never overlap on any replica; one requested while another collection runs (or within a minute of a scheduled one starting) is refused with 409. Admins also edit and delete hubs there; deleting a hub also deletes its clusters and their history, so the page asks for the hub's name first.
 
 Both extra endpoints are optional:
 
@@ -212,9 +214,13 @@ The UI container listens on port 8080 (unprivileged Nginx) and proxies `/api/v1`
 | `POST` | `/api/v1/hubs` | ADMIN | Register an ACM hub (name, API URL, credentials Secret name, optional Observability and Search URLs) |
 | `PATCH` | `/api/v1/hubs/{id}` | ADMIN | Change a hub's API URL, credentials Secret, or Observability / Search URLs (empty string removes an optional URL), keeping its clusters and history |
 | `DELETE` | `/api/v1/hubs/{id}` | ADMIN | Remove a hub with its clusters and snapshots |
+| `GET` | `/api/v1/hubs/{id}/sync-runs?limit=20` | VIEWER | The hub's most recent collections (up to 100), newest first |
+| `POST` | `/api/v1/hubs/{id}/test` | OPERATOR | Test a registered hub: credentials, hub API, Observability and Search, each with its outcome |
+| `POST` | `/api/v1/hubs/test` | ADMIN | Test hub settings before registering them (same body as registering) |
+| `POST` | `/api/v1/hubs/{id}/collect` | OPERATOR | Collect one hub now; 409 while another collection holds the lock |
 | `GET` | `/api/v1/clusters` | VIEWER | List all registered clusters with latest metrics and owner details |
 | `GET` | `/api/v1/clusters/{id}` | VIEWER | Detailed cluster breakdown, node inventory, and historical snapshot trend |
-| `POST` | `/api/v1/clusters/collect` | OPERATOR | Trigger immediate snapshot collection across all ACM Hubs |
+| `POST` | `/api/v1/clusters/collect` | OPERATOR | Collect every ACM hub now; 409 while another collection holds the lock |
 | `POST` | `/api/v1/node-reports` | NODE_AGENT | A cluster's nodes from its node agent (name, role, CPU, memory, providerID); replaces the cluster's previous report unless that one was read later |
 | `GET` | `/api/v1/node-reports` | VIEWER | Latest report of each node agent, with whether a hub reports its cluster and whether collections still use it |
 | `GET` | `/api/v1/attribution/teams?from=&to=&environment=` | VIEWER | Requests and usage by team and cost center over inclusive days (default: last 30), with the Unattributed bucket and the cluster-level totals they reconcile with |

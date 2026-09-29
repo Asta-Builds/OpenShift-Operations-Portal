@@ -3,6 +3,7 @@ package com.openshift.portal;
 import com.openshift.portal.repository.ClusterRepository;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
 import com.openshift.portal.service.AcmCollectorService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,10 +33,15 @@ class ScheduledCollectionIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    /**
+     * Every scheduled run keeps its lock for at least a minute (lockAtLeastFor). The database is shared by every test
+     * context in this JVM, so the lock is also released afterwards: manual collections in other tests would get a 409.
+     * Locks are expired, not deleted: ShedLock remembers the rows it created and only updates them afterwards.
+     */
     @BeforeEach
+    @AfterEach
     void releaseSchedulerLocks() {
-        // Every scheduled run keeps its lock for at least a minute (lockAtLeastFor)
-        jdbcTemplate.update("DELETE FROM shedlock");
+        jdbcTemplate.update("UPDATE shedlock SET lock_until = TIMESTAMP '2000-01-01 00:00:00'");
     }
 
     @Test

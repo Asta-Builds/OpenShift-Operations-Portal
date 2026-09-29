@@ -14,6 +14,9 @@ import {
   NewReportSchedule,
   PortalNotification,
   AcmHubSummary,
+  HubConnectionTest,
+  HubSettings,
+  HubSyncRun,
   SimulatorStatus,
   AttributionReport,
   Environment,
@@ -45,6 +48,45 @@ export class PortalService {
 
   getHubs(): Observable<AcmHubSummary[]> {
     return this.http.get<AcmHubSummary[]>(`${this.baseUrl}/hubs`);
+  }
+
+  /** Admin only. Empty optional endpoints are sent as absent. */
+  registerHub(settings: HubSettings): Observable<AcmHubSummary> {
+    return this.http.post<AcmHubSummary>(`${this.baseUrl}/hubs`, this.hubBody(settings));
+  }
+
+  /** Admin only. The name cannot change; an empty optional endpoint removes it. */
+  updateHub(id: string, settings: HubSettings): Observable<AcmHubSummary> {
+    return this.http.patch<AcmHubSummary>(`${this.baseUrl}/hubs/${id}`, {
+      apiUrl: settings.apiUrl.trim(),
+      credentialsSecretRef: settings.credentialsSecretRef.trim(),
+      observabilityUrl: settings.observabilityUrl.trim(),
+      searchUrl: settings.searchUrl.trim()
+    });
+  }
+
+  /** Admin only: also deletes the hub's clusters and their history. */
+  deleteHub(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/hubs/${id}`);
+  }
+
+  /** Admin only: tests settings before they are saved. */
+  testHubSettings(settings: HubSettings): Observable<HubConnectionTest> {
+    return this.http.post<HubConnectionTest>(`${this.baseUrl}/hubs/test`, this.hubBody(settings));
+  }
+
+  /** Operator: tests a registered hub. */
+  testHub(id: string): Observable<HubConnectionTest> {
+    return this.http.post<HubConnectionTest>(`${this.baseUrl}/hubs/${id}/test`, {});
+  }
+
+  /** Operator: collects one hub now; 409 while another collection is running. */
+  collectHub(id: string): Observable<HubSyncRun> {
+    return this.http.post<HubSyncRun>(`${this.baseUrl}/hubs/${id}/collect`, {});
+  }
+
+  getHubSyncRuns(id: string, limit = 20): Observable<HubSyncRun[]> {
+    return this.http.get<HubSyncRun[]>(`${this.baseUrl}/hubs/${id}/sync-runs`, { params: { limit } });
   }
 
   getClusters(): Observable<ClusterSummary[]> {
@@ -181,5 +223,15 @@ export class PortalService {
 
   seedFleet(): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.baseUrl}/simulator/seed`, {});
+  }
+
+  private hubBody(settings: HubSettings): Record<string, string | null> {
+    return {
+      name: settings.name.trim(),
+      apiUrl: settings.apiUrl.trim(),
+      credentialsSecretRef: settings.credentialsSecretRef.trim(),
+      observabilityUrl: settings.observabilityUrl.trim() || null,
+      searchUrl: settings.searchUrl.trim() || null
+    };
   }
 }
