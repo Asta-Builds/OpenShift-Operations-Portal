@@ -11,6 +11,7 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 * **Predictive Resource Forecasting:** Rolling 30, 60, and 90-day linear regression models projecting future core and memory consumption.
 * **FinOps & Rightsizing Engine:** Continuously analyzes namespace requests vs actual usage telemetry, quantifies monthly wasted spend, classifies efficiency across 5 operational tiers, and generates validated Kubernetes `ResourceQuota` remediation manifests. ([Read Documentation](docs/FINOPS_RIGHTSIZING_ENGINE.md))
 * **Interactive "What-If" Capacity & Cost Simulator:** Predictive modeling sandbox evaluating quota rightsizing adoption curves, new workload onboarding headroom checks, cluster decommissioning ROI, and organic fleet growth stress-tests in real time. ([Read Documentation](docs/WHAT_IF_CAPACITY_SIMULATOR.md))
+* **Interactive D3.js Multi-Cluster Topology Graph:** Dynamic force-directed network diagram linking ACM Hubs, OpenShift Managed Clusters, Physical Hardware/Worker Nodes, and Application Namespaces with real-time FinOps color grading, physics pinning, and deep-inspection drawer. ([Read Documentation](docs/D3_TOPOLOGY_MAP.md))
 * **Enterprise Sign-in:** Keycloak (OIDC, authorization code + PKCE) federating LDAP / Active Directory; directory groups map to the ADMIN, OPERATOR and VIEWER roles.
 * **Air-Gapped by Design:** Zero runtime external dependencies or CDN calls; packaged for offline enterprise data centers.
 

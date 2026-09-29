@@ -30,7 +30,8 @@ import {
   FinOpsPricingConfig,
   WhatIfPreset,
   WhatIfSimulationRequest,
-  WhatIfSimulationResult
+  WhatIfSimulationResult,
+  TopologyGraph
 } from '../models/portal.models';
 
 @Injectable({
@@ -206,6 +207,10 @@ export class PortalService {
 
   getInfrastructureTopology(): Observable<InfrastructureTopology> {
     return this.http.get<InfrastructureTopology>(`${this.baseUrl}/infrastructure/topology`);
+  }
+
+  getTopologyGraph(): Observable<TopologyGraph> {
+    return this.http.get<TopologyGraph>(`${this.baseUrl}/infrastructure/topology/graph`);
   }
 
   getInventory(): Observable<InventoryRow[]> {

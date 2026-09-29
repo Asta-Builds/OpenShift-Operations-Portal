@@ -594,7 +594,6 @@ export interface WhatIfSimulationResult {
   globalWarnings: string[];
   strategicRecommendations: string[];
 }
-
 export interface WhatIfPreset {
   id: string;
   title: string;
@@ -605,4 +604,50 @@ export interface WhatIfPreset {
   request: WhatIfSimulationRequest;
 }
 
+export type TopologyNodeType = 'HUB' | 'CLUSTER' | 'NODE' | 'NAMESPACE' | 'HOST';
 
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: TopologyNodeType;
+  parentId?: string | null;
+  status?: string | null;
+  environment?: string | null;
+  team?: string | null;
+  role?: string | null;
+  cpuCores?: number | null;
+  memoryGb?: number | null;
+  efficiencyPercent?: number | null;
+  rating?: string | null;
+  monthlyCost?: number | null;
+  metadata?: Record<string, any>;
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
+}
+
+export interface GraphLink {
+  source: any;
+  target: any;
+  type: string;
+  value: number;
+}
+
+export interface GraphSummary {
+  totalHubs: number;
+  totalClusters: number;
+  totalNodes: number;
+  totalNamespaces: number;
+  totalPhysicalHosts: number;
+  totalCores: number;
+  totalMemoryGb: number;
+}
+
+export interface TopologyGraph {
+  nodes: GraphNode[];
+  links: GraphLink[];
+  summary: GraphSummary;
+}

@@ -3,9 +3,11 @@ package com.openshift.portal.controller;
 import com.openshift.portal.domain.entity.InfrastructureInventory;
 import com.openshift.portal.dto.InfrastructureTopologyDto;
 import com.openshift.portal.dto.InventoryImportResult;
+import com.openshift.portal.dto.TopologyGraphDto;
 import com.openshift.portal.repository.InfrastructureInventoryRepository;
 import com.openshift.portal.service.InfrastructureTopologyService;
 import com.openshift.portal.service.InventoryImportService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -34,6 +36,12 @@ public class InfrastructureController {
     @GetMapping("/infrastructure/topology")
     public ResponseEntity<InfrastructureTopologyDto> topology() {
         return ResponseEntity.ok(topologyService.topology());
+    }
+
+    @GetMapping("/infrastructure/topology/graph")
+    @Operation(summary = "Get complete interactive D3 topology graph (Hubs, Clusters, Nodes, Namespaces)")
+    public ResponseEntity<TopologyGraphDto> topologyGraph() {
+        return ResponseEntity.ok(topologyService.buildTopologyGraph());
     }
 
     @GetMapping("/inventory")
