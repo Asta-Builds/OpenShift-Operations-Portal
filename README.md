@@ -9,8 +9,8 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 * **Decoupled Snapshot Ingestion:** Collects periodic cluster snapshots without continuously querying or degrading production clusters.
 * **Red Hat Licensing Core Counting:** Automates vCPU vs. physical socket/core calculation, worker vs. master node distinction, and compliance auditing.
 * **Predictive Resource Forecasting:** Rolling 30, 60, and 90-day linear regression models projecting future core and memory consumption.
-* **Owner-Aware Reporting:** Attributes namespace requests and usage to teams and cost centers from namespace owner labels; namespaces without a recognised owner stay "Unattributed" and are never charged to the cluster owner.
-* **Resilient ACM Polling:** A circuit breaker and exponential-backoff retry per hub, sync-run history, and scheduler locks so one failing hub never stops the others.
+* **FinOps & Rightsizing Engine:** Continuously analyzes namespace requests vs actual usage telemetry, quantifies monthly wasted spend, classifies efficiency across 5 operational tiers, and generates validated Kubernetes `ResourceQuota` remediation manifests. ([Read Documentation](docs/FINOPS_RIGHTSIZING_ENGINE.md))
+* **Interactive "What-If" Capacity & Cost Simulator:** Predictive modeling sandbox evaluating quota rightsizing adoption curves, new workload onboarding headroom checks, cluster decommissioning ROI, and organic fleet growth stress-tests in real time. ([Read Documentation](docs/WHAT_IF_CAPACITY_SIMULATOR.md))
 * **Enterprise Sign-in:** Keycloak (OIDC, authorization code + PKCE) federating LDAP / Active Directory; directory groups map to the ADMIN, OPERATOR and VIEWER roles.
 * **Air-Gapped by Design:** Zero runtime external dependencies or CDN calls; packaged for offline enterprise data centers.
 
