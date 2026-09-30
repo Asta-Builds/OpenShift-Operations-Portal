@@ -8,7 +8,10 @@ import { ReportGeneratorComponent } from './pages/reports/report-generator.compo
 import { SimulatorComponent } from './pages/simulator/simulator.component';
 import { AttributionComponent } from './pages/attribution/attribution.component';
 import { InfrastructureComponent } from './pages/infrastructure/infrastructure.component';
+import { TopologyGraphComponent } from './pages/infrastructure/topology-graph.component';
 import { HubManagementComponent } from './pages/hubs/hub-management.component';
+import { FinOpsComponent } from './pages/finops/finops.component';
+import { WhatIfSimulatorComponent } from './pages/finops/what-if-simulator.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'overview', pathMatch: 'full' },
@@ -16,7 +19,12 @@ export const routes: Routes = [
   { path: 'clusters', component: ClusterInventoryComponent },
   { path: 'clusters/:id', component: ClusterDetailComponent },
   { path: 'infrastructure', component: InfrastructureComponent },
+  { path: 'infrastructure/topology', component: TopologyGraphComponent },
+  { path: 'topology', component: TopologyGraphComponent },
   { path: 'attribution', component: AttributionComponent },
+  { path: 'finops', component: FinOpsComponent },
+  { path: 'finops/what-if', component: WhatIfSimulatorComponent },
+  { path: 'what-if', component: WhatIfSimulatorComponent },
   { path: 'licensing', component: LicensingComponent },
   { path: 'forecasting', component: ForecastingComponent },
   { path: 'reports', component: ReportGeneratorComponent },

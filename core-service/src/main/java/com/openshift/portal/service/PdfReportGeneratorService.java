@@ -7,6 +7,12 @@ import com.openshift.portal.domain.entity.Cluster;
 import com.openshift.portal.domain.entity.ClusterSnapshot;
 import com.openshift.portal.domain.enums.ReportType;
 import com.openshift.portal.dto.AttributionReportDto;
+import com.openshift.portal.dto.FinAiChartDto;
+import com.openshift.portal.dto.FinAiChartDataPointDto;
+import com.openshift.portal.dto.FinAiCliSnippetDto;
+import com.openshift.portal.dto.FinAiMetricItemDto;
+import com.openshift.portal.dto.FinAiResponseDto;
+import com.openshift.portal.dto.FinAiYamlDiffDto;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -124,6 +130,150 @@ public class PdfReportGeneratorService {
         } catch (Exception e) {
             log.error("Failed to generate PDF report: {}", e.getMessage(), e);
             throw new RuntimeException("Error rendering PDF report: " + e.getMessage(), e);
+        }
+    }
+
+    public byte[] generateFinAiPdf(FinAiResponseDto response) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document document = new Document(PageSize.A4, 36, 36, 40, 40);
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            // Header Banner
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, new Color(204, 0, 0));
+            Paragraph title = new Paragraph("OpenShift Operations Portal — FinAI Copilot Report", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            title.setSpacingAfter(4);
+            document.add(title);
+
+            Font subFont = FontFactory.getFont(FontFactory.HELVETICA, 9, Color.DARK_GRAY);
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            Paragraph subtitle = new Paragraph("Généré le: " + timestamp + " | Moteur: FinAI Heuristic Engine v1.3 | Classification: INTERNE", subFont);
+            subtitle.setAlignment(Element.ALIGN_CENTER);
+            subtitle.setSpacingAfter(14);
+            document.add(subtitle);
+
+            // Headline
+            Font headFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new Color(30, 41, 59));
+            Paragraph head = new Paragraph("Synthèse Exécutive : " + (response.getHeadline() != null ? response.getHeadline() : "Diagnostic FinOps"), headFont);
+            head.setSpacingAfter(8);
+            document.add(head);
+
+            // Metrics Table
+            if (response.getMetrics() != null && !response.getMetrics().isEmpty()) {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setWidths(new float[]{3.0f, 2.0f});
+                addHeaderCells(table, new String[]{"Indicateur Clé", "Valeur / Statut"});
+                for (FinAiMetricItemDto m : response.getMetrics()) {
+                    table.addCell(createCell(m.getLabel(), false));
+                    table.addCell(createCell(m.getValue(), true));
+                }
+                table.setSpacingAfter(12);
+                document.add(table);
+            }
+
+            // Analysis
+            if (response.getAnalysisMarkdown() != null) {
+                Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.BLACK);
+                String clean = response.getAnalysisMarkdown()
+                        .replaceAll("### ", "")
+                        .replaceAll("#### ", "")
+                        .replaceAll("\\*\\*", "")
+                        .replaceAll("> \\[!(WARNING|NOTE)\\]", "NOTE:");
+                Paragraph body = new Paragraph(clean, bodyFont);
+                body.setSpacingAfter(14);
+                document.add(body);
+            }
+
+            // Interactive Charts Visual Data Breakdown
+            if (response.getCharts() != null && !response.getCharts().isEmpty()) {
+                Font chartHeadFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new Color(30, 41, 59));
+                for (FinAiChartDto chart : response.getCharts()) {
+                    Paragraph cp = new Paragraph("📊 " + chart.getTitle() + " [" + chart.getTotalValue() + "]", chartHeadFont);
+                    cp.setSpacingBefore(6);
+                    cp.setSpacingAfter(4);
+                    document.add(cp);
+
+                    PdfPTable chartTable = new PdfPTable(2);
+                    chartTable.setWidthPercentage(100);
+                    chartTable.setWidths(new float[]{3.5f, 1.5f});
+                    addHeaderCells(chartTable, new String[]{"Indicateur / Segment", "Valeur"});
+                    for (FinAiChartDataPointDto pt : chart.getPoints()) {
+                        chartTable.addCell(createCell(pt.getLabel(), false));
+                        chartTable.addCell(createCell(pt.getFormattedValue() != null ? pt.getFormattedValue() : String.valueOf(pt.getValue()), true));
+                    }
+                    chartTable.setSpacingAfter(8);
+                    document.add(chartTable);
+                }
+            }
+
+            // YAML Manifest Diff Comparison Table
+            if (response.getYamlDiff() != null) {
+                FinAiYamlDiffDto diff = response.getYamlDiff();
+                Font diffHeadFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new Color(30, 41, 59));
+                Paragraph dp = new Paragraph("⚖️ Comparatif Manifeste K8s Avant / Après (" + diff.getTargetNamespace() + " - " + diff.getCostDelta() + ") :", diffHeadFont);
+                dp.setSpacingBefore(6);
+                dp.setSpacingAfter(4);
+                document.add(dp);
+
+                PdfPTable diffTable = new PdfPTable(2);
+                diffTable.setWidthPercentage(100);
+                diffTable.setWidths(new float[]{1.0f, 1.0f});
+                addHeaderCells(diffTable, new String[]{"Manifeste Actuel (Surdimensionné)", "Manifeste Optimisé FinAI (" + diff.getSafetyMargin() + ")"});
+                Font codeFont = FontFactory.getFont(FontFactory.COURIER, 7, Color.BLACK);
+
+                PdfPCell beforeCell = new PdfPCell(new Phrase(diff.getBeforeYaml(), codeFont));
+                beforeCell.setBackgroundColor(new Color(254, 242, 242));
+                beforeCell.setPadding(5);
+                diffTable.addCell(beforeCell);
+
+                PdfPCell afterCell = new PdfPCell(new Phrase(diff.getAfterYaml(), codeFont));
+                afterCell.setBackgroundColor(new Color(240, 253, 244));
+                afterCell.setPadding(5);
+                diffTable.addCell(afterCell);
+
+                diffTable.setSpacingAfter(10);
+                document.add(diffTable);
+            }
+
+            // CLI Commands Table
+            if (response.getCliCommands() != null && !response.getCliCommands().isEmpty()) {
+                Font cliHeadFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, new Color(30, 41, 59));
+                document.add(new Paragraph("Commandes OpenShift CLI Correctives :", cliHeadFont));
+                PdfPTable cliTable = new PdfPTable(3);
+                cliTable.setWidthPercentage(100);
+                cliTable.setWidths(new float[]{2.0f, 1.2f, 3.8f});
+                addHeaderCells(cliTable, new String[]{"Action", "Namespace", "Commande oc"});
+                Font codeFont = FontFactory.getFont(FontFactory.COURIER, 8, new Color(0, 100, 0));
+                for (FinAiCliSnippetDto c : response.getCliCommands()) {
+                    cliTable.addCell(createCell(c.getTitle(), false));
+                    cliTable.addCell(createCell(c.getTargetNamespace() != null ? c.getTargetNamespace() : "all", false));
+                    PdfPCell codeCell = new PdfPCell(new Phrase(c.getCommand(), codeFont));
+                    codeCell.setPadding(4);
+                    cliTable.addCell(codeCell);
+                }
+                cliTable.setSpacingAfter(12);
+                document.add(cliTable);
+            }
+
+            // Execution Plan
+            if (response.getExecutionPlan() != null && !response.getExecutionPlan().isEmpty()) {
+                Font planHeadFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, new Color(30, 41, 59));
+                document.add(new Paragraph("Plan d'Exécution Recommandé :", planHeadFont));
+                com.lowagie.text.List list = new com.lowagie.text.List(com.lowagie.text.List.ORDERED, 15);
+                Font listFont = FontFactory.getFont(FontFactory.HELVETICA, 9, Color.BLACK);
+                for (String step : response.getExecutionPlan()) {
+                    list.add(new ListItem(step, listFont));
+                }
+                document.add(list);
+            }
+
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            log.error("Failed to generate FinAI PDF report: {}", e.getMessage(), e);
+            throw new RuntimeException("Error rendering FinAI PDF report: " + e.getMessage(), e);
         }
     }
 

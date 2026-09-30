@@ -4,13 +4,14 @@
 
 @layer base {
   :root {
-    --background: #FAFAFB;
-    --foreground: #11181C;
+    color-scheme: light;
+    --background: #F8FAFC;
+    --foreground: #0F172A;
     --content1: #FFFFFF;
-    --content2: #F4F4F6;
-    --content3: #E4E4E8;
-    --content4: #D4D4D9;
-    --divider: rgba(17, 24, 28, 0.08);
+    --content2: #F1F5F9;
+    --content3: #E2E8F0;
+    --content4: #CBD5E1;
+    --divider: rgba(15, 23, 42, 0.1);
     
     --primary: #006FEE;
     --primary-foreground: #FFFFFF;
@@ -26,23 +27,24 @@
     --default-50: #FAFAFA;
     --default-100: #F4F4F5;
     --default-200: #E4E4E7;
-    --default-300: #D4D4D8;
-    --default-400: #A1A1AA;
-    --default-500: #71717A;
-    --default-600: #52525B;
-    --default-700: #3F3F46;
-    --default-800: #27272A;
-    --default-900: #18181B;
+    --default-300: #CBD5E1;
+    --default-400: #64748B;
+    --default-500: #475569;
+    --default-600: #334155;
+    --default-700: #1E293B;
+    --default-800: #0F172A;
+    --default-900: #020617;
   }
 
   .dark {
+    color-scheme: dark;
     --background: #0A0A0C;
     --foreground: #ECEDEE;
     --content1: #121215;
     --content2: #18181B;
     --content3: #27272A;
     --content4: #3F3F46;
-    --divider: rgba(255, 255, 255, 0.08);
+    --divider: rgba(255, 255, 255, 0.1);
     
     --primary: #006FEE;
     --primary-foreground: #FFFFFF;
@@ -59,17 +61,22 @@
     --default-100: #27272A;
     --default-200: #3F3F46;
     --default-300: #52525B;
-    --default-400: #71717A;
-    --default-500: #A1A1AA;
-    --default-600: #D4D4D8;
-    --default-700: #E4E4E7;
-    --default-800: #F4F4F5;
-    --default-900: #FAFAFA;
+    --default-400: #94A3B8;
+    --default-500: #CBD5E1;
+    --default-600: #E2E8F0;
+    --default-700: #F1F5F9;
+    --default-800: #F8FAFC;
+    --default-900: #FFFFFF;
   }
 }
 
 * {
   box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -80,7 +87,18 @@ body {
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
+}
+
+select {
+  color-scheme: inherit;
+  background-color: var(--content2);
+  color: var(--foreground);
+  border-color: var(--divider);
+}
+
+select option {
+  background-color: var(--content1);
+  color: var(--foreground);
 }
 
 /* Custom Scrollbar */

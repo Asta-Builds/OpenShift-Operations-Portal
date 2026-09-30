@@ -9,8 +9,10 @@ An enterprise platform providing unified fleet visibility, licensing audit, owne
 * **Decoupled Snapshot Ingestion:** Collects periodic cluster snapshots without continuously querying or degrading production clusters.
 * **Red Hat Licensing Core Counting:** Automates vCPU vs. physical socket/core calculation, worker vs. master node distinction, and compliance auditing.
 * **Predictive Resource Forecasting:** Rolling 30, 60, and 90-day linear regression models projecting future core and memory consumption.
-* **Owner-Aware Reporting:** Attributes namespace requests and usage to teams and cost centers from namespace owner labels; namespaces without a recognised owner stay "Unattributed" and are never charged to the cluster owner.
-* **Resilient ACM Polling:** A circuit breaker and exponential-backoff retry per hub, sync-run history, and scheduler locks so one failing hub never stops the others.
+* **FinOps & Rightsizing Engine:** Continuously analyzes namespace requests vs actual usage telemetry, quantifies monthly wasted spend, classifies efficiency across 5 operational tiers, and generates validated Kubernetes `ResourceQuota` remediation manifests. ([Read Documentation](docs/FINOPS_RIGHTSIZING_ENGINE.md))
+* **FinAI Copilot & Operations Assistant:** Air-gapped heuristic reasoning and intelligent assistant delivering deterministic OpenShift rightsizing analysis, interactive Before vs After YAML Diff comparator (Split View & Unified Diff), one-click dry-run validation (`--dry-run=server`), automated ArgoCD / Kustomize GitOps manifest packaging, Slack/Teams notification webhooks, embedded chat charts, and executive PDF reports alongside raw Markdown audit journals. ([Read Documentation](docs/FINAI_COPILOT.md))
+* **Interactive "What-If" Capacity & Cost Simulator:** Predictive modeling sandbox evaluating quota rightsizing adoption curves, new workload onboarding headroom checks, cluster decommissioning ROI, and organic fleet growth stress-tests in real time. ([Read Documentation](docs/WHAT_IF_CAPACITY_SIMULATOR.md))
+* **Interactive D3.js Multi-Cluster Topology Graph:** Dynamic force-directed network diagram linking ACM Hubs, OpenShift Managed Clusters, Physical Hardware/Worker Nodes, and Application Namespaces with real-time FinOps color grading, physics pinning, and deep-inspection drawer. ([Read Documentation](docs/D3_TOPOLOGY_MAP.md))
 * **Enterprise Sign-in:** Keycloak (OIDC, authorization code + PKCE) federating LDAP / Active Directory; directory groups map to the ADMIN, OPERATOR and VIEWER roles.
 * **Air-Gapped by Design:** Zero runtime external dependencies or CDN calls; packaged for offline enterprise data centers.
 
@@ -240,6 +242,14 @@ The UI container listens on port 8080 (unprivileged Nginx) and proxies `/api/v1`
 | `PATCH`/`DELETE` | `/api/v1/reports/{id}` | ADMIN | Change (title, format, cron, recipients, `enabled`) or delete a schedule; its delivery history is kept |
 | `POST` | `/api/v1/reports/{id}/run` | ADMIN | Email the report now, without changing its schedule |
 | `GET` | `/api/v1/notifications?limit=50` | OPERATOR | Delivery history: every report email and alert with its outcome, newest first |
+| `GET` | `/api/v1/finops/rightsizing?from=&to=` | VIEWER | FinOps rightsizing recommendations, wasted spend, and efficiency tiers |
+| `GET` | `/api/v1/finops/summary` | VIEWER | Executive FinOps summary (total waste, potential monthly savings, top namespaces) |
+| `POST` | `/api/v1/finops/ai/query` | VIEWER | FinAI Copilot natural language queries, heuristic diagnosis, and `oc` CLI generator |
+| `GET` | `/api/v1/finops/ai/quick-prompts` | VIEWER | Predefined FinAI quick prompts organized by operational category |
+| `POST` | `/api/v1/finops/ai/dry-run` | OPERATOR | Server-side dry-run validation (`--dry-run=server`) of remediation manifests |
+| `POST` | `/api/v1/finops/ai/gitops-manifest` | OPERATOR | Generate ArgoCD Application CRD and Kustomize bundle ready for GitOps commit |
+| `POST` | `/api/v1/finops/ai/notify` | OPERATOR | Dispatch FinOps diagnosis to Slack Block Kit or Microsoft Teams webhook |
+| `POST` | `/api/v1/finops/ai/export-pdf` | VIEWER | Generate executive A4 PDF report with Red Hat OpenShift branding |
 | `POST` | `/api/v1/simulator/fault?fail=true` | ADMIN | Inject a one-off simulated ACM connection failure (simulator only) |
 | `POST` | `/api/v1/simulator/outage?hub=...&down=true` | ADMIN | Start or end a simulated outage of one hub (simulator only) |
 

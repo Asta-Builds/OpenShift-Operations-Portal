@@ -7,27 +7,55 @@ import { PortalService } from '../../services/portal.service';
 import { AuthService } from '../../services/auth.service';
 import { InfrastructureTopology, InventoryImportResult, InventoryRow, TopologyNode } from '../../models/portal.models';
 import { IconComponent } from '../../shared/icon.component';
+import { TopologyGraphComponent } from './topology-graph.component';
 
 @Component({
   selector: 'app-infrastructure',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, IconComponent],
+  imports: [CommonModule, FormsModule, RouterModule, IconComponent, TopologyGraphComponent],
   template: `
     <div class="space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-2xl font-bold tracking-tight text-foreground">Infrastructure</h1>
-            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary border border-primary/20">Correlation</span>
+            <h1 class="text-2xl font-bold tracking-tight text-foreground">Infrastructure & Topologie</h1>
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary border border-primary/20">Multi-Clusters</span>
           </div>
           <p class="text-xs text-default-500 mt-1">
-            Where each node runs, from the infrastructure inventory joined on its <code>spec.providerID</code>.
-            Hosts are never inferred: nodes the inventory does not know are listed as such.
+            Graphe topologique interactif D3.js et corrélation matérielle physique issue de l'inventaire <code>spec.providerID</code>.
           </p>
+        </div>
+
+        <!-- View Switcher Tabs -->
+        <div class="flex items-center bg-content2 p-1 rounded-xl border border-divider">
+          <button
+            (click)="activeTab = 'd3-graph'"
+            [class]="activeTab === 'd3-graph' ? 'bg-primary text-primary-foreground shadow-glow-primary font-bold' : 'text-default-600 dark:text-default-400 hover:text-foreground font-medium'"
+            class="px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <app-icon name="layers" [size]="14"></app-icon>
+            <span>Topologie D3</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-secondary text-white font-semibold">Interactif</span>
+          </button>
+          <button
+            (click)="activeTab = 'correlation-matrix'"
+            [class]="activeTab === 'correlation-matrix' ? 'bg-primary text-primary-foreground shadow-glow-primary font-bold' : 'text-default-600 dark:text-default-400 hover:text-foreground font-medium'"
+            class="px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <app-icon name="hard-drive" [size]="14"></app-icon>
+            <span>Matrice Matérielle</span>
+          </button>
         </div>
       </div>
 
-      <div class="rounded-xl border border-danger/30 bg-danger/10 text-danger text-xs px-4 py-3" *ngIf="error">{{ error }}</div>
+      <!-- D3 Interactive Graph View -->
+      <div *ngIf="activeTab === 'd3-graph'">
+        <app-topology-graph></app-topology-graph>
+      </div>
+
+      <!-- Physical Correlation Matrix View -->
+      <div *ngIf="activeTab === 'correlation-matrix'" class="space-y-6">
+        <div class="rounded-xl border border-danger/30 bg-danger/10 text-danger text-xs px-4 py-3" *ngIf="error">{{ error }}</div>
 
       <ng-container *ngIf="topology as t">
         <!-- Summary -->
@@ -202,6 +230,7 @@ import { IconComponent } from '../../shared/icon.component';
           </div>
         </div>
       </div>
+      </div>
     </div>
   `
 })
@@ -209,6 +238,7 @@ export class InfrastructureComponent implements OnInit {
   private portalService = inject(PortalService);
   auth = inject(AuthService);
 
+  activeTab: 'd3-graph' | 'correlation-matrix' = 'd3-graph';
   topology: InfrastructureTopology | null = null;
   inventory: InventoryRow[] = [];
   error = '';

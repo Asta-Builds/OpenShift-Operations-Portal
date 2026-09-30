@@ -1,7 +1,7 @@
-<div class="min-h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200">
+<div class="h-screen bg-background text-foreground flex flex-col font-sans transition-colors duration-200 overflow-hidden">
   
   <!-- HeroUI Glassmorphic Top Header -->
-  <header class="sticky top-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-divider px-6 py-3 flex items-center justify-between transition-colors">
+  <header class="flex-shrink-0 z-40 w-full backdrop-blur-md bg-background/80 border-b border-divider px-6 py-3 flex items-center justify-between transition-colors">
     <!-- Left: Brand identity & Workspace switcher -->
     <div class="flex items-center gap-4">
       <div class="flex items-center gap-3">
@@ -48,6 +48,22 @@
         <ng-template #noHubs><span class="text-default-600">No ACM Hubs</span></ng-template>
       </a>
 
+      <!-- FinAI Copilot Button -->
+      <button
+        type="button"
+        (click)="toggleFinAi()"
+        title="Ouvrir FinAI Copilot - Assistant IA OpenShift"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-primary/15 via-purple-500/15 to-secondary/15 hover:from-primary/25 hover:via-purple-500/25 hover:to-secondary/25 border border-primary/30 text-xs font-semibold text-foreground transition-all duration-200 cursor-pointer shadow-sm hover:shadow-glow-primary group"
+      >
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+        </span>
+        <app-icon name="sparkles" [size]="15" className="text-primary group-hover:rotate-12 transition-transform"></app-icon>
+        <span class="hidden sm:inline">FinAI Copilot</span>
+        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-primary/20 text-primary border border-primary/30">AI</span>
+      </button>
+
       <!-- Theme Switcher Button (Dark / Light) -->
       <button
         type="button"
@@ -81,155 +97,271 @@
   </header>
 
   <!-- Body Layout: Sidebar + Main Canvas -->
-  <div class="flex-1 flex overflow-hidden">
+  <div class="flex-1 flex overflow-hidden min-h-0">
     
-    <!-- HeroUI Left Sidebar Navigation -->
-    <aside class="w-64 border-r border-divider bg-background flex flex-col justify-between p-4 flex-shrink-0">
-      <div class="space-y-6">
+    <!-- HeroUI Left Sidebar Navigation (Enhanced) -->
+    <aside class="w-64 h-full border-r border-divider bg-background/95 backdrop-blur-md flex flex-col justify-between p-3.5 flex-shrink-0 select-none overflow-y-auto">
+      <div class="space-y-5">
         
-        <!-- Workspace Pill -->
-        <div class="p-3 rounded-2xl bg-content1 border border-divider flex items-center justify-between">
-          <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <app-icon name="cloud" [size]="16"></app-icon>
+        <!-- Workspace Pill / Cluster Fleet Header -->
+        <div class="p-3 rounded-2xl bg-content1 border border-divider shadow-sm hover:border-default-400/40 transition-colors">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary/20 to-primary/10 text-primary border border-primary/20 flex items-center justify-center shadow-sm">
+                <app-icon name="cloud" [size]="17"></app-icon>
+              </div>
+              <div>
+                <span class="block text-xs font-bold text-foreground tracking-tight">Enterprise Fleet</span>
+                <span class="block text-[10px] text-default-400 font-mono">OpenShift 4.14+</span>
+              </div>
             </div>
-            <div>
-              <span class="block text-xs font-bold text-foreground">Global Fleet</span>
-              <span class="block text-[10px] text-default-400">OpenShift 4.14+</span>
+            <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-success/10 border border-success/20" title="Connected to ACM Hubs">
+              <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
+              <span class="text-[10px] font-bold text-success">LIVE</span>
             </div>
           </div>
-          <span class="w-2 h-2 rounded-full bg-success"></span>
         </div>
 
         <!-- Navigation Sections -->
-        <nav class="space-y-5">
+        <nav class="space-y-4">
+          <!-- SECTION 1: Fleet Visibility -->
           <div>
-            <span class="text-[10px] font-semibold uppercase tracking-wider text-default-400 px-3 block mb-2">
-              Fleet Overview
+            <span class="text-[10px] font-bold uppercase tracking-wider text-default-400/90 px-3 block mb-1.5">
+              Fleet Visibility
             </span>
             <div class="space-y-1">
               <a 
                 routerLink="/overview" 
-                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
                 [routerLinkActiveOptions]="{exact: true}"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="dashboard" [size]="17"></app-icon>
-                <span>Fleet Dashboard</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="dashboard" [size]="16" className="text-default-400 group-hover:text-foreground group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span>Fleet Dashboard</span>
+                </div>
               </a>
 
               <a 
                 routerLink="/clusters" 
-                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="server" [size]="17"></app-icon>
-                <span>Cluster Inventory</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="server" [size]="16" className="text-default-400 group-hover:text-foreground group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span>Cluster Inventory</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-content2 group-[.bg-primary]:bg-white/20 group-[.bg-primary]:text-white text-default-500 border border-divider group-[.bg-primary]:border-transparent">
+                  {{ fleet?.totalClusters || 5 }}
+                </span>
               </a>
 
               <a 
                 routerLink="/infrastructure" 
-                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="hard-drive" [size]="17"></app-icon>
-                <span>Infrastructure</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="layers" [size]="16" className="text-secondary group-hover:text-foreground group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span>Infrastructure & Topo</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider bg-secondary/15 group-[.bg-primary]:bg-white/20 text-secondary group-[.bg-primary]:text-white border border-secondary/30 group-[.bg-primary]:border-transparent">
+                  D3.JS
+                </span>
               </a>
 
               <a 
                 routerLink="/attribution" 
-                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="users" [size]="17"></app-icon>
-                <span>Cost Attribution</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="users" [size]="16" className="text-default-400 group-hover:text-foreground group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span>Cost Attribution</span>
+                </div>
               </a>
+
+              <a 
+                routerLink="/finops" 
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
+              >
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="coins" [size]="16" className="text-emerald-500 group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span class="font-semibold">FinOps & Rightsizing</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider bg-emerald-500/15 group-[.bg-primary]:bg-white/20 text-emerald-500 group-[.bg-primary]:text-white border border-emerald-500/30 group-[.bg-primary]:border-transparent">
+                  OPTIMIZE
+                </span>
+              </a>
+
+              <a 
+                routerLink="/what-if" 
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
+              >
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="sliders" [size]="16" className="text-secondary group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span class="font-semibold">What-If Simulator</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider bg-secondary/15 group-[.bg-primary]:bg-white/20 text-secondary group-[.bg-primary]:text-white border border-secondary/30 group-[.bg-primary]:border-transparent">
+                  SIMULATE
+                </span>
+              </a>
+
+              <button 
+                type="button"
+                (click)="openFinAi()"
+                class="w-full group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-primary hover:text-primary-foreground hover:bg-primary transition-all cursor-pointer border border-primary/20 bg-primary/5"
+              >
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="sparkles" [size]="16" className="text-primary group-hover:text-primary-foreground transition-colors"></app-icon>
+                  <span>FinAI Copilot</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider bg-primary/20 text-primary group-hover:bg-white/20 group-hover:text-white border border-primary/30">
+                  AI ASSIST
+                </span>
+              </button>
             </div>
           </div>
 
+          <!-- SECTION 2: Operations & Audit -->
           <div>
-            <span class="text-[10px] font-semibold uppercase tracking-wider text-default-400 px-3 block mb-2">
-              Operations & Audit
+            <span class="text-[10px] font-bold uppercase tracking-wider text-default-400/90 px-3 block mb-1.5">
+              Operations & Governance
             </span>
             <div class="space-y-1">
               <a 
                 routerLink="/licensing" 
-                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="shield-check" [size]="17"></app-icon>
-                <span>Licensing & Cores</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="shield-check" [size]="16" className="text-default-400 group-hover:text-foreground group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span>Licensing & Cores</span>
+                </div>
+                <span
+                  class="px-1.5 py-0.5 rounded-md text-[9px] font-bold border"
+                  [ngClass]="licenseAudit?.complianceStatus === 'COMPLIANT' 
+                    ? 'bg-success/10 text-success border-success/20 group-[.bg-primary]:bg-white/20 group-[.bg-primary]:text-white' 
+                    : 'bg-danger/10 text-danger border-danger/20 group-[.bg-primary]:bg-white/20 group-[.bg-primary]:text-white'"
+                >
+                  {{ licenseAudit?.complianceStatus || 'AUDIT' }}
+                </span>
               </a>
 
               <a 
                 routerLink="/forecasting" 
-                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="trending-up" [size]="17"></app-icon>
-                <span>Growth Forecast</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="trending-up" [size]="16" className="text-default-400 group-hover:text-foreground group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span>Capacity Forecast</span>
+                </div>
               </a>
 
               <a 
                 routerLink="/reports" 
-                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="file-text" [size]="17"></app-icon>
-                <span>Reports & Dispatch</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="file-text" [size]="16" className="text-default-400 group-hover:text-foreground group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span>Reports & Dispatch</span>
+                </div>
               </a>
 
               <a
                 routerLink="/hubs"
-                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                routerLinkActive="bg-primary text-primary-foreground shadow-glow-primary font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="network" [size]="17"></app-icon>
-                <span>ACM Hubs</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="network" [size]="16" className="text-default-400 group-hover:text-foreground group-[.bg-primary]:text-primary-foreground transition-colors"></app-icon>
+                  <span>ACM Hubs</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-content2 group-[.bg-primary]:bg-white/20 text-default-500 group-[.bg-primary]:text-white border border-divider group-[.bg-primary]:border-transparent">
+                  {{ activeHubCount }}/{{ hubs.length || 2 }}
+                </span>
               </a>
             </div>
           </div>
 
-          <!-- Simulator Tab (Visible if available) -->
+          <!-- SECTION 3: Simulation Sandbox -->
           <div *ngIf="simulatorAvailable">
-            <span class="text-[10px] font-semibold uppercase tracking-wider text-default-400 px-3 block mb-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-default-400/90 px-3 block mb-1.5">
               Simulation Sandbox
             </span>
             <div class="space-y-1">
               <a 
                 routerLink="/simulator" 
-                routerLinkActive="bg-secondary text-white shadow-lg shadow-secondary/30"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all"
+                routerLinkActive="bg-secondary text-white shadow-lg shadow-secondary/30 font-semibold"
+                class="group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-default-600 hover:text-foreground hover:bg-content2 transition-all cursor-pointer"
               >
-                <app-icon name="activity" [size]="17"></app-icon>
-                <span>ACM Simulator</span>
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="activity" [size]="16" className="text-default-400 group-hover:text-foreground group-[.bg-secondary]:text-white transition-colors"></app-icon>
+                  <span>Telemetry Simulator</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-secondary/15 group-[.bg-secondary]:bg-white/20 text-secondary group-[.bg-secondary]:text-white border border-secondary/30 group-[.bg-secondary]:border-transparent">
+                  SANDBOX
+                </span>
               </a>
             </div>
           </div>
         </nav>
       </div>
 
-      <!-- Sidebar Footer Mini Widget -->
-      <div class="p-3.5 rounded-2xl bg-content1 border border-divider space-y-2">
+      <!-- Sidebar Footer Health & Compliance Card -->
+      <div class="p-3.5 rounded-2xl bg-content1 border border-divider space-y-3 mt-4">
+        <!-- Licensing Compliance Summary -->
         <div class="flex items-center justify-between text-xs">
-          <span class="text-default-400 font-medium">Compliance</span>
-          <span class="text-xs font-bold flex items-center gap-1" [ngClass]="complianceClass">
-            <app-icon [name]="licenseAudit?.complianceStatus === 'COMPLIANT' ? 'check-circle' : 'alert-triangle'" [size]="13"></app-icon>
+          <span class="text-default-400 font-medium text-[11px]">License Cap</span>
+          <span class="text-[11px] font-bold flex items-center gap-1" [ngClass]="complianceClass">
+            <app-icon [name]="licenseAudit?.complianceStatus === 'COMPLIANT' ? 'check-circle' : 'alert-triangle'" [size]="12"></app-icon>
             {{ complianceLabel }}
           </span>
         </div>
-        <div class="w-full h-1.5 rounded-full bg-content3 overflow-hidden">
-          <div class="h-full bg-primary rounded-full" [style.width.%]="fleet?.cpuUtilizationPercent || 0"></div>
+
+        <!-- CPU Allocation Gauge -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-[10px] text-default-400">
+            <span>CPU Allocation</span>
+            <strong class="text-foreground">{{ fleet ? (fleet.cpuUtilizationPercent | number: '1.0-0') : 0 }}%</strong>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-content3 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              [ngClass]="(fleet?.cpuUtilizationPercent || 0) > 85 ? 'bg-danger' : 'bg-primary'"
+              [style.width.%]="fleet?.cpuUtilizationPercent || 0"
+            ></div>
+          </div>
         </div>
-        <div class="flex items-center justify-between text-[11px] text-default-400">
-          <span>{{ fleet ? (fleet.cpuUtilizationPercent | number: '1.0-1') + '% Core Alloc.' : '—' }}</span>
-          <span>{{ fleet ? (fleet.totalCpuCores | number) + ' Cores' : '' }}</span>
+
+        <!-- Memory Allocation Gauge -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-[10px] text-default-400">
+            <span>Memory Allocation</span>
+            <strong class="text-foreground">{{ fleet ? (fleet.memoryUtilizationPercent | number: '1.0-0') : 0 }}%</strong>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-content3 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              [ngClass]="(fleet?.memoryUtilizationPercent || 0) > 85 ? 'bg-danger' : 'bg-secondary'"
+              [style.width.%]="fleet?.memoryUtilizationPercent || 0"
+            ></div>
+          </div>
+        </div>
+
+        <div class="pt-1.5 border-t border-divider/60 flex items-center justify-between text-[10px] text-default-400 font-mono">
+          <span>{{ fleet ? (fleet.totalCpuCores | number) + ' Total Cores' : '5 Clusters' }}</span>
+          <span>{{ activeHubCount }} Hubs OK</span>
         </div>
       </div>
     </aside>
 
     <!-- Main Content Canvas -->
-    <main class="flex-1 overflow-y-auto p-6 md:p-8 bg-background">
+    <main class="flex-1 h-full overflow-y-auto p-6 md:p-8 bg-background">
       <div *ngIf="auth.user()?.roles?.length === 0; else portalOutlet" class="max-w-md mx-auto mt-20 p-8 rounded-3xl bg-content1 border border-divider text-center">
         <div class="w-12 h-12 rounded-2xl bg-danger/10 text-danger flex items-center justify-center mx-auto mb-4">
           <app-icon name="alert-triangle" [size]="24"></app-icon>
@@ -268,8 +400,15 @@
 
       <div class="p-2 max-h-80 overflow-y-auto space-y-1">
         <div class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-default-400">
-          Navigation
+          Navigation & AI
         </div>
+        <button (click)="closeSearch(); openFinAi()" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
+          <span class="flex items-center gap-2.5">
+            <app-icon name="sparkles" [size]="15" className="text-primary"></app-icon>
+            FinAI Copilot - OpenShift AI Assistant
+          </span>
+          <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary/20 text-primary">AI COPILOT</span>
+        </button>
         <button (click)="executeQuickSearch('/overview')" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
           <span class="flex items-center gap-2.5">
             <app-icon name="dashboard" [size]="15" className="text-primary"></app-icon>
@@ -315,5 +454,11 @@
       </div>
     </div>
   </div>
+
+  <!-- FinAI Copilot Slide-over Drawer -->
+  <app-finai-copilot
+    [isOpen]="isFinAiOpen"
+    (closeDrawer)="closeFinAi()"
+  ></app-finai-copilot>
 
 </div>

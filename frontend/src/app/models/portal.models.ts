@@ -445,3 +445,334 @@ export interface InventoryImportResult {
   /** Nodes of the latest snapshots now matched to an inventory row, from any source. */
   matchedNodes: number;
 }
+
+export type FinOpsEfficiencyRating = 'OPTIMAL' | 'ACCEPTABLE' | 'OVER_PROVISIONED' | 'SEVERE_WASTE' | 'UNDER_PROVISIONED';
+export type FinOpsRecommendationAction = 'DOWNSIZE_CPU_AND_RAM' | 'DOWNSIZE_CPU' | 'DOWNSIZE_RAM' | 'MAINTAIN_SIZING' | 'UPSIZE_RESOURCES';
+
+export interface FinOpsPricingConfig {
+  cpuHourlyRate: number;
+  memoryHourlyRate: number;
+  storageMonthlyRate: number;
+  currency: string;
+}
+
+export interface FinOpsNamespaceRecommendation {
+  namespaceId: string;
+  namespaceName: string;
+  clusterId: string;
+  clusterName: string;
+  environment: Environment;
+  teamName: string;
+  costCenter: string;
+  avgCpuRequestCores: number;
+  avgCpuUsageCores: number;
+  cpuEfficiencyPercent: number;
+  avgMemoryRequestGb: number;
+  avgMemoryUsageGb: number;
+  memoryEfficiencyPercent: number;
+  pvcRequestGb: number;
+  monthlyAllocatedCost: number;
+  monthlyActualCost: number;
+  monthlyWastedCost: number;
+  overallEfficiencyPercent: number;
+  rating: FinOpsEfficiencyRating;
+  action: FinOpsRecommendationAction;
+  recommendedCpuRequestCores: number;
+  recommendedMemoryRequestGb: number;
+  monthlyPotentialSavings: number;
+  suggestedResourceQuotaYaml: string;
+}
+
+export interface FinOpsTeamBreakdown {
+  teamName: string;
+  costCenter: string;
+  namespaceCount: number;
+  monthlyAllocatedCost: number;
+  monthlyActualCost: number;
+  monthlyWastedCost: number;
+  monthlyPotentialSavings: number;
+  costSharePercent: number;
+  efficiencyScorePercent: number;
+}
+
+export interface FinOpsOverview {
+  from: string;
+  to: string;
+  environment: Environment | null;
+  currency: string;
+  totalMonthlyAllocatedCost: number;
+  totalMonthlyActualCost: number;
+  totalMonthlyWastedCost: number;
+  totalAnnualizedSavingsPotential: number;
+  overallFleetEfficiencyPercent: number;
+  totalNamespacesAnalyzed: number;
+  severeWasteNamespacesCount: number;
+  overProvisionedNamespacesCount: number;
+  acceptableNamespacesCount: number;
+  optimalNamespacesCount: number;
+  underProvisionedNamespacesCount: number;
+  teamBreakdowns: FinOpsTeamBreakdown[];
+  costByEnvironment: Record<string, number>;
+  topWastefulNamespaces: FinOpsNamespaceRecommendation[];
+  pricing: FinOpsPricingConfig;
+}
+
+export type HeadroomStatus = 'OPTIMAL' | 'HEALTHY' | 'WARNING_TIGHT' | 'CRITICAL_OVERCOMMITTED';
+export type InfrastructureType = 'BARE_METAL' | 'VMWARE' | 'OPENSTACK' | 'AWS' | 'AZURE' | 'GCP' | 'OTHER' | string;
+
+export interface WhatIfWorkload {
+  name: string;
+  targetClusterId?: string;
+  targetClusterName?: string;
+  requestedCpuCores: number;
+  requestedMemoryGb: number;
+  requestedStorageGb: number;
+  environment?: Environment;
+  ownerTeam?: string;
+}
+
+export interface WhatIfDecommission {
+  sourceClusterId?: string;
+  sourceClusterName?: string;
+  targetClusterId?: string;
+  targetClusterName?: string;
+}
+
+export interface WhatIfSimulationRequest {
+  rightsizingAdoptionPercent: number;
+  targetEfficiencyRatings?: FinOpsEfficiencyRating[];
+  additionalWorkloads?: WhatIfWorkload[];
+  clusterDecommissions?: WhatIfDecommission[];
+  fleetGrowthPercent?: number;
+}
+
+export interface WhatIfClusterImpact {
+  clusterId: string;
+  clusterName: string;
+  environment: Environment;
+  infrastructureType: InfrastructureType;
+  decommissioned: boolean;
+  totalCores: number;
+  baselineAllocatedCores: number;
+  simulatedAllocatedCores: number;
+  baselineCpuAllocPercent: number;
+  simulatedCpuAllocPercent: number;
+  totalMemoryGb: number;
+  baselineAllocatedMemoryGb: number;
+  simulatedAllocatedMemoryGb: number;
+  baselineMemoryAllocPercent: number;
+  simulatedMemoryAllocPercent: number;
+  totalStorageGb: number;
+  baselineAllocatedStorageGb: number;
+  simulatedAllocatedStorageGb: number;
+  headroomStatus: HeadroomStatus;
+  statusDescription: string;
+  suggestedWorkerNodeDelta: number;
+  estimatedLicenseCoreDelta: number;
+  monthlyCostDelta: number;
+  warnings: string[];
+}
+
+export interface WhatIfSimulationResult {
+  baselineMonthlySpend: number;
+  simulatedMonthlySpend: number;
+  monthlySavingsDelta: number;
+  annualizedSavingsDelta: number;
+  rightsizingMonthlySavings: number;
+  hardwareAndLicenseMonthlySavings: number;
+  newWorkloadsMonthlyCost: number;
+  totalFreedCpuCores: number;
+  totalFreedMemoryGb: number;
+  totalFreedStorageGb: number;
+  baselineFleetCpuAllocPercent: number;
+  simulatedFleetCpuAllocPercent: number;
+  baselineFleetMemoryAllocPercent: number;
+  simulatedFleetMemoryAllocPercent: number;
+  totalWorkerNodesDelta: number;
+  totalLicenseCoresDelta: number;
+  clusterImpacts: WhatIfClusterImpact[];
+  globalWarnings: string[];
+  strategicRecommendations: string[];
+}
+export interface WhatIfPreset {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  icon: string;
+  badge: string;
+  request: WhatIfSimulationRequest;
+}
+
+export type TopologyNodeType = 'HUB' | 'CLUSTER' | 'NODE' | 'NAMESPACE' | 'HOST';
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: TopologyNodeType;
+  parentId?: string | null;
+  status?: string | null;
+  environment?: string | null;
+  team?: string | null;
+  role?: string | null;
+  cpuCores?: number | null;
+  memoryGb?: number | null;
+  efficiencyPercent?: number | null;
+  rating?: string | null;
+  monthlyCost?: number | null;
+  metadata?: Record<string, any>;
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
+}
+
+export interface GraphLink {
+  source: any;
+  target: any;
+  type: string;
+  value: number;
+}
+
+export interface GraphSummary {
+  totalHubs: number;
+  totalClusters: number;
+  totalNodes: number;
+  totalNamespaces: number;
+  totalPhysicalHosts: number;
+  totalCores: number;
+  totalMemoryGb: number;
+}
+
+export interface TopologyGraph {
+  nodes: GraphNode[];
+  links: GraphLink[];
+  summary: GraphSummary;
+}
+
+export interface FinAiPromptRequest {
+  prompt: string;
+  pageContext?: string;
+  selectedClusterId?: string;
+  selectedNamespace?: string;
+}
+
+export interface FinAiMetricItem {
+  label: string;
+  value: string;
+  type: 'SAVINGS' | 'CORES' | 'WARNING' | 'SUCCESS' | 'INFO';
+}
+
+export interface FinAiCliSnippet {
+  title: string;
+  command: string;
+  description: string;
+  targetNamespace?: string;
+}
+
+export interface FinAiChartDataPoint {
+  label: string;
+  value: number;
+  secondaryValue?: number;
+  color?: string;
+  formattedValue?: string;
+}
+
+export interface FinAiChart {
+  id: string;
+  type: 'BAR' | 'DONUT' | 'TREND';
+  title: string;
+  subtitle?: string;
+  totalValue?: string;
+  unit?: string;
+  points: FinAiChartDataPoint[];
+}
+
+export interface FinAiYamlDiff {
+  resourceKind: string;
+  resourceName: string;
+  targetNamespace: string;
+  beforeYaml: string;
+  afterYaml: string;
+  cpuDelta: string;
+  memoryDelta: string;
+  costDelta: string;
+  safetyMargin: string;
+}
+
+export interface FinAiResponse {
+  query: string;
+  headline: string;
+  analysisMarkdown: string;
+  metrics: FinAiMetricItem[];
+  cliCommands: FinAiCliSnippet[];
+  suggestedFollowUps: string[];
+  executionPlan: string[];
+  confidenceScore: number;
+  timestamp: string;
+  charts?: FinAiChart[];
+  yamlDiff?: FinAiYamlDiff;
+}
+
+export interface FinAiQuickPrompt {
+  id: string;
+  category: string;
+  icon: string;
+  title: string;
+  prompt: string;
+  badge: string;
+}
+
+export interface FinAiDryRunRequest {
+  namespace: string;
+  clusterId?: string;
+  command?: string;
+  resourceQuotaYaml?: string;
+}
+
+export interface FinAiDryRunResult {
+  success: boolean;
+  status: string;
+  message: string;
+  podsEvaluated: number;
+  podsExceedingLimits: number;
+  warnings: string[];
+  timestamp: string;
+}
+
+export interface FinAiGitOpsRequest {
+  namespace: string;
+  clusterId?: string;
+  cpuRequest?: string;
+  memoryRequest?: string;
+}
+
+export interface FinAiGitOpsManifest {
+  repoPath: string;
+  resourceQuotaYaml: string;
+  kustomizationYaml: string;
+  argocdApplicationYaml: string;
+  branchName: string;
+  commitMessage: string;
+}
+
+export interface FinAiNotifyRequest {
+  platform: 'SLACK' | 'TEAMS';
+  channel?: string;
+  headline: string;
+  summary: string;
+  savingsUsd?: number;
+  namespace?: string;
+}
+
+export interface FinAiNotifyResult {
+  dispatched: boolean;
+  targetPlatform: string;
+  destination: string;
+  payloadPreview: string;
+  message: string;
+  timestamp: string;
+}
+

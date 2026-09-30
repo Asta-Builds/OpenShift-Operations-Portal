@@ -24,7 +24,23 @@ import {
   InfrastructureTopology,
   InventoryRow,
   InventoryImportResult,
-  NodeAgentStatus
+  NodeAgentStatus,
+  FinOpsOverview,
+  FinOpsNamespaceRecommendation,
+  FinOpsPricingConfig,
+  WhatIfPreset,
+  WhatIfSimulationRequest,
+  WhatIfSimulationResult,
+  FinAiPromptRequest,
+  FinAiResponse,
+  FinAiQuickPrompt,
+  FinAiDryRunRequest,
+  FinAiDryRunResult,
+  FinAiGitOpsRequest,
+  FinAiGitOpsManifest,
+  FinAiNotifyRequest,
+  FinAiNotifyResult,
+  TopologyGraph
 } from '../models/portal.models';
 
 @Injectable({
@@ -127,6 +143,87 @@ export class PortalService {
     return this.http.get<AttributionReport>(`${this.baseUrl}/attribution/teams`, { params });
   }
 
+  getFinOpsOverview(from?: string, to?: string, environment?: Environment | ''): Observable<FinOpsOverview> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (environment) params['environment'] = environment;
+    return this.http.get<FinOpsOverview>(`${this.baseUrl}/finops/overview`, { params });
+  }
+
+  getFinOpsRecommendations(
+    from?: string,
+    to?: string,
+    environment?: Environment | '',
+    rating?: string,
+    teamName?: string,
+    minWaste?: number
+  ): Observable<FinOpsNamespaceRecommendation[]> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (environment) params['environment'] = environment;
+    if (rating) params['rating'] = rating;
+    if (teamName) params['teamName'] = teamName;
+    if (minWaste !== undefined) params['minWaste'] = minWaste.toString();
+    return this.http.get<FinOpsNamespaceRecommendation[]>(`${this.baseUrl}/finops/recommendations`, { params });
+  }
+
+  getFinOpsPricing(): Observable<FinOpsPricingConfig> {
+    return this.http.get<FinOpsPricingConfig>(`${this.baseUrl}/finops/pricing`);
+  }
+
+  updateFinOpsPricing(config: FinOpsPricingConfig): Observable<FinOpsPricingConfig> {
+    return this.http.put<FinOpsPricingConfig>(`${this.baseUrl}/finops/pricing`, config);
+  }
+
+  downloadFinOpsCsv(from?: string, to?: string, environment?: Environment | ''): Observable<HttpResponse<Blob>> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    if (environment) params['environment'] = environment;
+    return this.http.get(`${this.baseUrl}/finops/export`, {
+      params,
+      responseType: 'blob',
+      observe: 'response'
+    });
+  }
+
+  getWhatIfPresets(): Observable<WhatIfPreset[]> {
+    return this.http.get<WhatIfPreset[]>(`${this.baseUrl}/finops/simulator/presets`);
+  }
+
+  simulateWhatIf(request: WhatIfSimulationRequest): Observable<WhatIfSimulationResult> {
+    return this.http.post<WhatIfSimulationResult>(`${this.baseUrl}/finops/simulator/simulate`, request);
+  }
+
+  askFinAi(request: FinAiPromptRequest): Observable<FinAiResponse> {
+    return this.http.post<FinAiResponse>(`${this.baseUrl}/finops/ai/query`, request);
+  }
+
+  getFinAiQuickPrompts(): Observable<FinAiQuickPrompt[]> {
+    return this.http.get<FinAiQuickPrompt[]>(`${this.baseUrl}/finops/ai/quick-prompts`);
+  }
+
+  executeFinAiDryRun(request: FinAiDryRunRequest): Observable<FinAiDryRunResult> {
+    return this.http.post<FinAiDryRunResult>(`${this.baseUrl}/finops/ai/dry-run`, request);
+  }
+
+  generateFinAiGitOps(request: FinAiGitOpsRequest): Observable<FinAiGitOpsManifest> {
+    return this.http.post<FinAiGitOpsManifest>(`${this.baseUrl}/finops/ai/gitops-manifest`, request);
+  }
+
+  dispatchFinAiNotify(request: FinAiNotifyRequest): Observable<FinAiNotifyResult> {
+    return this.http.post<FinAiNotifyResult>(`${this.baseUrl}/finops/ai/notify`, request);
+  }
+
+  exportFinAiPdf(response: FinAiResponse): Observable<HttpResponse<Blob>> {
+    return this.http.post(`${this.baseUrl}/finops/ai/export-pdf`, response, {
+      responseType: 'blob',
+      observe: 'response'
+    });
+  }
+
   getTeams(): Observable<Team[]> {
     return this.http.get<Team[]>(`${this.baseUrl}/teams`);
   }
@@ -146,6 +243,10 @@ export class PortalService {
 
   getInfrastructureTopology(): Observable<InfrastructureTopology> {
     return this.http.get<InfrastructureTopology>(`${this.baseUrl}/infrastructure/topology`);
+  }
+
+  getTopologyGraph(): Observable<TopologyGraph> {
+    return this.http.get<TopologyGraph>(`${this.baseUrl}/infrastructure/topology/graph`);
   }
 
   getInventory(): Observable<InventoryRow[]> {
