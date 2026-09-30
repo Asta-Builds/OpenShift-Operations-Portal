@@ -113,7 +113,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
               [(ngModel)]="searchQuery"
               (ngModelChange)="onSearchChange()"
               placeholder="Rechercher noeud, cluster, namespace..."
-              class="w-full pl-8 pr-3 py-1.5 text-xs bg-content3/50 border border-divider rounded-lg focus:outline-none focus:border-primary text-foreground placeholder:text-default-400"
+              class="w-full pl-8 pr-3 py-1.5 text-xs bg-content2/80 dark:bg-content3/50 border border-divider rounded-lg focus:outline-none focus:border-primary text-foreground placeholder:text-default-400"
             />
             <button
               *ngIf="searchQuery"
@@ -128,7 +128,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
           <div class="flex items-center gap-1 bg-content2/80 p-1 rounded-lg border border-divider text-xs">
             <button
               (click)="toggleTypeFilter('HUB')"
-              [class]="typeFilters.HUB ? 'bg-purple-600/20 text-purple-400 font-semibold border-purple-500/40' : 'text-default-400 opacity-60'"
+              [class]="typeFilters.HUB ? 'bg-purple-600/15 text-purple-700 dark:text-purple-300 font-semibold border-purple-500/40 shadow-sm' : 'text-default-500 hover:text-foreground'"
               class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5 cursor-pointer"
               title="Afficher/Masquer les Hubs ACM"
             >
@@ -137,7 +137,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             </button>
             <button
               (click)="toggleTypeFilter('CLUSTER')"
-              [class]="typeFilters.CLUSTER ? 'bg-blue-600/20 text-blue-400 font-semibold border-blue-500/40' : 'text-default-400 opacity-60'"
+              [class]="typeFilters.CLUSTER ? 'bg-blue-600/15 text-blue-700 dark:text-blue-300 font-semibold border-blue-500/40 shadow-sm' : 'text-default-500 hover:text-foreground'"
               class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5 cursor-pointer"
               title="Afficher/Masquer les Clusters OpenShift"
             >
@@ -146,7 +146,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             </button>
             <button
               (click)="toggleTypeFilter('NODE')"
-              [class]="typeFilters.NODE ? 'bg-slate-600/20 text-slate-300 font-semibold border-slate-500/40' : 'text-default-400 opacity-60'"
+              [class]="typeFilters.NODE ? 'bg-slate-500/15 text-slate-800 dark:text-slate-200 font-semibold border-slate-500/40 shadow-sm' : 'text-default-500 hover:text-foreground'"
               class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5 cursor-pointer"
               title="Afficher/Masquer les Noeuds physiques et workers"
             >
@@ -155,7 +155,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             </button>
             <button
               (click)="toggleTypeFilter('NAMESPACE')"
-              [class]="typeFilters.NAMESPACE ? 'bg-emerald-600/20 text-emerald-400 font-semibold border-emerald-500/40' : 'text-default-400 opacity-60'"
+              [class]="typeFilters.NAMESPACE ? 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 font-semibold border-emerald-500/40 shadow-sm' : 'text-default-500 hover:text-foreground'"
               class="px-2.5 py-1 rounded-md border border-transparent transition-all flex items-center gap-1.5 cursor-pointer"
               title="Afficher/Masquer les Namespaces FinOps"
             >
@@ -168,7 +168,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
           <select
             [(ngModel)]="selectedEnv"
             (change)="applyFilters()"
-            class="px-2.5 py-1.5 text-xs bg-content3/50 border border-divider rounded-lg text-foreground focus:outline-none focus:border-primary"
+            class="px-2.5 py-1.5 text-xs bg-content2/80 dark:bg-content3/50 border border-divider rounded-lg text-foreground focus:outline-none focus:border-primary"
           >
             <option value="ALL">Tous les Environnements</option>
             <option value="PRODUCTION">Production</option>
@@ -182,28 +182,28 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
         <div class="flex items-center gap-1.5">
           <button
             (click)="zoomIn()"
-            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all cursor-pointer"
+            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-600 dark:text-default-300 hover:text-foreground border border-divider transition-all cursor-pointer"
             title="Zoom Avant"
           >
             <app-icon name="plus" [size]="14"></app-icon>
           </button>
           <button
             (click)="zoomOut()"
-            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all cursor-pointer"
+            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-600 dark:text-default-300 hover:text-foreground border border-divider transition-all cursor-pointer"
             title="Zoom Arrière"
           >
             <app-icon name="minus" [size]="14"></app-icon>
           </button>
           <button
             (click)="fitToScreen()"
-            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all cursor-pointer"
+            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-600 dark:text-default-300 hover:text-foreground border border-divider transition-all cursor-pointer"
             title="Ajuster à l'écran (Fit to View)"
           >
             <app-icon name="crosshair" [size]="14"></app-icon>
           </button>
           <button
             (click)="reheatSimulation()"
-            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-400 hover:text-foreground border border-divider transition-all cursor-pointer"
+            class="p-2 rounded-lg bg-content2 hover:bg-content3 text-default-600 dark:text-default-300 hover:text-foreground border border-divider transition-all cursor-pointer"
             title="Réorganiser la Force Graphique"
           >
             <app-icon name="refresh" [size]="14"></app-icon>
@@ -212,11 +212,11 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
       </div>
 
       <!-- Main Visualization Stage -->
-      <div class="relative w-full h-[700px] rounded-2xl border border-divider/80 bg-[#090d16] overflow-hidden shadow-2xl flex flex-col">
+      <div class="relative w-full h-[700px] rounded-2xl border border-divider/80 bg-slate-50 dark:bg-[#090d16] overflow-hidden shadow-2xl flex flex-col">
         <!-- Loading Overlay -->
         <div *ngIf="loading" class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm gap-3">
           <div class="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p class="text-xs font-medium text-default-400">Génération de la topologie D3 en cours...</p>
+          <p class="text-xs font-medium text-default-500">Génération de la topologie D3 en cours...</p>
         </div>
 
         <!-- D3 SVG Canvas Container -->
@@ -225,35 +225,35 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
         </div>
 
         <!-- Floating Interactive Legend -->
-        <div class="absolute bottom-4 left-4 z-10 bg-content1/85 backdrop-blur-md border border-divider/60 rounded-xl p-3 text-[11px] shadow-xl space-y-2 pointer-events-auto">
-          <div class="font-bold text-foreground tracking-wide uppercase text-[9px] text-default-400 mb-1">Légende Topologique</div>
+        <div class="absolute bottom-4 left-4 z-10 bg-content1/90 dark:bg-content1/85 backdrop-blur-md border border-divider/60 rounded-xl p-3 text-[11px] shadow-xl space-y-2 pointer-events-auto">
+          <div class="font-bold tracking-wide uppercase text-[9px] text-default-500 dark:text-default-400 mb-1">Légende Topologique</div>
           <div class="grid grid-cols-2 gap-x-4 gap-y-1.5">
             <div class="flex items-center gap-2">
               <span class="w-3 h-3 rounded-full bg-purple-600 border border-purple-300 ring-2 ring-purple-500/30"></span>
-              <span class="text-default-300">Hub ACM Principal</span>
+              <span class="text-default-700 dark:text-default-300 font-medium">Hub ACM Principal</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-3 h-3 rounded-full bg-blue-600 border border-blue-300"></span>
-              <span class="text-default-300">Cluster Prod</span>
+              <span class="text-default-700 dark:text-default-300 font-medium">Cluster Prod</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              <span class="text-default-300">Cluster Staging/Dev</span>
+              <span class="text-default-700 dark:text-default-300 font-medium">Cluster Staging/Dev</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-              <span class="text-default-300">Noeud Worker</span>
+              <span class="text-default-700 dark:text-default-300 font-medium">Noeud Worker</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span class="text-emerald-400 font-medium">Namespace A/B (Optimal)</span>
+              <span class="text-emerald-600 dark:text-emerald-400 font-semibold">Namespace A/B (Optimal)</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-              <span class="text-rose-400 font-medium">Namespace D/F (Gaspillage)</span>
+              <span class="text-rose-600 dark:text-rose-400 font-semibold">Namespace D/F (Gaspillage)</span>
             </div>
           </div>
-          <div class="text-[10px] text-default-400 pt-1 border-t border-divider/40">
+          <div class="text-[10px] text-default-500 pt-1 border-t border-divider/40">
             Astuce : Cliquez sur un noeud pour l'inspecter, glissez-le pour figer sa position.
           </div>
         </div>
@@ -434,18 +434,77 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
   // Render elements references
   private linkSelection: any;
   private nodeSelection: any;
+  private themeObserver: MutationObserver | null = null;
 
   ngOnInit(): void {
+    this.setupThemeObserver();
     this.loadTopology();
   }
 
   ngOnDestroy(): void {
+    if (this.themeObserver) {
+      this.themeObserver.disconnect();
+    }
     if (this.simulation) {
       this.simulation.stop();
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
+  }
+
+  private setupThemeObserver(): void {
+    if (typeof window === 'undefined' || typeof MutationObserver === 'undefined') return;
+    this.themeObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes' && m.attributeName === 'class') {
+          this.updateThemeVisuals();
+        }
+      }
+    });
+    this.themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  }
+
+  isDarkMode(): boolean {
+    return typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  }
+
+  private updateThemeVisuals(): void {
+    if (!this.svg) return;
+    const isDark = this.isDarkMode();
+
+    // 1. Grid line stroke
+    this.svg.select('#topo-grid path')
+      .attr('stroke', isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.08)');
+
+    // 2. Node labels fill and font weight
+    if (this.nodeSelection) {
+      this.nodeSelection.selectAll('text.node-label')
+        .attr('fill', isDark ? 'rgba(255, 255, 255, 0.92)' : '#0f172a')
+        .attr('font-weight', isDark ? '500' : '600');
+    }
+
+    // 3. Links color
+    if (this.linkSelection) {
+      this.linkSelection.attr('stroke', (d: any) => this.getLinkColor(d));
+    }
+  }
+
+  private getLinkColor(d: any): string {
+    const isDark = this.isDarkMode();
+    if (d.type === 'HUB_TO_CLUSTER') {
+      return isDark ? 'rgba(168, 85, 247, 0.7)' : 'rgba(126, 34, 206, 0.75)';
+    }
+    if (d.type === 'CLUSTER_TO_NODE') {
+      return isDark ? 'rgba(59, 130, 246, 0.55)' : 'rgba(29, 78, 216, 0.6)';
+    }
+    if (d.type === 'NODE_TO_NAMESPACE') {
+      return isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(4, 120, 87, 0.6)';
+    }
+    return isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(100, 116, 139, 0.45)';
   }
 
   loadTopology(): void {
@@ -505,7 +564,7 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
         .append('path')
         .attr('d', 'M 36 0 L 0 0 0 36')
         .attr('fill', 'none')
-        .attr('stroke', 'rgba(255, 255, 255, 0.04)')
+        .attr('stroke', this.isDarkMode() ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.08)')
         .attr('stroke-width', 1);
 
       this.svg
@@ -646,12 +705,7 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
       .data(linksToRender)
       .enter()
       .append('line')
-      .attr('stroke', (d: any) => {
-        if (d.type === 'HUB_TO_CLUSTER') return 'rgba(168, 85, 247, 0.6)';
-        if (d.type === 'CLUSTER_TO_NODE') return 'rgba(59, 130, 246, 0.45)';
-        if (d.type === 'NODE_TO_NAMESPACE') return 'rgba(16, 185, 129, 0.35)';
-        return 'rgba(255, 255, 255, 0.2)';
-      })
+      .attr('stroke', (d: any) => this.getLinkColor(d))
       .attr('stroke-width', (d: any) => (d.type === 'HUB_TO_CLUSTER' ? 2 : 1.2))
       .attr('stroke-dasharray', (d: any) => (d.type === 'NODE_TO_NAMESPACE' ? '3,3' : 'none'));
 
@@ -720,10 +774,12 @@ export class TopologyGraphComponent implements OnInit, OnDestroy {
     // Label under circle
     this.nodeSelection
       .append('text')
+      .attr('class', 'node-label')
       .attr('dy', (d: any) => this.getNodeRadius(d) + 12)
       .attr('text-anchor', 'middle')
-      .attr('fill', 'rgba(255, 255, 255, 0.9)')
+      .attr('fill', this.isDarkMode() ? 'rgba(255, 255, 255, 0.92)' : '#0f172a')
       .attr('font-size', (d: any) => (d.type === 'HUB' ? '11px' : d.type === 'CLUSTER' ? '10px' : '8px'))
+      .attr('font-weight', this.isDarkMode() ? '500' : '600')
       .attr('font-family', 'ui-monospace, monospace')
       .attr('pointer-events', 'none')
       .text((d: any) => {

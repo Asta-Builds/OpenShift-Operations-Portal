@@ -162,8 +162,8 @@ import { RouterLink } from '@angular/router';
           <button
             *ngFor="let days of quickRanges"
             (click)="useRange(days)"
-            [ngClass]="activeRange === days ? 'bg-content1 text-foreground shadow-sm' : 'text-default-400 hover:text-foreground'"
-            class="px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+            [ngClass]="activeRange === days ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-default-600 dark:text-default-400 hover:text-foreground font-medium'"
+            class="px-3 py-1 rounded-lg text-xs transition-all cursor-pointer"
           >
             Last {{ days }}d
           </button>
@@ -171,7 +171,7 @@ import { RouterLink } from '@angular/router';
 
         <!-- Date Range Pickers & Environment & Rating Filters -->
         <div class="flex flex-wrap items-center gap-3">
-          <div class="flex items-center gap-2 text-xs text-default-400">
+          <div class="flex items-center gap-2 text-xs text-default-600 dark:text-default-400 font-medium">
             <span>From:</span>
             <input
               type="date"
@@ -182,7 +182,7 @@ import { RouterLink } from '@angular/router';
             />
           </div>
 
-          <div class="flex items-center gap-2 text-xs text-default-400">
+          <div class="flex items-center gap-2 text-xs text-default-600 dark:text-default-400 font-medium">
             <span>To:</span>
             <input
               type="date"
@@ -291,7 +291,7 @@ import { RouterLink } from '@angular/router';
         <div class="w-full overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
             <thead>
-              <tr class="border-b border-divider text-default-400 uppercase tracking-wider text-[10px]">
+              <tr class="border-b border-divider text-default-600 dark:text-default-400 uppercase tracking-wider text-[10px] font-semibold">
                 <th class="py-3 px-3">Namespace & Cluster</th>
                 <th class="py-3 px-3">Team</th>
                 <th class="py-3 px-3 text-right">CPU Req / Used</th>

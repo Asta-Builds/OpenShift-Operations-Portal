@@ -30,16 +30,16 @@ import { TopologyGraphComponent } from './topology-graph.component';
         <div class="flex items-center bg-content2 p-1 rounded-xl border border-divider">
           <button
             (click)="activeTab = 'd3-graph'"
-            [class]="activeTab === 'd3-graph' ? 'bg-primary text-primary-foreground shadow-glow-primary font-bold' : 'text-default-400 hover:text-foreground'"
+            [class]="activeTab === 'd3-graph' ? 'bg-primary text-primary-foreground shadow-glow-primary font-bold' : 'text-default-600 dark:text-default-400 hover:text-foreground font-medium'"
             class="px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-2 transition-all cursor-pointer"
           >
             <app-icon name="layers" [size]="14"></app-icon>
             <span>Topologie D3</span>
-            <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-secondary/80 text-white font-semibold">Interactif</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-secondary text-white font-semibold">Interactif</span>
           </button>
           <button
             (click)="activeTab = 'correlation-matrix'"
-            [class]="activeTab === 'correlation-matrix' ? 'bg-primary text-primary-foreground shadow-glow-primary font-bold' : 'text-default-400 hover:text-foreground'"
+            [class]="activeTab === 'correlation-matrix' ? 'bg-primary text-primary-foreground shadow-glow-primary font-bold' : 'text-default-600 dark:text-default-400 hover:text-foreground font-medium'"
             class="px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-2 transition-all cursor-pointer"
           >
             <app-icon name="hard-drive" [size]="14"></app-icon>

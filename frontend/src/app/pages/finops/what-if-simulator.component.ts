@@ -75,8 +75,7 @@ import { IconComponent } from '../../shared/icon.component';
             *ngFor="let preset of presets"
             type="button"
             (click)="applyPreset(preset)"
-            [class.border-primary]="activePresetId === preset.id"
-            [class.bg-primary-50]="activePresetId === preset.id"
+            [ngClass]="activePresetId === preset.id ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-sm' : ''"
             class="heroui-card p-4 text-left transition-all hover:scale-[1.01] hover:border-primary/40 cursor-pointer group flex flex-col justify-between"
           >
             <div class="space-y-2">
