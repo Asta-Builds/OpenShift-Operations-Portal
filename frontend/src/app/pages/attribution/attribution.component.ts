@@ -92,10 +92,10 @@ function daysAgo(days: number): string {
           <select
             [(ngModel)]="environment"
             (change)="load()"
-            class="px-3 py-1.5 rounded-xl bg-content2 border border-divider text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+            class="px-3 py-1.5 rounded-xl bg-content2 hover:bg-content3 border border-divider text-xs font-medium text-foreground outline-none focus:border-primary cursor-pointer transition-colors shadow-sm"
           >
-            <option value="">All Environments</option>
-            <option *ngFor="let env of environments" [value]="env">{{ env }}</option>
+            <option value="" class="bg-content1 text-foreground">All Environments</option>
+            <option *ngFor="let env of environments" [value]="env" class="bg-content1 text-foreground">{{ env }}</option>
           </select>
         </div>
       </div>

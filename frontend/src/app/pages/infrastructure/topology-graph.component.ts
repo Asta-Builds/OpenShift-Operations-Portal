@@ -113,7 +113,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
               [(ngModel)]="searchQuery"
               (ngModelChange)="onSearchChange()"
               placeholder="Rechercher noeud, cluster, namespace..."
-              class="w-full pl-8 pr-3 py-1.5 text-xs bg-content2/80 dark:bg-content3/50 border border-divider rounded-lg focus:outline-none focus:border-primary text-foreground placeholder:text-default-400"
+              class="w-full pl-8 pr-3 py-1.5 text-xs bg-content2 border border-divider rounded-lg focus:outline-none focus:border-primary text-foreground placeholder:text-default-400"
             />
             <button
               *ngIf="searchQuery"
@@ -125,7 +125,7 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
           </div>
 
           <!-- Type Visibility Toggles -->
-          <div class="flex items-center gap-1 bg-content2/80 p-1 rounded-lg border border-divider text-xs">
+          <div class="flex items-center gap-1 bg-content2 p-1 rounded-lg border border-divider text-xs">
             <button
               (click)="toggleTypeFilter('HUB')"
               [class]="typeFilters.HUB ? 'bg-purple-600/15 text-purple-700 dark:text-purple-300 font-semibold border-purple-500/40 shadow-sm' : 'text-default-500 hover:text-foreground'"
@@ -164,17 +164,17 @@ interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
             </button>
           </div>
 
-          <!-- Environment Filter -->
+          <!-- Environment Filter Dropdown -->
           <select
             [(ngModel)]="selectedEnv"
             (change)="applyFilters()"
-            class="px-2.5 py-1.5 text-xs bg-content2/80 dark:bg-content3/50 border border-divider rounded-lg text-foreground focus:outline-none focus:border-primary"
+            class="px-3 py-1.5 text-xs font-medium bg-content2 hover:bg-content3 border border-divider rounded-lg text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors shadow-sm"
           >
-            <option value="ALL">Tous les Environnements</option>
-            <option value="PRODUCTION">Production</option>
-            <option value="STAGING">Staging</option>
-            <option value="DEVELOPMENT">Development</option>
-            <option value="LABS">Laboratoires / Sandbox</option>
+            <option value="ALL" class="bg-content1 text-foreground">Tous les Environnements</option>
+            <option value="PRODUCTION" class="bg-content1 text-foreground">Production</option>
+            <option value="STAGING" class="bg-content1 text-foreground">Staging</option>
+            <option value="DEVELOPMENT" class="bg-content1 text-foreground">Development</option>
+            <option value="LABS" class="bg-content1 text-foreground">Laboratoires / Sandbox</option>
           </select>
         </div>
 

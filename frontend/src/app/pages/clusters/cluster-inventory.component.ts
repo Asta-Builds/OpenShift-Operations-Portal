@@ -52,22 +52,22 @@ import { IconComponent } from '../../shared/icon.component';
         <div class="flex items-center gap-3">
           <select
             [(ngModel)]="selectedEnv"
-            class="px-3 py-2 rounded-xl bg-content2 border border-divider text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+            class="px-3 py-2 rounded-xl bg-content2 hover:bg-content3 border border-divider text-xs font-medium text-foreground outline-none focus:border-primary cursor-pointer transition-colors shadow-sm"
           >
-            <option value="">All Environments</option>
-            <option value="PRODUCTION">Production</option>
-            <option value="STAGING">Staging</option>
-            <option value="DEVELOPMENT">Development</option>
+            <option value="" class="bg-content1 text-foreground">All Environments</option>
+            <option value="PRODUCTION" class="bg-content1 text-foreground">Production</option>
+            <option value="STAGING" class="bg-content1 text-foreground">Staging</option>
+            <option value="DEVELOPMENT" class="bg-content1 text-foreground">Development</option>
           </select>
 
           <select
             [(ngModel)]="selectedInfra"
-            class="px-3 py-2 rounded-xl bg-content2 border border-divider text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+            class="px-3 py-2 rounded-xl bg-content2 hover:bg-content3 border border-divider text-xs font-medium text-foreground outline-none focus:border-primary cursor-pointer transition-colors shadow-sm"
           >
-            <option value="">All Infrastructures</option>
-            <option value="BARE_METAL">Bare Metal</option>
-            <option value="VMWARE">VMware vSphere</option>
-            <option value="AWS">Amazon Web Services</option>
+            <option value="" class="bg-content1 text-foreground">All Infrastructures</option>
+            <option value="BARE_METAL" class="bg-content1 text-foreground">Bare Metal</option>
+            <option value="VMWARE" class="bg-content1 text-foreground">VMware vSphere</option>
+            <option value="AWS" class="bg-content1 text-foreground">Amazon Web Services</option>
           </select>
         </div>
       </div>

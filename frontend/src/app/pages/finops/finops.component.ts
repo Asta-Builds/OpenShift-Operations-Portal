@@ -196,23 +196,23 @@ import { RouterLink } from '@angular/router';
           <select
             [(ngModel)]="environment"
             (change)="load()"
-            class="px-3 py-1.5 rounded-xl bg-content2 border border-divider text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+            class="px-3 py-1.5 rounded-xl bg-content2 hover:bg-content3 border border-divider text-xs font-medium text-foreground outline-none focus:border-primary cursor-pointer transition-colors shadow-sm"
           >
-            <option value="">All Environments</option>
-            <option *ngFor="let env of environments" [value]="env">{{ env }}</option>
+            <option value="" class="bg-content1 text-foreground">All Environments</option>
+            <option *ngFor="let env of environments" [value]="env" class="bg-content1 text-foreground">{{ env }}</option>
           </select>
 
           <select
             [(ngModel)]="ratingFilter"
             (change)="filterRecommendations()"
-            class="px-3 py-1.5 rounded-xl bg-content2 border border-divider text-xs text-foreground outline-none focus:border-primary cursor-pointer"
+            class="px-3 py-1.5 rounded-xl bg-content2 hover:bg-content3 border border-divider text-xs font-medium text-foreground outline-none focus:border-primary cursor-pointer transition-colors shadow-sm"
           >
-            <option value="">All Waste Tiers</option>
-            <option value="SEVERE_WASTE">Severe Waste (&lt;35% eff)</option>
-            <option value="OVER_PROVISIONED">Over-Provisioned (35-60%)</option>
-            <option value="ACCEPTABLE">Acceptable (60-80%)</option>
-            <option value="OPTIMAL">Optimal (&gt;80%)</option>
-            <option value="UNDER_PROVISIONED">Under-Provisioned (Risk)</option>
+            <option value="" class="bg-content1 text-foreground">All Waste Tiers</option>
+            <option value="SEVERE_WASTE" class="bg-content1 text-foreground">Severe Waste (&lt;35% eff)</option>
+            <option value="OVER_PROVISIONED" class="bg-content1 text-foreground">Over-Provisioned (35-60%)</option>
+            <option value="ACCEPTABLE" class="bg-content1 text-foreground">Acceptable (60-80%)</option>
+            <option value="OPTIMAL" class="bg-content1 text-foreground">Optimal (&gt;80%)</option>
+            <option value="UNDER_PROVISIONED" class="bg-content1 text-foreground">Under-Provisioned (Risk)</option>
           </select>
         </div>
       </div>

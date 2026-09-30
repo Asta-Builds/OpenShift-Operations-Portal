@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: #F8FAFC;
     --foreground: #0F172A;
     --content1: #FFFFFF;
@@ -36,6 +37,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --background: #0A0A0C;
     --foreground: #ECEDEE;
     --content1: #121215;
@@ -85,6 +87,18 @@ body {
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+select {
+  color-scheme: inherit;
+  background-color: var(--content2);
+  color: var(--foreground);
+  border-color: var(--divider);
+}
+
+select option {
+  background-color: var(--content1);
+  color: var(--foreground);
 }
 
 /* Custom Scrollbar */
