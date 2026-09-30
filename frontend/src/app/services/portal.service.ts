@@ -217,6 +217,13 @@ export class PortalService {
     return this.http.post<FinAiNotifyResult>(`${this.baseUrl}/finops/ai/notify`, request);
   }
 
+  exportFinAiPdf(response: FinAiResponse): Observable<HttpResponse<Blob>> {
+    return this.http.post(`${this.baseUrl}/finops/ai/export-pdf`, response, {
+      responseType: 'blob',
+      observe: 'response'
+    });
+  }
+
   getTeams(): Observable<Team[]> {
     return this.http.get<Team[]>(`${this.baseUrl}/teams`);
   }

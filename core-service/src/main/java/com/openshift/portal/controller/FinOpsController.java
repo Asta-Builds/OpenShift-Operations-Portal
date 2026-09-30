@@ -27,6 +27,7 @@ public class FinOpsController {
     private final FinOpsService finOpsService;
     private final WhatIfSimulatorService whatIfSimulatorService;
     private final com.openshift.portal.service.FinAiCopilotService finAiCopilotService;
+    private final com.openshift.portal.service.PdfReportGeneratorService pdfReportGeneratorService;
 
     @GetMapping("/overview")
     @Operation(summary = "Get FinOps overview, total spend, waste, savings, and team breakdown")
@@ -115,5 +116,15 @@ public class FinOpsController {
     @Operation(summary = "Dispatch executive FinAI rightsizing card to Slack or Microsoft Teams webhook")
     public ResponseEntity<FinAiNotifyResultDto> notifyTeam(@RequestBody FinAiNotifyRequestDto request) {
         return ResponseEntity.ok(finAiCopilotService.dispatchNotification(request));
+    }
+
+    @PostMapping(value = "/ai/export-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Export FinAI diagnosis as executive PDF report")
+    public ResponseEntity<byte[]> exportPdf(@RequestBody FinAiResponseDto response) {
+        byte[] pdf = pdfReportGeneratorService.generateFinAiPdf(response);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"finai-copilot-report.pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }

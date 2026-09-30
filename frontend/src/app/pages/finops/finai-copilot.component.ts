@@ -11,8 +11,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { HttpResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { PortalService } from '../../services/portal.service';
+import { saveDownload } from '../../shared/download';
 import {
   FinAiCliSnippet,
   FinAiDryRunResult,
@@ -74,6 +76,18 @@ export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS';
         </div>
 
         <div class="flex items-center gap-1.5">
+          <!-- Export Chat to PDF -->
+          <button
+            type="button"
+            *ngIf="messages.length > 0"
+            (click)="exportChatPdf()"
+            title="Télécharger le rapport exécutif au format PDF"
+            class="px-2.5 py-1.5 rounded-xl bg-danger/10 hover:bg-danger/20 border border-danger/25 text-danger font-semibold transition-all cursor-pointer flex items-center gap-1.5 text-xs shadow-sm"
+          >
+            <app-icon name="file-text" [size]="14"></app-icon>
+            <span class="text-[11px]">PDF</span>
+          </button>
+
           <!-- Export Chat to Markdown -->
           <button
             type="button"
@@ -83,7 +97,7 @@ export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS';
             class="p-2 rounded-xl text-default-400 hover:text-foreground hover:bg-content2 transition-colors cursor-pointer flex items-center gap-1 text-xs"
           >
             <app-icon name="download" [size]="15"></app-icon>
-            <span class="hidden sm:inline text-[11px] font-medium">Export</span>
+            <span class="hidden sm:inline text-[11px] font-medium">MD</span>
           </button>
 
           <!-- Reset Chat -->
@@ -994,6 +1008,21 @@ export class FinAiCopilotComponent implements OnInit {
           console.error('Notification dispatch failed', err);
         }
       });
+  }
+
+  exportChatPdf(): void {
+    const lastAssistant = [...this.messages].reverse().find((m) => m.response);
+    if (!lastAssistant?.response) return;
+
+    this.portalService.exportFinAiPdf(lastAssistant.response).subscribe({
+      next: (res: HttpResponse<Blob>) => {
+        saveDownload(res, `finai-copilot-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      },
+      error: (err) => {
+        console.error('PDF export failed, using print fallback', err);
+        window.print();
+      }
+    });
   }
 
   exportChatMarkdown(): void {
