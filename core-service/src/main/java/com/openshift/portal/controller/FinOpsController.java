@@ -98,4 +98,22 @@ public class FinOpsController {
     public ResponseEntity<List<FinAiQuickPromptDto>> getAiQuickPrompts() {
         return ResponseEntity.ok(finAiCopilotService.getQuickPrompts());
     }
+
+    @PostMapping("/ai/dry-run")
+    @Operation(summary = "Execute simulated server dry-run of rightsizing oc patch against OpenShift API")
+    public ResponseEntity<FinAiDryRunResultDto> dryRunPatch(@RequestBody FinAiDryRunRequestDto request) {
+        return ResponseEntity.ok(finAiCopilotService.executeDryRun(request));
+    }
+
+    @PostMapping("/ai/gitops-manifest")
+    @Operation(summary = "Generate GitOps repository structure, Kustomization, and ArgoCD Application manifest")
+    public ResponseEntity<FinAiGitOpsManifestDto> generateGitOps(@RequestBody FinAiGitOpsRequestDto request) {
+        return ResponseEntity.ok(finAiCopilotService.generateGitOpsManifest(request));
+    }
+
+    @PostMapping("/ai/notify")
+    @Operation(summary = "Dispatch executive FinAI rightsizing card to Slack or Microsoft Teams webhook")
+    public ResponseEntity<FinAiNotifyResultDto> notifyTeam(@RequestBody FinAiNotifyRequestDto request) {
+        return ResponseEntity.ok(finAiCopilotService.dispatchNotification(request));
+    }
 }

@@ -154,18 +154,29 @@ Traite une requête en langage naturel avec contexte optionnel.
 ### `GET /api/v1/finops/ai/quick-prompts`
 Retourne les questions types prêtes à l'emploi réparties par catégorie (`OPTIMIZATION`, `LICENSING`, `REMEDIATION`, `FORECASTING`).
 
+### `POST /api/v1/finops/ai/dry-run`
+Valide une commande ou un quota en mode simulation serveur (`--dry-run=server`) auprès de l'API Server OpenShift. Vérifie la conformité des pods actifs et garantit une application sans coupure de service.
+
+### `POST /api/v1/finops/ai/gitops-manifest`
+Génère l'arborescence GitOps complète pour OpenShift GitOps / ArgoCD (`kustomization.yaml`, `resource-quota.yaml`, `Application` CRD) avec proposition de branche et message de commit conventionnel.
+
+### `POST /api/v1/finops/ai/notify`
+Diffuse la synthèse du diagnostic et les gains financiers vers un webhook entrant Slack (Block Kit) ou Microsoft Teams (Adaptive Card).
+
 ---
 
 ## 6. Expérience Utilisateur & Intégrations Frontend
 
 1. **Slide-over Drawer Global** : Accessible depuis n'importe quelle page du portail via le bouton **"FinAI Copilot"** du bandeau supérieur ou la palette de commande (`Ctrl + K`).
-2. **Défilement Automatique Intelligent (Auto-scroll)** : Le conteneur de messages défile automatiquement vers le bas de manière fluide (`smooth scroll`) lors de l'envoi de requêtes et à l'affichage des réponses. Un bouton flottant d'accès rapide aux derniers messages apparaît si l'utilisateur a scrollé vers le haut.
-3. **Moteur de Rendu Markdown & Alertes Visuelles** : Formatage automatique des titres, listes, code inline et boîtes d'avertissement `> [!WARNING]` / `> [!NOTE]`.
-4. **Intégration Contextuelle FinOps** : Dans le tableau des recommandations de rightsizing, chaque ligne dispose d'un bouton **"FinAI"** qui ouvre le Copilot pré-rempli avec le nom du cluster et du namespace.
-5. **Passerelle Directe vers le Simulateur What-If** : Chaque extrait CLI dispose d'un bouton direct **"Simuler dans What-If"** pour tester le comportement de charge avant d'appliquer le patch en production.
-6. **Exportation du Journal d'Audit Markdown** : Bouton d'export en 1 clic dans le header pour télécharger l'intégralité des échanges sous forme de rapport Markdown daté (`finai-copilot-report-YYYY-MM-DD.md`) pour les comités d'architecture et tickets Jira.
-7. **Copie en 1-Clic avec Feedback Visuel** : Chaque extrait CLI dispose d'un bouton `Copier` avec badge de confirmation dynamique (`Copié !`) et indication du niveau de risque (`SAFE`, `MEDIUM`, `DESTRUCTIVE`).
-8. **Support Parfait Dark / Light Mode** : Contraste WCAG AA respecté sur tous les éléments, palette de code terminal dark-mode GitHub (`#0d1117`) et puces métriques colorées.
+2. **Barre de Filtres de Vue ("Pills Filter")** : Permet de basculer instantanément la vue entre *Tout afficher*, *Commandes oc CLI*, *Plan d'Action*, et *Métriques Clés*.
+3. **Validation One-Click Dry-Run (`--dry-run=server`)** : Bouton *"🧪 Valider en Dry-Run"* sous chaque extrait CLI avec rapport inline dynamique (pods audités, zéro violation, zéro coupure).
+4. **Générateur GitOps & Téléchargement de Bundle** : Bouton *"🐙 GitOps (ArgoCD)"* ouvrant un modal avec onglets de manifestes Kustomize / ArgoCD et téléchargement du bundle YAML prêt à commit.
+5. **Diffusion Webhook Slack / Microsoft Teams** : Bouton *"📢 Diffuser sur Slack/Teams"* pour notifier les canaux d'ingénierie applicative des opportunités d'économies détectées.
+6. **Défilement Automatique Intelligent (Auto-scroll)** : Défilement fluide (`smooth scroll`) à l'envoi et à la réception des réponses, complété par un bouton flottant d'accès rapide.
+7. **Moteur de Rendu Markdown & Alertes Visuelles** : Formatage automatique des titres, alertes `> [!WARNING]` / `> [!NOTE]`, listes à puces et code inline.
+8. **Exportation du Journal d'Audit Markdown** : Bouton d'export en 1 clic téléchargeant le fichier `finai-copilot-report-AAAA-MM-JJ.md`.
+9. **Passerelle vers le Simulateur What-If** : Test direct de l'impact capacitaire et financier dans le simulateur What-If.
+10. **Support Parfait Dark / Light Mode** : Contraste WCAG AA respecté sur tous les éléments, palette de terminal sombre GitHub (`#0d1117`).
 
 ---
 

@@ -34,6 +34,12 @@ import {
   FinAiPromptRequest,
   FinAiResponse,
   FinAiQuickPrompt,
+  FinAiDryRunRequest,
+  FinAiDryRunResult,
+  FinAiGitOpsRequest,
+  FinAiGitOpsManifest,
+  FinAiNotifyRequest,
+  FinAiNotifyResult,
   TopologyGraph
 } from '../models/portal.models';
 
@@ -197,6 +203,18 @@ export class PortalService {
 
   getFinAiQuickPrompts(): Observable<FinAiQuickPrompt[]> {
     return this.http.get<FinAiQuickPrompt[]>(`${this.baseUrl}/finops/ai/quick-prompts`);
+  }
+
+  executeFinAiDryRun(request: FinAiDryRunRequest): Observable<FinAiDryRunResult> {
+    return this.http.post<FinAiDryRunResult>(`${this.baseUrl}/finops/ai/dry-run`, request);
+  }
+
+  generateFinAiGitOps(request: FinAiGitOpsRequest): Observable<FinAiGitOpsManifest> {
+    return this.http.post<FinAiGitOpsManifest>(`${this.baseUrl}/finops/ai/gitops-manifest`, request);
+  }
+
+  dispatchFinAiNotify(request: FinAiNotifyRequest): Observable<FinAiNotifyResult> {
+    return this.http.post<FinAiNotifyResult>(`${this.baseUrl}/finops/ai/notify`, request);
   }
 
   getTeams(): Observable<Team[]> {

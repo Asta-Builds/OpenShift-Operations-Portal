@@ -693,3 +693,54 @@ export interface FinAiQuickPrompt {
   badge: string;
 }
 
+export interface FinAiDryRunRequest {
+  namespace: string;
+  clusterId?: string;
+  command?: string;
+  resourceQuotaYaml?: string;
+}
+
+export interface FinAiDryRunResult {
+  success: boolean;
+  status: string;
+  message: string;
+  podsEvaluated: number;
+  podsExceedingLimits: number;
+  warnings: string[];
+  timestamp: string;
+}
+
+export interface FinAiGitOpsRequest {
+  namespace: string;
+  clusterId?: string;
+  cpuRequest?: string;
+  memoryRequest?: string;
+}
+
+export interface FinAiGitOpsManifest {
+  repoPath: string;
+  resourceQuotaYaml: string;
+  kustomizationYaml: string;
+  argocdApplicationYaml: string;
+  branchName: string;
+  commitMessage: string;
+}
+
+export interface FinAiNotifyRequest {
+  platform: 'SLACK' | 'TEAMS';
+  channel?: string;
+  headline: string;
+  summary: string;
+  savingsUsd?: number;
+  namespace?: string;
+}
+
+export interface FinAiNotifyResult {
+  dispatched: boolean;
+  targetPlatform: string;
+  destination: string;
+  payloadPreview: string;
+  message: string;
+  timestamp: string;
+}
+

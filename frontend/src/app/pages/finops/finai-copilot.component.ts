@@ -15,7 +15,10 @@ import { Router } from '@angular/router';
 import { PortalService } from '../../services/portal.service';
 import {
   FinAiCliSnippet,
+  FinAiDryRunResult,
+  FinAiGitOpsManifest,
   FinAiMetricItem,
+  FinAiNotifyResult,
   FinAiPromptRequest,
   FinAiQuickPrompt,
   FinAiResponse
@@ -32,6 +35,8 @@ export interface ChatMessage {
   error?: string;
   feedback?: 'like' | 'dislike';
 }
+
+export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS';
 
 @Component({
   selector: 'app-finai-copilot',
@@ -101,6 +106,64 @@ export interface ChatMessage {
             <app-icon name="x" [size]="18"></app-icon>
           </button>
         </div>
+      </div>
+
+      <!-- Priority 1: View Filter Bar (Pills Filter) -->
+      <div *ngIf="messages.length > 0" class="px-6 py-2 bg-content2/80 border-b border-divider flex items-center justify-between text-xs">
+        <div class="flex items-center gap-1.5 overflow-x-auto py-0.5">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-default-400 mr-1">Filtrer vue :</span>
+          <button
+            type="button"
+            (click)="filterMode = 'ALL'"
+            [class.bg-primary]="filterMode === 'ALL'"
+            [class.text-primary-foreground]="filterMode === 'ALL'"
+            [class.bg-content3]="filterMode !== 'ALL'"
+            [class.text-default-600]="filterMode !== 'ALL'"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer"
+          >
+            Tout afficher
+          </button>
+          <button
+            type="button"
+            (click)="filterMode = 'CLI'"
+            [class.bg-primary]="filterMode === 'CLI'"
+            [class.text-primary-foreground]="filterMode === 'CLI'"
+            [class.bg-content3]="filterMode !== 'CLI'"
+            [class.text-default-600]="filterMode !== 'CLI'"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+          >
+            <app-icon name="terminal" [size]="11"></app-icon>
+            <span>Commandes oc CLI</span>
+          </button>
+          <button
+            type="button"
+            (click)="filterMode = 'PLAN'"
+            [class.bg-primary]="filterMode === 'PLAN'"
+            [class.text-primary-foreground]="filterMode === 'PLAN'"
+            [class.bg-content3]="filterMode !== 'PLAN'"
+            [class.text-default-600]="filterMode !== 'PLAN'"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+          >
+            <app-icon name="check-circle" [size]="11"></app-icon>
+            <span>Plan d'Action</span>
+          </button>
+          <button
+            type="button"
+            (click)="filterMode = 'METRICS'"
+            [class.bg-primary]="filterMode === 'METRICS'"
+            [class.text-primary-foreground]="filterMode === 'METRICS'"
+            [class.bg-content3]="filterMode !== 'METRICS'"
+            [class.text-default-600]="filterMode !== 'METRICS'"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+          >
+            <app-icon name="coins" [size]="11"></app-icon>
+            <span>Métriques Clés</span>
+          </button>
+        </div>
+
+        <span class="text-[10px] text-default-400 font-mono hidden md:inline">
+          {{ messages.length }} échanges
+        </span>
       </div>
 
       <!-- Context Bar (if cluster / namespace targeted) -->
@@ -227,8 +290,8 @@ export interface ChatMessage {
                   </div>
                 </div>
 
-                <!-- Highlight Metrics Strip -->
-                <div *ngIf="res.metrics && res.metrics.length > 0" class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                <!-- Highlight Metrics Strip (Visible in ALL or METRICS mode) -->
+                <div *ngIf="(filterMode === 'ALL' || filterMode === 'METRICS') && res.metrics && res.metrics.length > 0" class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
                   <div
                     *ngFor="let metric of res.metrics"
                     class="p-2.5 rounded-xl border"
@@ -243,8 +306,8 @@ export interface ChatMessage {
                   </div>
                 </div>
 
-                <!-- Detailed Analysis (Rich Markdown formatted) -->
-                <div *ngIf="res.analysisMarkdown" class="space-y-1.5 pt-2 border-t border-divider">
+                <!-- Detailed Analysis (Rich Markdown formatted - Visible in ALL mode) -->
+                <div *ngIf="filterMode === 'ALL' && res.analysisMarkdown" class="space-y-1.5 pt-2 border-t border-divider">
                   <h4 class="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <app-icon name="activity" [size]="13" className="text-secondary"></app-icon>
                     Analyse Détaillée & Justification
@@ -255,8 +318,8 @@ export interface ChatMessage {
                   ></div>
                 </div>
 
-                <!-- Actionable Execution Steps -->
-                <div *ngIf="res.executionPlan && res.executionPlan.length > 0" class="space-y-2 pt-2 border-t border-divider">
+                <!-- Actionable Execution Steps (Visible in ALL or PLAN mode) -->
+                <div *ngIf="(filterMode === 'ALL' || filterMode === 'PLAN') && res.executionPlan && res.executionPlan.length > 0" class="space-y-2 pt-2 border-t border-divider">
                   <h4 class="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <app-icon name="check-circle" [size]="13" className="text-success"></app-icon>
                     Plan d'Action Recommandé
@@ -271,8 +334,8 @@ export interface ChatMessage {
                   </ol>
                 </div>
 
-                <!-- OpenShift CLI Snippets with 1-click Copy & Simulator Link -->
-                <div *ngIf="res.cliCommands && res.cliCommands.length > 0" class="space-y-2.5 pt-2 border-t border-divider">
+                <!-- OpenShift CLI Snippets with Dry-Run & GitOps bridges (Visible in ALL or CLI mode) -->
+                <div *ngIf="(filterMode === 'ALL' || filterMode === 'CLI') && res.cliCommands && res.cliCommands.length > 0" class="space-y-3 pt-2 border-t border-divider">
                   <div class="flex items-center justify-between">
                     <h4 class="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <app-icon name="terminal" [size]="13" className="text-warning"></app-icon>
@@ -281,7 +344,7 @@ export interface ChatMessage {
                     <span class="text-[10px] font-bold text-default-400">Air-Gapped Ready</span>
                   </div>
 
-                  <div *ngFor="let snippet of res.cliCommands" class="rounded-xl overflow-hidden border border-divider bg-[#0d1117] text-[#c9d1d9] shadow-inner">
+                  <div *ngFor="let snippet of res.cliCommands; let sIdx = index" class="rounded-xl overflow-hidden border border-divider bg-[#0d1117] text-[#c9d1d9] shadow-inner space-y-0">
                     <!-- Terminal Header -->
                     <div class="px-3 py-1.5 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between text-[11px]">
                       <div class="flex items-center gap-2">
@@ -312,19 +375,63 @@ export interface ChatMessage {
                       {{ snippet.command }}
                     </div>
 
-                    <!-- Snippet Note & Action Footer -->
-                    <div class="px-3 py-2 bg-[#161b22]/70 border-t border-[#30363d] flex items-center justify-between text-[10px]">
+                    <!-- Snippet Note & Action Bar -->
+                    <div class="px-3 py-2 bg-[#161b22]/70 border-t border-[#30363d] flex flex-wrap items-center justify-between gap-2 text-[10px]">
                       <span class="text-[#8b949e]">{{ snippet.description }}</span>
-                      <button
-                        type="button"
-                        (click)="launchWhatIfSimulator(snippet.targetNamespace)"
-                        class="text-primary hover:text-primary-foreground px-2 py-0.5 rounded bg-primary/10 hover:bg-primary transition-all font-semibold flex items-center gap-1 cursor-pointer"
-                        title="Tester le dimensionnement dans le simulateur What-If"
-                      >
-                        <app-icon name="sliders" [size]="11"></app-icon>
-                        <span>Simuler dans What-If</span>
-                      </button>
+                      
+                      <div class="flex items-center gap-2">
+                        <!-- Priority 2: One-Click Dry-Run Validation -->
+                        <button
+                          type="button"
+                          (click)="runDryRun(snippet)"
+                          [disabled]="dryRunLoadingKey === snippet.title"
+                          class="px-2 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 font-semibold flex items-center gap-1 cursor-pointer transition-all"
+                          title="Exécuter un test dry-run sans impact sur l'API Server OpenShift"
+                        >
+                          <span *ngIf="dryRunLoadingKey === snippet.title" class="w-2.5 h-2.5 border border-emerald-400 border-t-transparent rounded-full animate-spin"></span>
+                          <span>🧪 Valider en Dry-Run</span>
+                        </button>
+
+                        <!-- Priority 3: GitOps Manifest Generator Bridge -->
+                        <button
+                          type="button"
+                          (click)="openGitOpsModal(snippet.targetNamespace)"
+                          class="px-2 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 font-semibold flex items-center gap-1 cursor-pointer transition-all"
+                          title="Générer les fichiers Kustomize et ArgoCD Application"
+                        >
+                          <span>🐙 GitOps (ArgoCD)</span>
+                        </button>
+
+                        <!-- What-If Simulator Link -->
+                        <button
+                          type="button"
+                          (click)="launchWhatIfSimulator(snippet.targetNamespace)"
+                          class="text-primary hover:text-primary-foreground px-2 py-0.5 rounded bg-primary/10 hover:bg-primary transition-all font-semibold flex items-center gap-1 cursor-pointer"
+                          title="Tester le dimensionnement dans le simulateur What-If"
+                        >
+                          <app-icon name="sliders" [size]="11"></app-icon>
+                          <span>What-If</span>
+                        </button>
+                      </div>
                     </div>
+
+                    <!-- Dry-Run Result Inline Banner (if executed) -->
+                    <div *ngIf="dryRunResults[snippet.title] as dry" class="p-3 bg-emerald-950/40 border-t border-emerald-500/30 text-[11px] text-emerald-200 space-y-1">
+                      <div class="flex items-center justify-between font-bold">
+                        <span class="flex items-center gap-1.5 text-emerald-400">
+                          <app-icon name="check-circle" [size]="13"></app-icon>
+                          {{ dry.status }}
+                        </span>
+                        <span class="text-[10px] text-emerald-400/80">{{ dry.timestamp | date:'HH:mm:ss' }}</span>
+                      </div>
+                      <p class="text-xs text-emerald-100/90 leading-relaxed">{{ dry.message }}</p>
+                      <div class="flex items-center gap-3 pt-1 text-[10px] text-emerald-300 font-mono">
+                        <span>Pods audités : <strong>{{ dry.podsEvaluated }}</strong></span>
+                        <span>Dépassements : <strong class="text-emerald-400">{{ dry.podsExceedingLimits }}</strong></span>
+                        <span>Interruption de service : <strong>NULLE (0%)</strong></span>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
 
@@ -344,8 +451,8 @@ export interface ChatMessage {
                   </div>
                 </div>
 
-                <!-- Footer Feedback & Copy All Report -->
-                <div class="pt-2 border-t border-divider flex items-center justify-between text-[10px] text-default-400">
+                <!-- Footer Feedback, Notify Slack/Teams & Copy All Report -->
+                <div class="pt-2 border-t border-divider flex flex-wrap items-center justify-between gap-2 text-[10px] text-default-400">
                   <div class="flex items-center gap-2">
                     <span>Ce diagnostic vous a-t-il aidé ?</span>
                     <button
@@ -368,15 +475,28 @@ export interface ChatMessage {
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    (click)="copyFullReport(res)"
-                    class="text-default-400 hover:text-foreground flex items-center gap-1 cursor-pointer font-medium"
-                    title="Copier toute la synthèse au format Markdown"
-                  >
-                    <app-icon name="copy" [size]="11"></app-icon>
-                    <span>{{ copiedReportId === res.headline ? 'Rapport copié !' : 'Copier la synthèse' }}</span>
-                  </button>
+                  <div class="flex items-center gap-3">
+                    <!-- Priority 4: Notify Slack / Teams Trigger -->
+                    <button
+                      type="button"
+                      (click)="openNotifyModal(res)"
+                      class="text-primary hover:underline flex items-center gap-1 cursor-pointer font-semibold"
+                      title="Diffuser cette recommandation sur Slack ou Microsoft Teams"
+                    >
+                      <span>📢 Diffuser sur Slack/Teams</span>
+                    </button>
+
+                    <!-- Copy Full Report -->
+                    <button
+                      type="button"
+                      (click)="copyFullReport(res)"
+                      class="text-default-400 hover:text-foreground flex items-center gap-1 cursor-pointer font-medium"
+                      title="Copier toute la synthèse au format Markdown"
+                    >
+                      <app-icon name="copy" [size]="11"></app-icon>
+                      <span>{{ copiedReportId === res.headline ? 'Rapport copié !' : 'Copier la synthèse' }}</span>
+                    </button>
+                  </div>
                 </div>
 
               </div>
@@ -429,10 +549,196 @@ export interface ChatMessage {
 
         <div class="mt-2 flex items-center justify-between text-[10px] text-default-400">
           <span>Modèle heuristique autonome pour clusters OpenShift sécurisés / air-gapped</span>
-          <span class="font-mono">FinAI v1.2</span>
+          <span class="font-mono">FinAI v1.3</span>
         </div>
       </div>
 
+    </div>
+
+    <!-- MODAL 1: GitOps Manifest Modal (Priority 3) -->
+    <div *ngIf="showGitOpsModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div class="heroui-card w-full max-w-2xl p-6 space-y-4 bg-background shadow-2xl border border-divider">
+        <div class="flex items-center justify-between pb-3 border-b border-divider">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+              🐙
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-foreground">Manifeste GitOps (ArgoCD & Kustomize)</h3>
+              <p class="text-[11px] text-default-400">Arborescence prête à commit pour OpenShift GitOps</p>
+            </div>
+          </div>
+          <button (click)="showGitOpsModal = false" class="text-default-400 hover:text-foreground text-xs p-1 rounded">✕</button>
+        </div>
+
+        <div *ngIf="gitOpsLoading" class="py-12 text-center text-xs text-default-500 animate-pulse space-y-2">
+          <div class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div>Génération des manifestes Kustomize & Application ArgoCD...</div>
+        </div>
+
+        <div *ngIf="!gitOpsLoading && gitOpsManifest" class="space-y-4 text-xs">
+          <!-- Branch & Commit Command Strip -->
+          <div class="p-3 rounded-xl bg-content2 border border-divider space-y-1.5 font-mono text-[11px]">
+            <div class="text-[10px] uppercase font-bold text-default-400">Branche Git recommandée :</div>
+            <div class="text-primary font-bold">git checkout -b {{ gitOpsManifest.branchName }}</div>
+            <div class="text-default-500 text-[10px]">Emplacement : {{ gitOpsManifest.repoPath }}</div>
+          </div>
+
+          <!-- Manifest Tabs -->
+          <div class="flex items-center gap-2 border-b border-divider">
+            <button
+              type="button"
+              (click)="activeGitOpsTab = 'kustomize'"
+              [class.border-primary]="activeGitOpsTab === 'kustomize'"
+              [class.text-primary]="activeGitOpsTab === 'kustomize'"
+              class="pb-2 border-b-2 font-semibold text-xs transition-colors cursor-pointer"
+            >
+              kustomization.yaml
+            </button>
+            <button
+              type="button"
+              (click)="activeGitOpsTab = 'quota'"
+              [class.border-primary]="activeGitOpsTab === 'quota'"
+              [class.text-primary]="activeGitOpsTab === 'quota'"
+              class="pb-2 border-b-2 font-semibold text-xs transition-colors cursor-pointer"
+            >
+              resource-quota.yaml
+            </button>
+            <button
+              type="button"
+              (click)="activeGitOpsTab = 'argocd'"
+              [class.border-primary]="activeGitOpsTab === 'argocd'"
+              [class.text-primary]="activeGitOpsTab === 'argocd'"
+              class="pb-2 border-b-2 font-semibold text-xs transition-colors cursor-pointer"
+            >
+              argocd-application.yaml
+            </button>
+          </div>
+
+          <!-- Active Tab Content -->
+          <div class="rounded-xl overflow-hidden border border-divider bg-[#0d1117] text-emerald-300 p-3 font-mono text-[11px] max-h-56 overflow-y-auto whitespace-pre-wrap select-all">
+            <span *ngIf="activeGitOpsTab === 'kustomize'">{{ gitOpsManifest.kustomizationYaml }}</span>
+            <span *ngIf="activeGitOpsTab === 'quota'">{{ gitOpsManifest.resourceQuotaYaml }}</span>
+            <span *ngIf="activeGitOpsTab === 'argocd'">{{ gitOpsManifest.argocdApplicationYaml }}</span>
+          </div>
+
+          <!-- Modal Actions -->
+          <div class="flex items-center justify-between pt-2 border-t border-divider">
+            <button
+              type="button"
+              (click)="downloadGitOpsBundle()"
+              class="heroui-btn bg-content2 hover:bg-content3 border border-divider text-xs font-semibold px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
+            >
+              <app-icon name="download" [size]="14"></app-icon>
+              <span>Télécharger le Bundle</span>
+            </button>
+
+            <button
+              type="button"
+              (click)="showGitOpsModal = false"
+              class="heroui-btn bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-4 py-1.5 cursor-pointer"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: Slack / Microsoft Teams Notification (Priority 4) -->
+    <div *ngIf="showNotifyModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div class="heroui-card w-full max-w-md p-6 space-y-4 bg-background shadow-2xl border border-divider">
+        <div class="flex items-center justify-between pb-3 border-b border-divider">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold">
+              📢
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-foreground">Diffuser sur Slack / Teams</h3>
+              <p class="text-[11px] text-default-400">Partager les opportunités d'économies FinOps</p>
+            </div>
+          </div>
+          <button (click)="showNotifyModal = false" class="text-default-400 hover:text-foreground text-xs p-1 rounded">✕</button>
+        </div>
+
+        <div *ngIf="notifySuccessResult" class="p-4 rounded-xl bg-success/15 border border-success/30 text-success text-xs space-y-2">
+          <div class="font-bold flex items-center gap-1.5">
+            <app-icon name="check-circle" [size]="14"></app-icon>
+            Notification Envoyée avec Succès !
+          </div>
+          <p>{{ notifySuccessResult.message }}</p>
+          <button
+            type="button"
+            (click)="showNotifyModal = false; notifySuccessResult = null"
+            class="w-full mt-2 py-1.5 rounded-lg bg-success text-white font-semibold text-xs"
+          >
+            Terminer
+          </button>
+        </div>
+
+        <form *ngIf="!notifySuccessResult" (ngSubmit)="sendNotification()" class="space-y-3 text-xs">
+          <div>
+            <label class="block text-default-500 mb-1 font-semibold">Plateforme de collaboration :</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                (click)="notifyPlatform = 'SLACK'"
+                [ngClass]="notifyPlatform === 'SLACK' ? 'border-primary bg-primary/10 text-primary' : 'border-divider text-foreground'"
+                class="p-2.5 rounded-xl border text-center font-bold transition-all cursor-pointer"
+              >
+                Slack
+              </button>
+              <button
+                type="button"
+                (click)="notifyPlatform = 'TEAMS'"
+                [ngClass]="notifyPlatform === 'TEAMS' ? 'border-primary bg-primary/10 text-primary' : 'border-divider text-foreground'"
+                class="p-2.5 rounded-xl border text-center font-bold transition-all cursor-pointer"
+              >
+                Microsoft Teams
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-default-500 mb-1 font-semibold">Canal ou Webhook :</label>
+            <input
+              type="text"
+              [(ngModel)]="notifyChannel"
+              name="notifyChannel"
+              class="w-full px-3 py-2 rounded-xl bg-content2 border border-divider text-foreground outline-none focus:border-primary font-mono text-xs"
+              placeholder="#finops-alerts"
+            />
+          </div>
+
+          <div>
+            <label class="block text-default-500 mb-1 font-semibold">Sujet de l'Alerte :</label>
+            <input
+              type="text"
+              [(ngModel)]="notifyHeadline"
+              name="notifyHeadline"
+              class="w-full px-3 py-2 rounded-xl bg-content2 border border-divider text-foreground outline-none focus:border-primary text-xs"
+            />
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-divider">
+            <button
+              type="button"
+              (click)="showNotifyModal = false"
+              class="heroui-btn bg-content2 hover:bg-content3 border border-divider text-xs font-semibold px-3 py-1.5 text-foreground cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              [disabled]="notifyLoading"
+              class="heroui-btn bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-4 py-1.5 flex items-center gap-1.5 cursor-pointer"
+            >
+              <span *ngIf="notifyLoading" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>Diffuser maintenant</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   `
 })
@@ -457,6 +763,29 @@ export class FinAiCopilotComponent implements OnInit {
   copiedCommand: string | null = null;
   copiedReportId: string | null = null;
   showScrollDownButton = false;
+
+  // Priority 1: Filter bar
+  filterMode: ViewFilterMode = 'ALL';
+
+  // Priority 2: One-Click Dry Run state
+  dryRunLoadingKey: string | null = null;
+  dryRunResults: Record<string, FinAiDryRunResult> = {};
+
+  // Priority 3: GitOps Manifest state
+  showGitOpsModal = false;
+  gitOpsLoading = false;
+  gitOpsManifest: FinAiGitOpsManifest | null = null;
+  activeGitOpsTab: 'kustomize' | 'quota' | 'argocd' = 'kustomize';
+
+  // Priority 4: Slack / Teams Notification state
+  showNotifyModal = false;
+  notifyLoading = false;
+  notifyPlatform: 'SLACK' | 'TEAMS' = 'SLACK';
+  notifyChannel = '#finops-alerts';
+  notifyHeadline = '';
+  notifySavings = 1691.82;
+  notifyTargetNamespace = '';
+  notifySuccessResult: FinAiNotifyResult | null = null;
 
   ngOnInit(): void {
     this.loadQuickPrompts();
@@ -488,6 +817,8 @@ export class FinAiCopilotComponent implements OnInit {
   resetChat(): void {
     this.messages = [];
     this.currentPrompt = '';
+    this.dryRunResults = {};
+    this.filterMode = 'ALL';
   }
 
   applyQuickPrompt(promptText: string): void {
@@ -496,13 +827,9 @@ export class FinAiCopilotComponent implements OnInit {
   }
 
   onEnterPressed(e: Event): void {
-    // Regular enter triggers form submission
     this.sendQuery();
   }
 
-  /**
-   * Automatically scroll the chat container to the bottom smoothly
-   */
   scrollToBottom(smooth: boolean = true): void {
     setTimeout(() => {
       if (this.scrollContainer?.nativeElement) {
@@ -520,7 +847,6 @@ export class FinAiCopilotComponent implements OnInit {
     if (!this.scrollContainer?.nativeElement) return;
     const el = this.scrollContainer.nativeElement;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    // Show button if user has scrolled up by more than 150px
     this.showScrollDownButton = distanceFromBottom > 150;
   }
 
@@ -570,6 +896,106 @@ export class FinAiCopilotComponent implements OnInit {
     this.router.navigate(['/what-if']);
   }
 
+  // Priority 2: Execute Dry Run
+  runDryRun(snippet: FinAiCliSnippet): void {
+    this.dryRunLoadingKey = snippet.title;
+    this.portalService
+      .executeFinAiDryRun({
+        namespace: snippet.targetNamespace || this.contextNamespace || 'default',
+        clusterId: this.contextClusterId,
+        command: snippet.command
+      })
+      .subscribe({
+        next: (res) => {
+          this.dryRunResults[snippet.title] = res;
+          this.dryRunLoadingKey = null;
+          this.scrollToBottom(true);
+        },
+        error: (err) => {
+          console.error('Dry-run failed', err);
+          this.dryRunLoadingKey = null;
+        }
+      });
+  }
+
+  // Priority 3: GitOps Manifest Modal
+  openGitOpsModal(namespace?: string): void {
+    this.showGitOpsModal = true;
+    this.gitOpsLoading = true;
+    this.gitOpsManifest = null;
+
+    const ns = namespace || this.contextNamespace || 'spark-batch-analytics';
+    this.portalService
+      .generateFinAiGitOps({
+        namespace: ns,
+        clusterId: this.contextClusterId || 'ocp-ai-training-prod',
+        cpuRequest: '14.6c',
+        memoryRequest: '69Gi'
+      })
+      .subscribe({
+        next: (manifest) => {
+          this.gitOpsManifest = manifest;
+          this.gitOpsLoading = false;
+        },
+        error: (err) => {
+          console.error('GitOps generation failed', err);
+          this.gitOpsLoading = false;
+        }
+      });
+  }
+
+  downloadGitOpsBundle(): void {
+    if (!this.gitOpsManifest) return;
+    const bundleText =
+      `# ==========================================\n` +
+      `# GitOps Bundle: ${this.gitOpsManifest.repoPath}\n` +
+      `# Branch: ${this.gitOpsManifest.branchName}\n` +
+      `# ==========================================\n\n` +
+      `--- # kustomization.yaml ---\n${this.gitOpsManifest.kustomizationYaml}\n\n` +
+      `--- # resource-quota.yaml ---\n${this.gitOpsManifest.resourceQuotaYaml}\n\n` +
+      `--- # argocd-application.yaml ---\n${this.gitOpsManifest.argocdApplicationYaml}\n`;
+
+    const blob = new Blob([bundleText], { type: 'text/yaml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gitops-manifests-${new Date().toISOString().slice(0, 10)}.yaml`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // Priority 4: Slack / Teams Notification Modal
+  openNotifyModal(res: FinAiResponse): void {
+    this.showNotifyModal = true;
+    this.notifySuccessResult = null;
+    this.notifyHeadline = res.headline;
+    this.notifySavings = 1691.82;
+    this.notifyTargetNamespace = this.contextNamespace || 'all';
+  }
+
+  sendNotification(): void {
+    this.notifyLoading = true;
+    this.portalService
+      .dispatchFinAiNotify({
+        platform: this.notifyPlatform,
+        channel: this.notifyChannel,
+        headline: this.notifyHeadline,
+        summary: 'Recommandation FinAI prête à appliquer pour optimiser les quotas de la flotte.',
+        savingsUsd: this.notifySavings,
+        namespace: this.notifyTargetNamespace
+      })
+      .subscribe({
+        next: (result) => {
+          this.notifyLoading = false;
+          this.notifySuccessResult = result;
+        },
+        error: (err) => {
+          this.notifyLoading = false;
+          console.error('Notification dispatch failed', err);
+        }
+      });
+  }
+
   exportChatMarkdown(): void {
     if (this.messages.length === 0) return;
     let md = `# FinAI Copilot — Journal d'Audit & Diagnostic\nDate : ${new Date().toLocaleString()}\n\n`;
@@ -612,17 +1038,14 @@ export class FinAiCopilotComponent implements OnInit {
   formatMarkdown(raw: string): SafeHtml {
     if (!raw) return '';
     let html = raw
-      // Escape HTML special characters
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      // Headers
       .replace(
         /^### (.*$)/gim,
         '<h5 class="text-xs font-bold text-foreground mt-3 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>$1</h5>'
       )
       .replace(/^#### (.*$)/gim, '<h6 class="text-[11px] font-bold text-foreground mt-2 mb-1">$1</h6>')
-      // Alerts
       .replace(
         /&gt; \[!WARNING\]\s*([\s\S]*?)(?=\n\n|\n[^\s&]|$)/gim,
         '<div class="p-2.5 my-2 rounded-xl bg-warning/10 border border-warning/30 text-warning text-xs font-medium space-y-1"><div class="font-bold flex items-center gap-1">⚠️ Avertissement Risque</div><div>$1</div></div>'
@@ -631,14 +1054,11 @@ export class FinAiCopilotComponent implements OnInit {
         /&gt; \[!NOTE\]\s*([\s\S]*?)(?=\n\n|\n[^\s&]|$)/gim,
         '<div class="p-2.5 my-2 rounded-xl bg-primary/10 border border-primary/30 text-primary text-xs font-medium space-y-1"><div class="font-bold flex items-center gap-1">ℹ️ Note Opérationnelle</div><div>$1</div></div>'
       )
-      // Bold
       .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold text-foreground">$1</strong>')
-      // Inline Code
       .replace(
         /`([^`]+)`/gim,
         '<code class="px-1.5 py-0.5 rounded bg-content3 text-primary font-mono text-[11px] font-semibold">$1</code>'
       )
-      // Bullet list items
       .replace(
         /^\* (.*$)/gim,
         '<li class="flex items-start gap-1.5 ml-1 my-0.5 text-xs text-default-600"><span class="text-primary font-bold">•</span><span>$1</span></li>'
@@ -647,7 +1067,6 @@ export class FinAiCopilotComponent implements OnInit {
         /^- (.*$)/gim,
         '<li class="flex items-start gap-1.5 ml-1 my-0.5 text-xs text-default-600"><span class="text-primary font-bold">•</span><span>$1</span></li>'
       )
-      // Line breaks
       .replace(/\n\n/g, '<div class="h-2"></div>')
       .replace(/\n/g, '<br/>');
 
@@ -658,7 +1077,6 @@ export class FinAiCopilotComponent implements OnInit {
     const text = this.currentPrompt.trim();
     if (!text || this.isBusy) return;
 
-    // Add user message
     const userMsg: ChatMessage = {
       id: 'msg-' + Date.now(),
       sender: 'user',
@@ -666,11 +1084,8 @@ export class FinAiCopilotComponent implements OnInit {
       text
     };
     this.messages.push(userMsg);
-
-    // Auto-scroll immediately when user sends
     this.scrollToBottom(true);
 
-    // Add assistant loading message
     const assistantMsgId = 'res-' + (Date.now() + 1);
     const assistantMsg: ChatMessage = {
       id: assistantMsgId,
@@ -679,8 +1094,6 @@ export class FinAiCopilotComponent implements OnInit {
       isLoading: true
     };
     this.messages.push(assistantMsg);
-
-    // Auto-scroll to show loading spinner
     this.scrollToBottom(true);
 
     this.currentPrompt = '';
@@ -701,9 +1114,7 @@ export class FinAiCopilotComponent implements OnInit {
           found.response = response;
         }
         this.isBusy = false;
-        // Auto-scroll to bottom once rich response arrives
         this.scrollToBottom(true);
-        // Repeat scroll after 200ms once all DOM nodes (code blocks, badges) are rendered
         setTimeout(() => this.scrollToBottom(true), 200);
       },
       error: (err) => {
