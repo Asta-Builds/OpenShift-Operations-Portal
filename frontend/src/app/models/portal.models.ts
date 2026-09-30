@@ -651,3 +651,45 @@ export interface TopologyGraph {
   links: GraphLink[];
   summary: GraphSummary;
 }
+
+export interface FinAiPromptRequest {
+  prompt: string;
+  pageContext?: string;
+  selectedClusterId?: string;
+  selectedNamespace?: string;
+}
+
+export interface FinAiMetricItem {
+  label: string;
+  value: string;
+  type: 'SAVINGS' | 'CORES' | 'WARNING' | 'SUCCESS' | 'INFO';
+}
+
+export interface FinAiCliSnippet {
+  title: string;
+  command: string;
+  description: string;
+  targetNamespace?: string;
+}
+
+export interface FinAiResponse {
+  query: string;
+  headline: string;
+  analysisMarkdown: string;
+  metrics: FinAiMetricItem[];
+  cliCommands: FinAiCliSnippet[];
+  suggestedFollowUps: string[];
+  executionPlan: string[];
+  confidenceScore: number;
+  timestamp: string;
+}
+
+export interface FinAiQuickPrompt {
+  id: string;
+  category: string;
+  icon: string;
+  title: string;
+  prompt: string;
+  badge: string;
+}
+

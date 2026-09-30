@@ -48,6 +48,22 @@
         <ng-template #noHubs><span class="text-default-600">No ACM Hubs</span></ng-template>
       </a>
 
+      <!-- FinAI Copilot Button -->
+      <button
+        type="button"
+        (click)="toggleFinAi()"
+        title="Ouvrir FinAI Copilot - Assistant IA OpenShift"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-primary/15 via-purple-500/15 to-secondary/15 hover:from-primary/25 hover:via-purple-500/25 hover:to-secondary/25 border border-primary/30 text-xs font-semibold text-foreground transition-all duration-200 cursor-pointer shadow-sm hover:shadow-glow-primary group"
+      >
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+        </span>
+        <app-icon name="sparkles" [size]="15" className="text-primary group-hover:rotate-12 transition-transform"></app-icon>
+        <span class="hidden sm:inline">FinAI Copilot</span>
+        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-primary/20 text-primary border border-primary/30">AI</span>
+      </button>
+
       <!-- Theme Switcher Button (Dark / Light) -->
       <button
         type="button"
@@ -192,6 +208,20 @@
                   SIMULATE
                 </span>
               </a>
+
+              <button 
+                type="button"
+                (click)="openFinAi()"
+                class="w-full group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-primary hover:text-primary-foreground hover:bg-primary transition-all cursor-pointer border border-primary/20 bg-primary/5"
+              >
+                <div class="flex items-center gap-2.5">
+                  <app-icon name="sparkles" [size]="16" className="text-primary group-hover:text-primary-foreground transition-colors"></app-icon>
+                  <span>FinAI Copilot</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider bg-primary/20 text-primary group-hover:bg-white/20 group-hover:text-white border border-primary/30">
+                  AI ASSIST
+                </span>
+              </button>
             </div>
           </div>
 
@@ -370,8 +400,15 @@
 
       <div class="p-2 max-h-80 overflow-y-auto space-y-1">
         <div class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-default-400">
-          Navigation
+          Navigation & AI
         </div>
+        <button (click)="closeSearch(); openFinAi()" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
+          <span class="flex items-center gap-2.5">
+            <app-icon name="sparkles" [size]="15" className="text-primary"></app-icon>
+            FinAI Copilot - OpenShift AI Assistant
+          </span>
+          <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary/20 text-primary">AI COPILOT</span>
+        </button>
         <button (click)="executeQuickSearch('/overview')" class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-content2 text-left">
           <span class="flex items-center gap-2.5">
             <app-icon name="dashboard" [size]="15" className="text-primary"></app-icon>
@@ -417,5 +454,11 @@
       </div>
     </div>
   </div>
+
+  <!-- FinAI Copilot Slide-over Drawer -->
+  <app-finai-copilot
+    [isOpen]="isFinAiOpen"
+    (closeDrawer)="closeFinAi()"
+  ></app-finai-copilot>
 
 </div>

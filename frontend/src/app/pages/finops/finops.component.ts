@@ -26,11 +26,12 @@ function daysAgo(days: number): string {
 }
 
 import { RouterLink } from '@angular/router';
+import { FinAiCopilotComponent } from './finai-copilot.component';
 
 @Component({
   selector: 'app-finops',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, FinAiCopilotComponent],
   template: `
     <div class="space-y-6">
       
@@ -49,6 +50,17 @@ import { RouterLink } from '@angular/router';
         </div>
 
         <div class="flex items-center gap-2">
+          <!-- FinAI Copilot Direct Trigger -->
+          <button
+            type="button"
+            (click)="openFinAiModal()"
+            class="heroui-btn bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary text-xs font-semibold px-3.5 py-2 flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow-glow-primary"
+            title="Consulter FinAI Copilot pour l'analyse IA de la flotte"
+          >
+            <app-icon name="sparkles" [size]="15"></app-icon>
+            <span>FinAI Copilot</span>
+          </button>
+
           <!-- Launch What-If Simulator Button -->
           <a
             routerLink="/what-if"
@@ -374,13 +386,25 @@ import { RouterLink } from '@angular/router';
 
                 <!-- Action Button -->
                 <td class="py-3 px-3 text-center">
-                  <button
-                    type="button"
-                    (click)="selectedRecommendation = item"
-                    class="heroui-btn bg-content2 hover:bg-content3 border border-divider text-xs font-semibold px-2.5 py-1 text-primary cursor-pointer"
-                  >
-                    Inspect Quota
-                  </button>
+                  <div class="flex items-center justify-center gap-1.5">
+                    <button
+                      type="button"
+                      (click)="selectedRecommendation = item"
+                      class="heroui-btn bg-content2 hover:bg-content3 border border-divider text-xs font-semibold px-2.5 py-1 text-foreground cursor-pointer"
+                      title="Inspect Suggested Kubernetes Quota Patch"
+                    >
+                      Quota
+                    </button>
+                    <button
+                      type="button"
+                      (click)="diagnoseWithFinAi(item)"
+                      class="heroui-btn bg-primary/10 hover:bg-primary/20 border border-primary/30 text-xs font-semibold px-2 py-1 text-primary cursor-pointer flex items-center gap-1"
+                      title="Diagnostiquer ce namespace avec FinAI Copilot"
+                    >
+                      <app-icon name="sparkles" [size]="12"></app-icon>
+                      <span>FinAI</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -531,6 +555,15 @@ import { RouterLink } from '@angular/router';
         </div>
       </div>
 
+      <!-- FinAI Copilot Slide-over Drawer -->
+      <app-finai-copilot
+        [isOpen]="isFinAiOpen"
+        [contextClusterId]="finAiCluster"
+        [contextNamespace]="finAiNamespace"
+        [initialPrompt]="finAiPrompt"
+        (closeDrawer)="isFinAiOpen = false"
+      ></app-finai-copilot>
+
     </div>
   `
 })
@@ -555,6 +588,12 @@ export class FinOpsComponent implements OnInit {
   pricingForm: FinOpsPricingConfig | null = null;
   error: string | null = null;
   copied = false;
+
+  // FinAI Copilot State
+  isFinAiOpen = false;
+  finAiCluster?: string;
+  finAiNamespace?: string;
+  finAiPrompt?: string;
 
   ngOnInit(): void {
     this.load();
@@ -633,5 +672,19 @@ export class FinOpsComponent implements OnInit {
       this.copied = true;
       setTimeout(() => (this.copied = false), 2000);
     });
+  }
+
+  openFinAiModal(): void {
+    this.finAiCluster = undefined;
+    this.finAiNamespace = undefined;
+    this.finAiPrompt = undefined;
+    this.isFinAiOpen = true;
+  }
+
+  diagnoseWithFinAi(item: FinOpsNamespaceRecommendation): void {
+    this.finAiCluster = item.clusterId;
+    this.finAiNamespace = item.namespaceName || item.namespaceId;
+    this.finAiPrompt = `Quel est le plan de rightsizing recommandé pour le namespace ${item.namespaceName || item.namespaceId} sur le cluster ${item.clusterId} (potentiel d'économies de $${item.monthlyPotentialSavings.toFixed(2)}/mois) ?`;
+    this.isFinAiOpen = true;
   }
 }

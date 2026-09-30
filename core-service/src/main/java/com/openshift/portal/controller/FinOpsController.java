@@ -26,6 +26,7 @@ public class FinOpsController {
 
     private final FinOpsService finOpsService;
     private final WhatIfSimulatorService whatIfSimulatorService;
+    private final com.openshift.portal.service.FinAiCopilotService finAiCopilotService;
 
     @GetMapping("/overview")
     @Operation(summary = "Get FinOps overview, total spend, waste, savings, and team breakdown")
@@ -84,5 +85,17 @@ public class FinOpsController {
     @Operation(summary = "Get predefined enterprise what-if simulation scenarios")
     public ResponseEntity<List<WhatIfPresetDto>> getPresets() {
         return ResponseEntity.ok(whatIfSimulatorService.getPresets());
+    }
+
+    @PostMapping("/ai/query")
+    @Operation(summary = "Query FinAI Copilot for diagnosis, oc CLI snippets, and strategic optimization roadmap")
+    public ResponseEntity<FinAiResponseDto> queryFinAi(@RequestBody FinAiPromptRequestDto request) {
+        return ResponseEntity.ok(finAiCopilotService.ask(request));
+    }
+
+    @GetMapping("/ai/quick-prompts")
+    @Operation(summary = "Get contextual starter prompt chips for FinAI Copilot")
+    public ResponseEntity<List<FinAiQuickPromptDto>> getAiQuickPrompts() {
+        return ResponseEntity.ok(finAiCopilotService.getQuickPrompts());
     }
 }

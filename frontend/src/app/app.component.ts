@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, of, switchMap, timer } from 'rxjs';
 import { IconComponent } from './shared/icon.component';
+import { FinAiCopilotComponent } from './pages/finops/finai-copilot.component';
 import { PortalService } from './services/portal.service';
 import { AuthService } from './services/auth.service';
 import { AcmHubSummary, CurrentUser, FleetOverview, LicenseAudit } from './models/portal.models';
@@ -14,7 +15,7 @@ const HUB_STATUS_REFRESH_MS = 30_000;
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, FormsModule, IconComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, FormsModule, IconComponent, FinAiCopilotComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
@@ -33,6 +34,7 @@ export class AppComponent implements OnInit {
   isDark = true;
   searchQuery = '';
   isSearchOpen = false;
+  isFinAiOpen = false;
 
   get activeHubCount(): number {
     return this.hubs.filter((hub) => hub.status === 'ACTIVE').length;
@@ -125,5 +127,17 @@ export class AppComponent implements OnInit {
   executeQuickSearch(route: string): void {
     this.closeSearch();
     this.router.navigate([route]);
+  }
+
+  toggleFinAi(): void {
+    this.isFinAiOpen = !this.isFinAiOpen;
+  }
+
+  openFinAi(): void {
+    this.isFinAiOpen = true;
+  }
+
+  closeFinAi(): void {
+    this.isFinAiOpen = false;
   }
 }

@@ -31,6 +31,9 @@ import {
   WhatIfPreset,
   WhatIfSimulationRequest,
   WhatIfSimulationResult,
+  FinAiPromptRequest,
+  FinAiResponse,
+  FinAiQuickPrompt,
   TopologyGraph
 } from '../models/portal.models';
 
@@ -186,6 +189,14 @@ export class PortalService {
 
   simulateWhatIf(request: WhatIfSimulationRequest): Observable<WhatIfSimulationResult> {
     return this.http.post<WhatIfSimulationResult>(`${this.baseUrl}/finops/simulator/simulate`, request);
+  }
+
+  askFinAi(request: FinAiPromptRequest): Observable<FinAiResponse> {
+    return this.http.post<FinAiResponse>(`${this.baseUrl}/finops/ai/query`, request);
+  }
+
+  getFinAiQuickPrompts(): Observable<FinAiQuickPrompt[]> {
+    return this.http.get<FinAiQuickPrompt[]>(`${this.baseUrl}/finops/ai/quick-prompts`);
   }
 
   getTeams(): Observable<Team[]> {
