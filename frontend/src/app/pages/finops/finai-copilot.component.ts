@@ -1,6 +1,17 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  ViewChild,
+  inject
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 import { PortalService } from '../../services/portal.service';
 import {
   FinAiCliSnippet,
@@ -19,6 +30,7 @@ export interface ChatMessage {
   response?: FinAiResponse;
   isLoading?: boolean;
   error?: string;
+  feedback?: 'like' | 'dislike';
 }
 
 @Component({
@@ -56,7 +68,19 @@ export interface ChatMessage {
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5">
+          <!-- Export Chat to Markdown -->
+          <button
+            type="button"
+            *ngIf="messages.length > 0"
+            (click)="exportChatMarkdown()"
+            title="Exporter la conversation en rapport Markdown"
+            class="p-2 rounded-xl text-default-400 hover:text-foreground hover:bg-content2 transition-colors cursor-pointer flex items-center gap-1 text-xs"
+          >
+            <app-icon name="download" [size]="15"></app-icon>
+            <span class="hidden sm:inline text-[11px] font-medium">Export</span>
+          </button>
+
           <!-- Reset Chat -->
           <button
             type="button"
@@ -101,7 +125,7 @@ export interface ChatMessage {
       </div>
 
       <!-- Messages / Interaction Area -->
-      <div class="flex-1 overflow-y-auto p-6 space-y-6" #scrollContainer>
+      <div class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth" #scrollContainer (scroll)="onScroll()">
         
         <!-- Welcome banner if no messages -->
         <div *ngIf="messages.length === 0" class="space-y-6 my-auto pt-4">
@@ -146,7 +170,7 @@ export interface ChatMessage {
         </div>
 
         <!-- Chat History -->
-        <div *ngFor="let msg of messages" class="space-y-3">
+        <div *ngFor="let msg of messages; let idx = index" class="space-y-3">
           
           <!-- USER MESSAGE -->
           <div *ngIf="msg.sender === 'user'" class="flex justify-end items-start gap-2.5">
@@ -166,14 +190,17 @@ export interface ChatMessage {
 
             <div class="flex-1 space-y-3 max-w-[90%]">
               
-              <!-- Loading Skeleton -->
-              <div *ngIf="msg.isLoading" class="p-4 rounded-2xl bg-content2 border border-divider space-y-2.5 animate-pulse">
+              <!-- Loading Skeleton / Animation -->
+              <div *ngIf="msg.isLoading" class="p-4 rounded-2xl bg-content2 border border-divider space-y-3 animate-pulse">
                 <div class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full bg-primary animate-ping"></div>
-                  <span class="text-xs font-semibold text-foreground">FinAI analyse la flotte OpenShift...</span>
+                  <div class="w-2.5 h-2.5 rounded-full bg-primary animate-ping"></div>
+                  <span class="text-xs font-semibold text-foreground">FinAI analyse la télémétrie des clusters OpenShift...</span>
                 </div>
-                <div class="h-2.5 bg-content3 rounded w-3/4"></div>
-                <div class="h-2.5 bg-content3 rounded w-1/2"></div>
+                <div class="space-y-1.5">
+                  <div class="h-2.5 bg-content3 rounded w-5/6"></div>
+                  <div class="h-2.5 bg-content3 rounded w-3/4"></div>
+                  <div class="h-2.5 bg-content3 rounded w-1/2"></div>
+                </div>
               </div>
 
               <!-- Error Box -->
@@ -216,15 +243,16 @@ export interface ChatMessage {
                   </div>
                 </div>
 
-                <!-- Detailed Analysis (Markdown-like formatting) -->
+                <!-- Detailed Analysis (Rich Markdown formatted) -->
                 <div *ngIf="res.analysisMarkdown" class="space-y-1.5 pt-2 border-t border-divider">
                   <h4 class="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <app-icon name="activity" [size]="13" className="text-secondary"></app-icon>
                     Analyse Détaillée & Justification
                   </h4>
-                  <div class="text-xs text-default-600 leading-relaxed whitespace-pre-wrap rounded-xl bg-content1/70 p-3 border border-divider">
-                    {{ res.analysisMarkdown }}
-                  </div>
+                  <div
+                    class="text-xs text-default-600 leading-relaxed rounded-xl bg-content1/70 p-3.5 border border-divider prose-sm"
+                    [innerHTML]="formatMarkdown(res.analysisMarkdown)"
+                  ></div>
                 </div>
 
                 <!-- Actionable Execution Steps -->
@@ -243,7 +271,7 @@ export interface ChatMessage {
                   </ol>
                 </div>
 
-                <!-- OpenShift CLI Snippets with 1-click Copy -->
+                <!-- OpenShift CLI Snippets with 1-click Copy & Simulator Link -->
                 <div *ngIf="res.cliCommands && res.cliCommands.length > 0" class="space-y-2.5 pt-2 border-t border-divider">
                   <div class="flex items-center justify-between">
                     <h4 class="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -284,9 +312,18 @@ export interface ChatMessage {
                       {{ snippet.command }}
                     </div>
 
-                    <!-- Snippet Note -->
-                    <div *ngIf="snippet.description" class="px-3 py-1.5 bg-[#161b22]/50 border-t border-[#30363d] text-[10px] text-[#8b949e]">
-                      {{ snippet.description }}
+                    <!-- Snippet Note & Action Footer -->
+                    <div class="px-3 py-2 bg-[#161b22]/70 border-t border-[#30363d] flex items-center justify-between text-[10px]">
+                      <span class="text-[#8b949e]">{{ snippet.description }}</span>
+                      <button
+                        type="button"
+                        (click)="launchWhatIfSimulator(snippet.targetNamespace)"
+                        class="text-primary hover:text-primary-foreground px-2 py-0.5 rounded bg-primary/10 hover:bg-primary transition-all font-semibold flex items-center gap-1 cursor-pointer"
+                        title="Tester le dimensionnement dans le simulateur What-If"
+                      >
+                        <app-icon name="sliders" [size]="11"></app-icon>
+                        <span>Simuler dans What-If</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -299,11 +336,47 @@ export interface ChatMessage {
                       *ngFor="let q of res.suggestedFollowUps"
                       type="button"
                       (click)="applyQuickPrompt(q)"
-                      class="px-2.5 py-1 rounded-full text-[11px] bg-content1 hover:bg-content3 border border-divider text-default-600 hover:text-foreground transition-all cursor-pointer text-left"
+                      class="px-2.5 py-1 rounded-full text-[11px] bg-content1 hover:bg-content3 border border-divider text-default-600 hover:text-foreground transition-all cursor-pointer text-left flex items-center gap-1"
                     >
-                      💬 {{ q }}
+                      <span class="text-primary">💬</span>
+                      <span>{{ q }}</span>
                     </button>
                   </div>
+                </div>
+
+                <!-- Footer Feedback & Copy All Report -->
+                <div class="pt-2 border-t border-divider flex items-center justify-between text-[10px] text-default-400">
+                  <div class="flex items-center gap-2">
+                    <span>Ce diagnostic vous a-t-il aidé ?</span>
+                    <button
+                      type="button"
+                      (click)="setFeedback(msg, 'like')"
+                      [class.text-success]="msg.feedback === 'like'"
+                      class="p-1 rounded hover:bg-content3 transition-colors cursor-pointer"
+                      title="Utile"
+                    >
+                      👍
+                    </button>
+                    <button
+                      type="button"
+                      (click)="setFeedback(msg, 'dislike')"
+                      [class.text-danger]="msg.feedback === 'dislike'"
+                      class="p-1 rounded hover:bg-content3 transition-colors cursor-pointer"
+                      title="À améliorer"
+                    >
+                      👎
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    (click)="copyFullReport(res)"
+                    class="text-default-400 hover:text-foreground flex items-center gap-1 cursor-pointer font-medium"
+                    title="Copier toute la synthèse au format Markdown"
+                  >
+                    <app-icon name="copy" [size]="11"></app-icon>
+                    <span>{{ copiedReportId === res.headline ? 'Rapport copié !' : 'Copier la synthèse' }}</span>
+                  </button>
                 </div>
 
               </div>
@@ -315,6 +388,18 @@ export interface ChatMessage {
 
       </div>
 
+      <!-- Scroll to bottom button if user scrolled up -->
+      <div *ngIf="showScrollDownButton" class="relative">
+        <button
+          type="button"
+          (click)="scrollToBottom(true)"
+          class="absolute -top-12 right-6 px-3 py-1.5 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center gap-1.5 text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer animate-bounce"
+        >
+          <app-icon name="chevron-down" [size]="14"></app-icon>
+          <span>Derniers messages</span>
+        </button>
+      </div>
+
       <!-- Drawer Footer / Input Box -->
       <div class="p-4 border-t border-divider bg-content1/80 backdrop-blur-md sticky bottom-0">
         <form (ngSubmit)="sendQuery()" class="flex items-center gap-2">
@@ -323,6 +408,7 @@ export interface ChatMessage {
               type="text"
               [(ngModel)]="currentPrompt"
               name="currentPrompt"
+              (keydown.enter)="onEnterPressed($event)"
               placeholder="Posez une question sur le sizing, les licences, les quotas..."
               [disabled]="isBusy"
               class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-content2 border border-divider text-xs text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors"
@@ -352,6 +438,10 @@ export interface ChatMessage {
 })
 export class FinAiCopilotComponent implements OnInit {
   private portalService = inject(PortalService);
+  private sanitizer = inject(DomSanitizer);
+  private router = inject(Router);
+
+  @ViewChild('scrollContainer') private scrollContainer?: ElementRef<HTMLDivElement>;
 
   @Input() isOpen = false;
   @Input() contextClusterId?: string;
@@ -365,6 +455,8 @@ export class FinAiCopilotComponent implements OnInit {
   currentPrompt = '';
   isBusy = false;
   copiedCommand: string | null = null;
+  copiedReportId: string | null = null;
+  showScrollDownButton = false;
 
   ngOnInit(): void {
     this.loadQuickPrompts();
@@ -403,6 +495,35 @@ export class FinAiCopilotComponent implements OnInit {
     this.sendQuery();
   }
 
+  onEnterPressed(e: Event): void {
+    // Regular enter triggers form submission
+    this.sendQuery();
+  }
+
+  /**
+   * Automatically scroll the chat container to the bottom smoothly
+   */
+  scrollToBottom(smooth: boolean = true): void {
+    setTimeout(() => {
+      if (this.scrollContainer?.nativeElement) {
+        const el = this.scrollContainer.nativeElement;
+        el.scrollTo({
+          top: el.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+        this.showScrollDownButton = false;
+      }
+    }, 60);
+  }
+
+  onScroll(): void {
+    if (!this.scrollContainer?.nativeElement) return;
+    const el = this.scrollContainer.nativeElement;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // Show button if user has scrolled up by more than 150px
+    this.showScrollDownButton = distanceFromBottom > 150;
+  }
+
   copySnippet(cmd: string): void {
     navigator.clipboard.writeText(cmd).then(() => {
       this.copiedCommand = cmd;
@@ -412,6 +533,125 @@ export class FinAiCopilotComponent implements OnInit {
         }
       }, 2500);
     });
+  }
+
+  copyFullReport(res: FinAiResponse): void {
+    let text = `# ${res.headline}\n\n${res.analysisMarkdown}\n\n`;
+    if (res.metrics?.length) {
+      text += `### Métriques Clés :\n`;
+      for (const m of res.metrics) text += `- ${m.label} : ${m.value}\n`;
+      text += '\n';
+    }
+    if (res.cliCommands?.length) {
+      text += `### Commandes OpenShift :\n`;
+      for (const c of res.cliCommands) text += `\`\`\`bash\n${c.command}\n\`\`\`\n`;
+      text += '\n';
+    }
+    if (res.executionPlan?.length) {
+      text += `### Plan d'Exécution :\n`;
+      res.executionPlan.forEach((s, i) => (text += `${i + 1}. ${s}\n`));
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      this.copiedReportId = res.headline;
+      setTimeout(() => {
+        if (this.copiedReportId === res.headline) {
+          this.copiedReportId = null;
+        }
+      }, 2500);
+    });
+  }
+
+  setFeedback(msg: ChatMessage, type: 'like' | 'dislike'): void {
+    msg.feedback = type;
+  }
+
+  launchWhatIfSimulator(targetNamespace?: string): void {
+    this.close();
+    this.router.navigate(['/what-if']);
+  }
+
+  exportChatMarkdown(): void {
+    if (this.messages.length === 0) return;
+    let md = `# FinAI Copilot — Journal d'Audit & Diagnostic\nDate : ${new Date().toLocaleString()}\n\n`;
+    for (const msg of this.messages) {
+      if (msg.sender === 'user') {
+        md += `## 👤 Opérateur (${msg.timestamp.toLocaleTimeString()})\n${msg.text}\n\n`;
+      } else if (msg.response) {
+        const res = msg.response;
+        md += `## 🤖 FinAI Copilot : ${res.headline}\n\n`;
+        md += `${res.analysisMarkdown}\n\n`;
+        if (res.metrics?.length) {
+          md += `### Métriques Clés :\n`;
+          for (const m of res.metrics) md += `- **${m.label}** : ${m.value}\n`;
+          md += `\n`;
+        }
+        if (res.cliCommands?.length) {
+          md += `### Commandes OpenShift CLI :\n`;
+          for (const c of res.cliCommands) {
+            md += `#### ${c.title}\n\`\`\`bash\n${c.command}\n\`\`\`\n_${c.description}_\n\n`;
+          }
+        }
+        if (res.executionPlan?.length) {
+          md += `### Plan d'Exécution Recommandé :\n`;
+          res.executionPlan.forEach((step, idx) => {
+            md += `${idx + 1}. ${step}\n`;
+          });
+          md += `\n`;
+        }
+      }
+    }
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finai-copilot-report-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  formatMarkdown(raw: string): SafeHtml {
+    if (!raw) return '';
+    let html = raw
+      // Escape HTML special characters
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // Headers
+      .replace(
+        /^### (.*$)/gim,
+        '<h5 class="text-xs font-bold text-foreground mt-3 mb-1.5 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>$1</h5>'
+      )
+      .replace(/^#### (.*$)/gim, '<h6 class="text-[11px] font-bold text-foreground mt-2 mb-1">$1</h6>')
+      // Alerts
+      .replace(
+        /&gt; \[!WARNING\]\s*([\s\S]*?)(?=\n\n|\n[^\s&]|$)/gim,
+        '<div class="p-2.5 my-2 rounded-xl bg-warning/10 border border-warning/30 text-warning text-xs font-medium space-y-1"><div class="font-bold flex items-center gap-1">⚠️ Avertissement Risque</div><div>$1</div></div>'
+      )
+      .replace(
+        /&gt; \[!NOTE\]\s*([\s\S]*?)(?=\n\n|\n[^\s&]|$)/gim,
+        '<div class="p-2.5 my-2 rounded-xl bg-primary/10 border border-primary/30 text-primary text-xs font-medium space-y-1"><div class="font-bold flex items-center gap-1">ℹ️ Note Opérationnelle</div><div>$1</div></div>'
+      )
+      // Bold
+      .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold text-foreground">$1</strong>')
+      // Inline Code
+      .replace(
+        /`([^`]+)`/gim,
+        '<code class="px-1.5 py-0.5 rounded bg-content3 text-primary font-mono text-[11px] font-semibold">$1</code>'
+      )
+      // Bullet list items
+      .replace(
+        /^\* (.*$)/gim,
+        '<li class="flex items-start gap-1.5 ml-1 my-0.5 text-xs text-default-600"><span class="text-primary font-bold">•</span><span>$1</span></li>'
+      )
+      .replace(
+        /^- (.*$)/gim,
+        '<li class="flex items-start gap-1.5 ml-1 my-0.5 text-xs text-default-600"><span class="text-primary font-bold">•</span><span>$1</span></li>'
+      )
+      // Line breaks
+      .replace(/\n\n/g, '<div class="h-2"></div>')
+      .replace(/\n/g, '<br/>');
+
+    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   sendQuery(): void {
@@ -427,6 +667,9 @@ export class FinAiCopilotComponent implements OnInit {
     };
     this.messages.push(userMsg);
 
+    // Auto-scroll immediately when user sends
+    this.scrollToBottom(true);
+
     // Add assistant loading message
     const assistantMsgId = 'res-' + (Date.now() + 1);
     const assistantMsg: ChatMessage = {
@@ -436,6 +679,9 @@ export class FinAiCopilotComponent implements OnInit {
       isLoading: true
     };
     this.messages.push(assistantMsg);
+
+    // Auto-scroll to show loading spinner
+    this.scrollToBottom(true);
 
     this.currentPrompt = '';
     this.isBusy = true;
@@ -455,6 +701,10 @@ export class FinAiCopilotComponent implements OnInit {
           found.response = response;
         }
         this.isBusy = false;
+        // Auto-scroll to bottom once rich response arrives
+        this.scrollToBottom(true);
+        // Repeat scroll after 200ms once all DOM nodes (code blocks, badges) are rendered
+        setTimeout(() => this.scrollToBottom(true), 200);
       },
       error: (err) => {
         const found = this.messages.find((m) => m.id === assistantMsgId);
@@ -463,6 +713,7 @@ export class FinAiCopilotComponent implements OnInit {
           found.error = err.error?.message || err.message || 'Impossible de joindre le service FinAI.';
         }
         this.isBusy = false;
+        this.scrollToBottom(true);
       }
     });
   }
