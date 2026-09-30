@@ -690,6 +690,18 @@ export interface FinAiChart {
   points: FinAiChartDataPoint[];
 }
 
+export interface FinAiYamlDiff {
+  resourceKind: string;
+  resourceName: string;
+  targetNamespace: string;
+  beforeYaml: string;
+  afterYaml: string;
+  cpuDelta: string;
+  memoryDelta: string;
+  costDelta: string;
+  safetyMargin: string;
+}
+
 export interface FinAiResponse {
   query: string;
   headline: string;
@@ -701,6 +713,7 @@ export interface FinAiResponse {
   confidenceScore: number;
   timestamp: string;
   charts?: FinAiChart[];
+  yamlDiff?: FinAiYamlDiff;
 }
 
 export interface FinAiQuickPrompt {

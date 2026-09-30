@@ -208,6 +208,7 @@ public class FinAiCopilotService {
                         "3. Observer pendant 24h : aucun pod ne doit être throttlé grâce à la marge de sécurité."
                 ))
                 .charts(List.of(buildQuotaComparisonBarChart(target)))
+                .yamlDiff(buildYamlDiff(target))
                 .confidenceScore(0.98)
                 .timestamp(Instant.now())
                 .build();
@@ -335,6 +336,7 @@ public class FinAiCopilotService {
                         "J+14 : Valider la réduction sur le tableau de bord FinOps."
                 ))
                 .charts(List.of(buildRoadmapBarChart(top3Savings, BigDecimal.valueOf(4200), BigDecimal.valueOf(5500)), buildTopWasteBarChart(recs)))
+                .yamlDiff(buildYamlDiff(!top3.isEmpty() ? top3.get(0) : null))
                 .confidenceScore(0.96)
                 .timestamp(Instant.now())
                 .build();
@@ -436,6 +438,7 @@ public class FinAiCopilotService {
                         "3. Suivre l'amélioration de l'efficience qui passera au-dessus de 75%."
                 ))
                 .charts(List.of(buildFleetCpuDonutChart(overview), buildTopWasteBarChart(recs)))
+                .yamlDiff(buildYamlDiff(!recs.isEmpty() ? recs.get(0) : null))
                 .confidenceScore(0.97)
                 .timestamp(Instant.now())
                 .build();
@@ -794,6 +797,65 @@ public class FinAiCopilotService {
                 .totalValue("-$8,400 / mois")
                 .unit("$/mois")
                 .points(points)
+                .build();
+    }
+
+    private FinAiYamlDiffDto buildYamlDiff(FinOpsNamespaceRecommendationDto target) {
+        String ns = target != null ? target.getNamespaceName() : "spark-batch-analytics";
+        double beforeCpu = target != null && target.getAvgCpuRequestCores() != null ? target.getAvgCpuRequestCores().doubleValue() : 63.3;
+        double afterCpu = target != null && target.getRecommendedCpuRequestCores() != null ? target.getRecommendedCpuRequestCores().doubleValue() : 6.8;
+        double beforeMem = target != null && target.getAvgMemoryRequestGb() != null ? target.getAvgMemoryRequestGb().doubleValue() : 180.0;
+        double afterMem = target != null && target.getRecommendedMemoryRequestGb() != null ? target.getRecommendedMemoryRequestGb().doubleValue() : 28.0;
+        double savings = target != null && target.getMonthlyPotentialSavings() != null ? target.getMonthlyPotentialSavings().doubleValue() : 2288.16;
+
+        double cpuDiff = afterCpu - beforeCpu;
+        double memDiff = afterMem - beforeMem;
+        double cpuPct = beforeCpu > 0 ? (cpuDiff / beforeCpu) * 100.0 : 0.0;
+        double memPct = beforeMem > 0 ? (memDiff / beforeMem) * 100.0 : 0.0;
+
+        String before = String.format(
+                "apiVersion: v1\n" +
+                "kind: ResourceQuota\n" +
+                "metadata:\n" +
+                "  name: compute-resources\n" +
+                "  namespace: %s\n" +
+                "spec:\n" +
+                "  hard:\n" +
+                "    requests.cpu: \"%.1fc\"\n" +
+                "    requests.memory: \"%.0fGi\"\n" +
+                "    limits.cpu: \"%.0fc\"\n" +
+                "    limits.memory: \"%.0fGi\"",
+                ns, beforeCpu, beforeMem, beforeCpu * 1.8, beforeMem * 2.0
+        );
+
+        String after = String.format(
+                "apiVersion: v1\n" +
+                "kind: ResourceQuota\n" +
+                "metadata:\n" +
+                "  name: compute-resources\n" +
+                "  namespace: %s\n" +
+                "  annotations:\n" +
+                "    finops.openshift.io/optimized-by: \"FinAI-Copilot\"\n" +
+                "    finops.openshift.io/monthly-savings: \"$%.2f\"\n" +
+                "spec:\n" +
+                "  hard:\n" +
+                "    requests.cpu: \"%.1fc\"\n" +
+                "    requests.memory: \"%.0fGi\"\n" +
+                "    limits.cpu: \"%.0fc\"\n" +
+                "    limits.memory: \"%.0fGi\"",
+                ns, savings, afterCpu, afterMem, Math.max(afterCpu * 2.0, 16.0), Math.max(afterMem * 2.0, 32.0)
+        );
+
+        return FinAiYamlDiffDto.builder()
+                .resourceKind("ResourceQuota")
+                .resourceName("compute-resources")
+                .targetNamespace(ns)
+                .beforeYaml(before)
+                .afterYaml(after)
+                .cpuDelta(String.format("%.1fc (%.0f%%)", cpuDiff, cpuPct))
+                .memoryDelta(String.format("%.0fGi (%.0f%%)", memDiff, memPct))
+                .costDelta(String.format("+$%.2f / mois", savings))
+                .safetyMargin("+20% Buffer P99 inclus")
                 .build();
     }
 }

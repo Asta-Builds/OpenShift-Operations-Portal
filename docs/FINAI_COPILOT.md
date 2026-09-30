@@ -122,6 +122,21 @@ FinAI Copilot génère directement au sein des réponses de conversation des gra
 - **Courbes & Jalons de Tendance (Trend Charts)** : Trajectoire d'économies par étape ou projection des dépenses mensuelles avant/après consolidation de clusters.
 - **Pill de filtrage dédié** : Bouton **`Graphiques`** dans la barre supérieure pour isoler instantanément toutes les vues graphiques.
 
+### 4.8. Diff YAML Interactif Avant / Après (Split View & Unified Diff)
+Pour offrir une lisibilité maximale aux ingénieurs SRE et aux équipes DevOps, FinAI Copilot intègre un comparateur interactif de manifestes Kubernetes :
+- **Mode Côte à côte (Split View)** : Deux volets parallèles distincts :
+  - **Volet Gauche (Actuel / Surdimensionné)** : Teinte rouge translucide mettant en évidence les surallocations passées (`requests.cpu: 16`, `requests.memory: 32Gi`).
+  - **Volet Droit (Optimisé FinAI Copilot)** : Teinte verte translucide affichant le dimensionnement cible calculé au P99 + 20% de marge de sécurité (`requests.cpu: 4500m`, `requests.memory: 12Gi`).
+- **Mode Unifié (`git diff` syntax highlighting)** : Affichage condensé coloré avec préfixes `+` (vert émeraude) et `-` (rouge vif), identique à l'expérience d'un commit Git ou d'une Pull Request.
+- **Badges d'Impact & Marges de Sécurité** :
+  - `Δ CPU : -11.5 cores (-72%)`
+  - `Δ RAM : -20 GiB (-62.5%)`
+  - `Gain : +1 420,00 $/mois`
+  - `Marge de Sécurité : +20% buffer P99`
+- **Actions 1-Clic** : Bouton de copie directe du YAML optimisé prêt à être appliqué via `oc apply` ou poussé dans un dépôt GitOps.
+- **Pill de filtrage dédié** : Bouton **`Diff YAML`** dans la barre supérieure du chat pour filtrer instantanément toutes les comparaisons de manifests.
+- **Export PDF Intégré** : L'export PDF exécutif intègre directement le tableau comparatif Avant vs Après avec codes couleur officiels.
+
 ---
 
 ## 5. Spécification Détaillée des APIs REST

@@ -12,6 +12,7 @@ import com.openshift.portal.dto.FinAiChartDataPointDto;
 import com.openshift.portal.dto.FinAiCliSnippetDto;
 import com.openshift.portal.dto.FinAiMetricItemDto;
 import com.openshift.portal.dto.FinAiResponseDto;
+import com.openshift.portal.dto.FinAiYamlDiffDto;
 import com.openshift.portal.repository.ClusterSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -205,6 +206,35 @@ public class PdfReportGeneratorService {
                     chartTable.setSpacingAfter(8);
                     document.add(chartTable);
                 }
+            }
+
+            // YAML Manifest Diff Comparison Table
+            if (response.getYamlDiff() != null) {
+                FinAiYamlDiffDto diff = response.getYamlDiff();
+                Font diffHeadFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new Color(30, 41, 59));
+                Paragraph dp = new Paragraph("⚖️ Comparatif Manifeste K8s Avant / Après (" + diff.getTargetNamespace() + " - " + diff.getCostDelta() + ") :", diffHeadFont);
+                dp.setSpacingBefore(6);
+                dp.setSpacingAfter(4);
+                document.add(dp);
+
+                PdfPTable diffTable = new PdfPTable(2);
+                diffTable.setWidthPercentage(100);
+                diffTable.setWidths(new float[]{1.0f, 1.0f});
+                addHeaderCells(diffTable, new String[]{"Manifeste Actuel (Surdimensionné)", "Manifeste Optimisé FinAI (" + diff.getSafetyMargin() + ")"});
+                Font codeFont = FontFactory.getFont(FontFactory.COURIER, 7, Color.BLACK);
+
+                PdfPCell beforeCell = new PdfPCell(new Phrase(diff.getBeforeYaml(), codeFont));
+                beforeCell.setBackgroundColor(new Color(254, 242, 242));
+                beforeCell.setPadding(5);
+                diffTable.addCell(beforeCell);
+
+                PdfPCell afterCell = new PdfPCell(new Phrase(diff.getAfterYaml(), codeFont));
+                afterCell.setBackgroundColor(new Color(240, 253, 244));
+                afterCell.setPadding(5);
+                diffTable.addCell(afterCell);
+
+                diffTable.setSpacingAfter(10);
+                document.add(diffTable);
             }
 
             // CLI Commands Table

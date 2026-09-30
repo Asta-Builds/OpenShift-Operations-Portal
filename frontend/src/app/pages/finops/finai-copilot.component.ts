@@ -25,7 +25,8 @@ import {
   FinAiNotifyResult,
   FinAiPromptRequest,
   FinAiQuickPrompt,
-  FinAiResponse
+  FinAiResponse,
+  FinAiYamlDiff
 } from '../../models/portal.models';
 import { IconComponent } from '../../shared/icon.component';
 
@@ -40,7 +41,7 @@ export interface ChatMessage {
   feedback?: 'like' | 'dislike';
 }
 
-export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS' | 'CHARTS';
+export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS' | 'CHARTS' | 'DIFF';
 
 @Component({
   selector: 'app-finai-copilot',
@@ -186,6 +187,18 @@ export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS' | 'CHARTS';
           >
             <app-icon name="pie-chart" [size]="11"></app-icon>
             <span>Graphiques</span>
+          </button>
+          <button
+            type="button"
+            (click)="filterMode = 'DIFF'"
+            [class.bg-primary]="filterMode === 'DIFF'"
+            [class.text-primary-foreground]="filterMode === 'DIFF'"
+            [class.bg-content3]="filterMode !== 'DIFF'"
+            [class.text-default-600]="filterMode !== 'DIFF'"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+          >
+            <app-icon name="file-text" [size]="11"></app-icon>
+            <span>Diff YAML</span>
           </button>
         </div>
 
@@ -468,6 +481,125 @@ export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS' | 'CHARTS';
                       <span class="flex-1">{{ step }}</span>
                     </li>
                   </ol>
+                </div>
+
+                <!-- Interactive Before vs After YAML Diff Section (Visible in ALL or DIFF mode) -->
+                <div *ngIf="(filterMode === 'ALL' || filterMode === 'DIFF') && res.yamlDiff" class="space-y-3 pt-2 border-t border-divider">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <app-icon name="file-text" [size]="13" className="text-primary"></app-icon>
+                      Diff YAML Interactif Avant / Après
+                    </h4>
+
+                    <!-- Split vs Unified Toggle -->
+                    <div class="flex items-center p-0.5 rounded-lg bg-content3 border border-divider text-[10px]">
+                      <button
+                        type="button"
+                        (click)="setDiffMode(res.headline, 'split')"
+                        [class.bg-primary]="getDiffMode(res.headline) === 'split'"
+                        [class.text-primary-foreground]="getDiffMode(res.headline) === 'split'"
+                        [class.text-default-500]="getDiffMode(res.headline) !== 'split'"
+                        class="px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer"
+                      >
+                        Côte à côte
+                      </button>
+                      <button
+                        type="button"
+                        (click)="setDiffMode(res.headline, 'unified')"
+                        [class.bg-primary]="getDiffMode(res.headline) === 'unified'"
+                        [class.text-primary-foreground]="getDiffMode(res.headline) === 'unified'"
+                        [class.text-default-500]="getDiffMode(res.headline) !== 'unified'"
+                        class="px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer"
+                      >
+                        Unifié
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Impact Summary Badges -->
+                  <div class="p-3 rounded-xl bg-content1 border border-divider space-y-2.5 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-divider/60 text-xs">
+                      <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded-md bg-content3 text-foreground font-mono font-bold text-[11px]">
+                          {{ res.yamlDiff.resourceKind }} : {{ res.yamlDiff.resourceName }}
+                        </span>
+                        <span class="text-[11px] text-default-400 font-mono">ns: {{ res.yamlDiff.targetNamespace }}</span>
+                      </div>
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/15 text-success border border-success/20">
+                          Δ CPU : {{ res.yamlDiff.cpuDelta }}
+                        </span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/15 text-success border border-success/20">
+                          Δ RAM : {{ res.yamlDiff.memoryDelta }}
+                        </span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/20">
+                          Gain : {{ res.yamlDiff.costDelta }}
+                        </span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-content3 text-default-600">
+                          {{ res.yamlDiff.safetyMargin }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Split View (Side by Side) -->
+                    <div *ngIf="getDiffMode(res.headline) === 'split'" class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
+                      <!-- Before / Overprovisioned Pane -->
+                      <div class="rounded-xl border border-danger/30 bg-danger/5 overflow-hidden">
+                        <div class="px-3 py-1.5 bg-danger/15 border-b border-danger/20 flex items-center justify-between text-danger font-semibold text-[11px]">
+                          <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-danger inline-block"></span>
+                            Actuel (Surdimensionné)
+                          </span>
+                          <span class="text-[10px] opacity-80">Avant</span>
+                        </div>
+                        <pre class="p-3 text-[11px] leading-relaxed text-default-700 overflow-x-auto whitespace-pre">{{ res.yamlDiff.beforeYaml }}</pre>
+                      </div>
+
+                      <!-- After / Optimized Pane -->
+                      <div class="rounded-xl border border-success/30 bg-success/5 overflow-hidden">
+                        <div class="px-3 py-1.5 bg-success/15 border-b border-success/20 flex items-center justify-between text-success font-semibold text-[11px]">
+                          <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-success inline-block"></span>
+                            Optimisé FinAI Copilot
+                          </span>
+                          <span class="text-[10px] opacity-80">Après</span>
+                        </div>
+                        <pre class="p-3 text-[11px] leading-relaxed text-default-700 overflow-x-auto whitespace-pre">{{ res.yamlDiff.afterYaml }}</pre>
+                      </div>
+                    </div>
+
+                    <!-- Unified View -->
+                    <div *ngIf="getDiffMode(res.headline) === 'unified'" class="rounded-xl border border-divider bg-[#0d1117] text-[#c9d1d9] font-mono text-[11px] overflow-hidden">
+                      <div class="px-3 py-1.5 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between text-[11px]">
+                        <span class="text-default-400">--- a/{{ res.yamlDiff.resourceName }}.yaml +++ b/{{ res.yamlDiff.resourceName }}.yaml</span>
+                        <span class="text-[10px] text-success font-semibold">Diff Unifié</span>
+                      </div>
+                      <div class="p-3 space-y-0.5 overflow-x-auto max-h-72">
+                        <div
+                          *ngFor="let line of getUnifiedDiffLines(res.yamlDiff)"
+                          [ngClass]="{
+                            'bg-danger/20 text-red-300 font-semibold px-1 rounded-sm': line.type === 'del',
+                            'bg-success/20 text-emerald-300 font-semibold px-1 rounded-sm': line.type === 'add',
+                            'text-[#8b949e] px-1': line.type === 'same'
+                          }"
+                          class="whitespace-pre"
+                        >{{ line.text }}</div>
+                      </div>
+                    </div>
+
+                    <!-- Copy Actions -->
+                    <div class="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        (click)="copySnippet(res.yamlDiff.afterYaml)"
+                        class="px-2.5 py-1 rounded-lg bg-content2 hover:bg-content3 border border-divider text-default-600 hover:text-foreground text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+                      >
+                        <app-icon name="copy" [size]="12"></app-icon>
+                        <span>Copier YAML Optimisé</span>
+                      </button>
+                    </div>
+
+                  </div>
                 </div>
 
                 <!-- OpenShift CLI Snippets with Dry-Run & GitOps bridges (Visible in ALL or CLI mode) -->
@@ -923,6 +1055,9 @@ export class FinAiCopilotComponent implements OnInit {
   notifyTargetNamespace = '';
   notifySuccessResult: FinAiNotifyResult | null = null;
 
+  // Interactive YAML Diff Mode (Split vs Unified)
+  diffViewMode: Record<string, 'split' | 'unified'> = {};
+
   ngOnInit(): void {
     this.loadQuickPrompts();
     if (this.initialPrompt) {
@@ -1301,5 +1436,46 @@ export class FinAiCopilotComponent implements OnInit {
         dashOffset
       };
     });
+  }
+
+  getDiffMode(key: string): 'split' | 'unified' {
+    return this.diffViewMode[key] || 'split';
+  }
+
+  setDiffMode(key: string, mode: 'split' | 'unified'): void {
+    this.diffViewMode[key] = mode;
+  }
+
+  getUnifiedDiffLines(diff: FinAiYamlDiff): { text: string; type: 'add' | 'del' | 'same' }[] {
+    if (!diff || !diff.beforeYaml || !diff.afterYaml) return [];
+    const beforeLines = diff.beforeYaml.split('\n');
+    const afterLines = diff.afterYaml.split('\n');
+    const result: { text: string; type: 'add' | 'del' | 'same' }[] = [];
+
+    let bIdx = 0;
+    let aIdx = 0;
+
+    while (bIdx < beforeLines.length || aIdx < afterLines.length) {
+      const bLine = bIdx < beforeLines.length ? beforeLines[bIdx] : null;
+      const aLine = aIdx < afterLines.length ? afterLines[aIdx] : null;
+
+      if (bLine === aLine && bLine !== null) {
+        result.push({ text: '  ' + bLine, type: 'same' });
+        bIdx++;
+        aIdx++;
+      } else {
+        if (bLine !== null && (aLine === null || !afterLines.slice(aIdx, aIdx + 3).includes(bLine))) {
+          result.push({ text: '- ' + bLine, type: 'del' });
+          bIdx++;
+        } else if (aLine !== null) {
+          result.push({ text: '+ ' + aLine, type: 'add' });
+          aIdx++;
+        } else if (bLine !== null) {
+          result.push({ text: '- ' + bLine, type: 'del' });
+          bIdx++;
+        }
+      }
+    }
+    return result;
   }
 }
