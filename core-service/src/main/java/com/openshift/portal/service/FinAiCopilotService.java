@@ -207,6 +207,7 @@ public class FinAiCopilotService {
                         "2. Confirmer avec 'oc describe quota' que les requêtes sont assainies.",
                         "3. Observer pendant 24h : aucun pod ne doit être throttlé grâce à la marge de sécurité."
                 ))
+                .charts(List.of(buildQuotaComparisonBarChart(target)))
                 .confidenceScore(0.98)
                 .timestamp(Instant.now())
                 .build();
@@ -263,6 +264,7 @@ public class FinAiCopilotService {
                         "2. Éteindre 6 nœuds temporaires sur le cluster ocp-dev-us-east-sandbox (-96 cœurs).",
                         "3. Repasser sous la barre des 1 000 cœurs dès la prochaine collecte ACM."
                 ))
+                .charts(List.of(buildLicenseDonutChart(audit)))
                 .confidenceScore(0.95)
                 .timestamp(Instant.now())
                 .build();
@@ -332,6 +334,7 @@ public class FinAiCopilotService {
                         "J+7 : Déployer l'ordonnanceur d'extinction de test.",
                         "J+14 : Valider la réduction sur le tableau de bord FinOps."
                 ))
+                .charts(List.of(buildRoadmapBarChart(top3Savings, BigDecimal.valueOf(4200), BigDecimal.valueOf(5500)), buildTopWasteBarChart(recs)))
                 .confidenceScore(0.96)
                 .timestamp(Instant.now())
                 .build();
@@ -374,6 +377,7 @@ public class FinAiCopilotService {
                         "2. Notifier les équipes de développement 48h avant la maintenance.",
                         "3. Exécuter le drainage et éteindre les hôtes hyperviseurs dans vCenter/Cloud."
                 ))
+                .charts(List.of(buildConsolidationTrendChart()))
                 .confidenceScore(0.92)
                 .timestamp(Instant.now())
                 .build();
@@ -431,6 +435,7 @@ public class FinAiCopilotService {
                         "2. Appliquer les quotas droits recommandés avec les commandes `oc patch` fournies par FinAI.",
                         "3. Suivre l'amélioration de l'efficience qui passera au-dessus de 75%."
                 ))
+                .charts(List.of(buildFleetCpuDonutChart(overview), buildTopWasteBarChart(recs)))
                 .confidenceScore(0.97)
                 .timestamp(Instant.now())
                 .build();
@@ -576,6 +581,219 @@ public class FinAiCopilotService {
                 .payloadPreview(preview)
                 .message("Notification diffusée avec succès sur " + platform + " (" + channel + ")")
                 .timestamp(Instant.now())
+                .build();
+    }
+
+    private FinAiChartDto buildTopWasteBarChart(List<FinOpsNamespaceRecommendationDto> recs) {
+        List<FinOpsNamespaceRecommendationDto> top = recs.stream()
+                .sorted(Comparator.comparing(FinOpsNamespaceRecommendationDto::getMonthlyPotentialSavings).reversed())
+                .limit(5)
+                .collect(Collectors.toList());
+
+        List<FinAiChartDataPointDto> points = new ArrayList<>();
+        double total = 0;
+        String[] colors = {"#EF4444", "#F97316", "#F59E0B", "#6366F1", "#8B5CF6"};
+        int i = 0;
+        for (FinOpsNamespaceRecommendationDto r : top) {
+            double val = r.getMonthlyPotentialSavings().doubleValue();
+            total += val;
+            points.add(FinAiChartDataPointDto.builder()
+                    .label(r.getNamespaceName())
+                    .value(val)
+                    .secondaryValue(r.getAvgCpuRequestCores() != null ? r.getAvgCpuRequestCores().doubleValue() : null)
+                    .color(colors[i % colors.length])
+                    .formattedValue("$" + Math.round(val) + " / mo")
+                    .build());
+            i++;
+        }
+
+        return FinAiChartDto.builder()
+                .id("chart-top-waste")
+                .type("BAR")
+                .title("Top 5 Namespaces les plus Gaspilleurs")
+                .subtitle("Gaspillage financier récupérable ($/mois) par namespace")
+                .totalValue("$" + Math.round(total) + " / mois")
+                .unit("$/mois")
+                .points(points)
+                .build();
+    }
+
+    private FinAiChartDto buildFleetCpuDonutChart(FinOpsOverviewDto overview) {
+        double efficiency = overview != null && overview.getOverallFleetEfficiencyPercent() != null
+                ? overview.getOverallFleetEfficiencyPercent().doubleValue() : 58.9;
+        double buffer = 15.0; // 20% safety margin buffer
+        double waste = Math.max(0.0, 100.0 - efficiency - buffer);
+
+        List<FinAiChartDataPointDto> points = List.of(
+                FinAiChartDataPointDto.builder()
+                        .label("CPU Consommé Réel")
+                        .value(Math.round(efficiency * 10.0) / 10.0)
+                        .color("#10B981")
+                        .formattedValue(String.format("%.1f%%", efficiency))
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Tampon Sécurité (+20%)")
+                        .value(buffer)
+                        .color("#3B82F6")
+                        .formattedValue(String.format("%.1f%%", buffer))
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Surallocation Récupérable")
+                        .value(Math.round(waste * 10.0) / 10.0)
+                        .color("#EF4444")
+                        .formattedValue(String.format("%.1f%%", waste))
+                        .build()
+        );
+
+        return FinAiChartDto.builder()
+                .id("chart-fleet-cpu-donut")
+                .type("DONUT")
+                .title("Répartition de la Capacité CPU Flotte")
+                .subtitle("Usage effectif vs Marge tampon vs Gaspillage récupérable")
+                .totalValue(String.format("%.1f%%", efficiency))
+                .unit("%")
+                .points(points)
+                .build();
+    }
+
+    private FinAiChartDto buildLicenseDonutChart(LicenseAuditDto audit) {
+        int licensed = audit != null ? audit.getLicensedCapCores() : 1000;
+        int active = audit != null ? audit.getTotalLicenseCores() : 1256;
+        int delta = Math.max(0, active - licensed);
+        int compliant = Math.min(active, licensed);
+
+        List<FinAiChartDataPointDto> points = List.of(
+                FinAiChartDataPointDto.builder()
+                        .label("Cœurs Souscrits Réglementaires")
+                        .value((double) compliant)
+                        .color("#10B981")
+                        .formattedValue(compliant + " Cores")
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Cœurs Hors Contrat (Dépassement)")
+                        .value((double) delta)
+                        .color("#EF4444")
+                        .formattedValue("+" + delta + " Cores")
+                        .build()
+        );
+
+        return FinAiChartDto.builder()
+                .id("chart-license-donut")
+                .type("DONUT")
+                .title("Audit Souscription Red Hat Core Cap")
+                .subtitle("Comparatif Cœurs Actifs vs Quota Souscrit")
+                .totalValue(delta > 0 ? ("+" + delta + " Cores") : "CONFORME")
+                .unit("Cœurs")
+                .points(points)
+                .build();
+    }
+
+    private FinAiChartDto buildRoadmapBarChart(BigDecimal top3Savings, BigDecimal p2, BigDecimal p3) {
+        double p1Val = top3Savings != null ? top3Savings.doubleValue() : 5628.0;
+        double p2Val = p2.doubleValue();
+        double p3Val = p3.doubleValue();
+        double total = p1Val + p2Val + p3Val;
+
+        List<FinAiChartDataPointDto> points = List.of(
+                FinAiChartDataPointDto.builder()
+                        .label("Phase 1 : Quotas Top 3 (J+3)")
+                        .value(p1Val)
+                        .color("#10B981")
+                        .formattedValue("+$" + Math.round(p1Val) + " / mo")
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Phase 2 : Scaling Labs (J+7)")
+                        .value(p2Val)
+                        .color("#3B82F6")
+                        .formattedValue("+$" + Math.round(p2Val) + " / mo")
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Phase 3 : Consolidation (J+14)")
+                        .value(p3Val)
+                        .color("#8B5CF6")
+                        .formattedValue("+$" + Math.round(p3Val) + " / mo")
+                        .build()
+        );
+
+        return FinAiChartDto.builder()
+                .id("chart-roadmap-bar")
+                .type("BAR")
+                .title("Gains Cumulés par Phase de la Feuille de Route")
+                .subtitle("Projection des économies mensuelles débloquées ($/mois)")
+                .totalValue("+$" + Math.round(total) + " / mois")
+                .unit("$/mois")
+                .points(points)
+                .build();
+    }
+
+    private FinAiChartDto buildQuotaComparisonBarChart(FinOpsNamespaceRecommendationDto target) {
+        double currentReq = target != null && target.getAvgCpuRequestCores() != null ? target.getAvgCpuRequestCores().doubleValue() : 63.3;
+        double actualUsage = target != null && target.getAvgCpuUsageCores() != null ? target.getAvgCpuUsageCores().doubleValue() : 14.6;
+        double recQuota = target != null && target.getRecommendedCpuRequestCores() != null ? target.getRecommendedCpuRequestCores().doubleValue() : 6.8;
+
+        List<FinAiChartDataPointDto> points = List.of(
+                FinAiChartDataPointDto.builder()
+                        .label("Quota Actuel (Surdimensionné)")
+                        .value(currentReq)
+                        .color("#EF4444")
+                        .formattedValue(String.format("%.1fc", currentReq))
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Consommation Réelle Moyenne")
+                        .value(actualUsage)
+                        .color("#10B981")
+                        .formattedValue(String.format("%.1fc", actualUsage))
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Nouveau Quota Cible (+20% Tampon)")
+                        .value(recQuota)
+                        .color("#3B82F6")
+                        .formattedValue(String.format("%.1fc", recQuota))
+                        .build()
+        );
+
+        String ns = target != null ? target.getNamespaceName() : "spark-batch-analytics";
+        return FinAiChartDto.builder()
+                .id("chart-quota-comparison")
+                .type("BAR")
+                .title("Comparatif Quota CPU Avant / Après Remédiation")
+                .subtitle("Ajustement des requêtes CPU pour le namespace " + ns)
+                .totalValue(String.format("%.1fc", recQuota))
+                .unit("Cœurs")
+                .points(points)
+                .build();
+    }
+
+    private FinAiChartDto buildConsolidationTrendChart() {
+        List<FinAiChartDataPointDto> points = List.of(
+                FinAiChartDataPointDto.builder()
+                        .label("Dépense Actuelle (5 Clusters)")
+                        .value(51922.0)
+                        .color("#EF4444")
+                        .formattedValue("$51,922 / mo")
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Après Retrait 6 Workers")
+                        .value(43522.0)
+                        .color("#F59E0B")
+                        .formattedValue("$43,522 / mo")
+                        .build(),
+                FinAiChartDataPointDto.builder()
+                        .label("Cible Après Consolidation")
+                        .value(38400.0)
+                        .color("#10B981")
+                        .formattedValue("$38,400 / mo")
+                        .build()
+        );
+
+        return FinAiChartDto.builder()
+                .id("chart-consolidation-trend")
+                .type("TREND")
+                .title("Trajectoire des Dépenses Cloud Mensuelles")
+                .subtitle("Évolution prévisionnelle avant vs après consolidation de la flotte")
+                .totalValue("-$8,400 / mois")
+                .unit("$/mois")
+                .points(points)
                 .build();
     }
 }

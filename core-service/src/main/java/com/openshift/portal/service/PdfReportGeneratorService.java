@@ -7,6 +7,8 @@ import com.openshift.portal.domain.entity.Cluster;
 import com.openshift.portal.domain.entity.ClusterSnapshot;
 import com.openshift.portal.domain.enums.ReportType;
 import com.openshift.portal.dto.AttributionReportDto;
+import com.openshift.portal.dto.FinAiChartDto;
+import com.openshift.portal.dto.FinAiChartDataPointDto;
 import com.openshift.portal.dto.FinAiCliSnippetDto;
 import com.openshift.portal.dto.FinAiMetricItemDto;
 import com.openshift.portal.dto.FinAiResponseDto;
@@ -181,6 +183,28 @@ public class PdfReportGeneratorService {
                 Paragraph body = new Paragraph(clean, bodyFont);
                 body.setSpacingAfter(14);
                 document.add(body);
+            }
+
+            // Interactive Charts Visual Data Breakdown
+            if (response.getCharts() != null && !response.getCharts().isEmpty()) {
+                Font chartHeadFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new Color(30, 41, 59));
+                for (FinAiChartDto chart : response.getCharts()) {
+                    Paragraph cp = new Paragraph("📊 " + chart.getTitle() + " [" + chart.getTotalValue() + "]", chartHeadFont);
+                    cp.setSpacingBefore(6);
+                    cp.setSpacingAfter(4);
+                    document.add(cp);
+
+                    PdfPTable chartTable = new PdfPTable(2);
+                    chartTable.setWidthPercentage(100);
+                    chartTable.setWidths(new float[]{3.5f, 1.5f});
+                    addHeaderCells(chartTable, new String[]{"Indicateur / Segment", "Valeur"});
+                    for (FinAiChartDataPointDto pt : chart.getPoints()) {
+                        chartTable.addCell(createCell(pt.getLabel(), false));
+                        chartTable.addCell(createCell(pt.getFormattedValue() != null ? pt.getFormattedValue() : String.valueOf(pt.getValue()), true));
+                    }
+                    chartTable.setSpacingAfter(8);
+                    document.add(chartTable);
+                }
             }
 
             // CLI Commands Table

@@ -355,6 +355,19 @@ import { CommonModule } from '@angular/common';
         <line x1="18" x2="6" y1="6" y2="18" />
         <line x1="6" x2="18" y1="6" y2="18" />
       </ng-container>
+
+      <!-- bar-chart-2 -->
+      <ng-container *ngIf="name === 'bar-chart-2'">
+        <line x1="18" x2="18" y1="20" y2="10" />
+        <line x1="12" x2="12" y1="20" y2="4" />
+        <line x1="6" x2="6" y1="20" y2="14" />
+      </ng-container>
+
+      <!-- pie-chart -->
+      <ng-container *ngIf="name === 'pie-chart'">
+        <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+        <path d="M22 12A10 10 0 0 0 12 2v10z" />
+      </ng-container>
     </svg>
   `
 })

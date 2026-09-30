@@ -672,6 +672,24 @@ export interface FinAiCliSnippet {
   targetNamespace?: string;
 }
 
+export interface FinAiChartDataPoint {
+  label: string;
+  value: number;
+  secondaryValue?: number;
+  color?: string;
+  formattedValue?: string;
+}
+
+export interface FinAiChart {
+  id: string;
+  type: 'BAR' | 'DONUT' | 'TREND';
+  title: string;
+  subtitle?: string;
+  totalValue?: string;
+  unit?: string;
+  points: FinAiChartDataPoint[];
+}
+
 export interface FinAiResponse {
   query: string;
   headline: string;
@@ -682,6 +700,7 @@ export interface FinAiResponse {
   executionPlan: string[];
   confidenceScore: number;
   timestamp: string;
+  charts?: FinAiChart[];
 }
 
 export interface FinAiQuickPrompt {

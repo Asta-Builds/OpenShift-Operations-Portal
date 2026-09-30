@@ -115,6 +115,13 @@ L'en-tête du chat propose deux boutons distincts pour répondre aux deux besoin
 | **PDF** | <span style="background:#EF4444; color:white; padding:2px 8px; border-radius:6px; font-weight:bold; font-size:11px;">Export PDF</span> | **Management & Comités C-Level** | Document A4 généré côté serveur via **OpenPDF**, respectant la charte **Red Hat OpenShift** (en-tête rouge `#CC0000`, titre du diagnostic, score de confiance IA, tableau des métriques financières, blocs CLI et plan d'exécution officiel). Prêt pour archivage et signature managériale. |
 | **Markdown** | <span style="background:#374151; color:#D1D5DB; padding:2px 8px; border-radius:6px; font-size:11px;">Audit .MD</span> | **SRE, DevOps & Développeurs** | Fichier `.md` brut chronologique idéal pour copier/coller dans des **tickets Jira**, des documentations GitHub/GitLab, ou pour alimenter des pipelines de scripting. |
 
+### 4.7. Graphiques & Visualisations Interactives intégrées dans le Chat
+FinAI Copilot génère directement au sein des réponses de conversation des graphiques dynamiques adaptés à l'intention détectée :
+- **Graphiques Donut / Jauges SVG** : Visualisation de l'efficience CPU de la flotte (CPU utile vs Tampon 20% vs Gaspillage), ou conformité du plafond de licences cœurs Red Hat.
+- **Histogrammes Horizontaux (Bar Charts)** : Classement des top namespaces les plus gaspilleurs avec barres de progression colorées et montants en $/mois, ou comparatif des quotas CPU Avant/Après.
+- **Courbes & Jalons de Tendance (Trend Charts)** : Trajectoire d'économies par étape ou projection des dépenses mensuelles avant/après consolidation de clusters.
+- **Pill de filtrage dédié** : Bouton **`Graphiques`** dans la barre supérieure pour isoler instantanément toutes les vues graphiques.
+
 ---
 
 ## 5. Spécification Détaillée des APIs REST

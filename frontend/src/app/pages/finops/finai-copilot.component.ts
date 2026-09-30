@@ -16,6 +16,8 @@ import { Router } from '@angular/router';
 import { PortalService } from '../../services/portal.service';
 import { saveDownload } from '../../shared/download';
 import {
+  FinAiChart,
+  FinAiChartDataPoint,
   FinAiCliSnippet,
   FinAiDryRunResult,
   FinAiGitOpsManifest,
@@ -38,7 +40,7 @@ export interface ChatMessage {
   feedback?: 'like' | 'dislike';
 }
 
-export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS';
+export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS' | 'CHARTS';
 
 @Component({
   selector: 'app-finai-copilot',
@@ -172,6 +174,18 @@ export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS';
           >
             <app-icon name="coins" [size]="11"></app-icon>
             <span>Métriques Clés</span>
+          </button>
+          <button
+            type="button"
+            (click)="filterMode = 'CHARTS'"
+            [class.bg-primary]="filterMode === 'CHARTS'"
+            [class.text-primary-foreground]="filterMode === 'CHARTS'"
+            [class.bg-content3]="filterMode !== 'CHARTS'"
+            [class.text-default-600]="filterMode !== 'CHARTS'"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+          >
+            <app-icon name="pie-chart" [size]="11"></app-icon>
+            <span>Graphiques</span>
           </button>
         </div>
 
@@ -317,6 +331,114 @@ export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS';
                   >
                     <span class="text-[10px] font-bold uppercase tracking-wider block truncate opacity-80">{{ metric.label }}</span>
                     <span class="text-xs font-bold font-mono">{{ metric.value }}</span>
+                  </div>
+                </div>
+
+                <!-- Interactive Charts Section (Visible in ALL or CHARTS mode) -->
+                <div *ngIf="(filterMode === 'ALL' || filterMode === 'CHARTS') && res.charts && res.charts.length > 0" class="space-y-3 pt-2 border-t border-divider">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <app-icon name="bar-chart-2" [size]="13" className="text-primary"></app-icon>
+                      Graphiques & Visualisations Interactives
+                    </h4>
+                    <span class="text-[10px] text-default-400 font-mono">{{ res.charts.length }} vue(s)</span>
+                  </div>
+
+                  <div class="space-y-3">
+                    <div *ngFor="let chart of res.charts" class="p-3.5 rounded-xl bg-content1 border border-divider space-y-3 shadow-sm">
+                      <!-- Chart Header -->
+                      <div class="flex items-center justify-between">
+                        <div>
+                          <div class="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <span>{{ chart.title }}</span>
+                            <span *ngIf="chart.totalValue" class="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-mono font-bold">
+                              {{ chart.totalValue }}
+                            </span>
+                          </div>
+                          <div *ngIf="chart.subtitle" class="text-[11px] text-default-400">
+                            {{ chart.subtitle }}
+                          </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase"
+                              [ngClass]="chart.type === 'DONUT' ? 'bg-secondary/15 text-secondary' : chart.type === 'TREND' ? 'bg-warning/15 text-warning' : 'bg-primary/15 text-primary'">
+                          {{ chart.type }}
+                        </span>
+                      </div>
+
+                      <!-- BAR CHART RENDERING -->
+                      <div *ngIf="chart.type === 'BAR'" class="space-y-2 pt-1">
+                        <div *ngFor="let pt of chart.points" class="space-y-1">
+                          <div class="flex items-center justify-between text-[11px]">
+                            <span class="font-medium text-foreground truncate max-w-[200px]" [title]="pt.label">{{ pt.label }}</span>
+                            <div class="flex items-center gap-2">
+                              <span *ngIf="pt.secondaryValue" class="text-[10px] text-default-400 font-mono">base: {{ pt.secondaryValue }}c</span>
+                              <span class="font-bold font-mono text-foreground">{{ pt.formattedValue || pt.value }}</span>
+                            </div>
+                          </div>
+                          <!-- Progress Bar -->
+                          <div class="w-full h-2.5 rounded-full bg-content3 overflow-hidden flex">
+                            <div
+                              class="h-full rounded-full transition-all duration-700 ease-out"
+                              [style.width.%]="getBarPercentage(pt.value, chart.points)"
+                              [style.backgroundColor]="pt.color || '#3B82F6'"
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- DONUT / GAUGE RENDERING -->
+                      <div *ngIf="chart.type === 'DONUT'" class="flex flex-col sm:flex-row items-center gap-4 pt-1">
+                        <!-- SVG Donut Circle -->
+                        <div class="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
+                          <svg viewBox="0 0 36 36" class="w-28 h-28 transform -rotate-90">
+                            <path
+                              class="text-content3"
+                              stroke-width="3.8"
+                              stroke="currentColor"
+                              fill="none"
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <path
+                              *ngFor="let seg of getDonutSegments(chart.points)"
+                              [attr.stroke]="seg.color"
+                              stroke-width="3.8"
+                              [attr.stroke-dasharray]="seg.dashArray"
+                              [attr.stroke-dashoffset]="seg.dashOffset"
+                              stroke-linecap="round"
+                              fill="none"
+                              class="transition-all duration-700"
+                            />
+                          </svg>
+                          <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                            <span class="text-xs font-bold text-foreground font-mono leading-tight">{{ chart.totalValue }}</span>
+                            <span class="text-[9px] text-default-400 uppercase font-semibold">Total</span>
+                          </div>
+                        </div>
+
+                        <!-- Donut Legend -->
+                        <div class="flex-1 space-y-1.5 w-full">
+                          <div *ngFor="let pt of chart.points" class="flex items-center justify-between text-[11px] p-1.5 rounded-lg bg-content2/50 border border-divider/60">
+                            <div class="flex items-center gap-2">
+                              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" [style.backgroundColor]="pt.color || '#3B82F6'"></span>
+                              <span class="text-default-600 font-medium truncate max-w-[150px]">{{ pt.label }}</span>
+                            </div>
+                            <span class="font-bold font-mono text-foreground">{{ pt.formattedValue || pt.value }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- TREND CHART RENDERING -->
+                      <div *ngIf="chart.type === 'TREND'" class="space-y-3 pt-1">
+                        <div class="grid grid-cols-3 gap-2">
+                          <div *ngFor="let pt of chart.points; let i = index" class="p-2.5 rounded-xl border border-divider bg-content2/40 text-center space-y-1">
+                            <span class="text-[10px] text-default-400 block font-semibold">Étape {{ i + 1 }}</span>
+                            <span class="text-xs font-bold font-mono text-foreground block">{{ pt.formattedValue || pt.value }}</span>
+                            <span class="text-[10px] text-default-500 truncate block">{{ pt.label }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
                   </div>
                 </div>
 
@@ -1155,6 +1277,29 @@ export class FinAiCopilotComponent implements OnInit {
         this.isBusy = false;
         this.scrollToBottom(true);
       }
+    });
+  }
+
+  getBarPercentage(value: number, points: FinAiChartDataPoint[]): number {
+    if (!points || points.length === 0) return 0;
+    const max = Math.max(...points.map((p) => p.value || 0), 1);
+    return Math.min(100, Math.max(8, (value / max) * 100));
+  }
+
+  getDonutSegments(points: FinAiChartDataPoint[]): { color: string; dashArray: string; dashOffset: number }[] {
+    if (!points || points.length === 0) return [];
+    const total = points.reduce((sum, p) => sum + (p.value || 0), 0) || 1;
+    let accumulated = 0;
+    return points.map((p) => {
+      const pct = Math.max(1, ((p.value || 0) / total) * 100);
+      const dashArray = `${pct} ${100 - pct}`;
+      const dashOffset = -accumulated;
+      accumulated += pct;
+      return {
+        color: p.color || '#3B82F6',
+        dashArray,
+        dashOffset
+      };
     });
   }
 }
