@@ -159,9 +159,13 @@ Retourne les questions types prêtes à l'emploi réparties par catégorie (`OPT
 ## 6. Expérience Utilisateur & Intégrations Frontend
 
 1. **Slide-over Drawer Global** : Accessible depuis n'importe quelle page du portail via le bouton **"FinAI Copilot"** du bandeau supérieur ou la palette de commande (`Ctrl + K`).
-2. **Intégration Contextuelle FinOps** : Dans le tableau des recommandations de rightsizing, chaque ligne dispose d'un bouton **"FinAI"** qui ouvre le Copilot pré-rempli avec le nom du cluster et du namespace.
-3. **Copie en 1-Clic avec Feedback Visuel** : Chaque extrait CLI dispose d'un bouton `Copier` avec badge de confirmation dynamique (`Copié !`) et indication du niveau de risque (`SAFE`, `MEDIUM`, `DESTRUCTIVE`).
-4. **Support Parfait Dark / Light Mode** : Contraste WCAG AA respecté sur tous les éléments, palette de code terminal dark-mode GitHub (`#0d1117`) et puces métriques colorées.
+2. **Défilement Automatique Intelligent (Auto-scroll)** : Le conteneur de messages défile automatiquement vers le bas de manière fluide (`smooth scroll`) lors de l'envoi de requêtes et à l'affichage des réponses. Un bouton flottant d'accès rapide aux derniers messages apparaît si l'utilisateur a scrollé vers le haut.
+3. **Moteur de Rendu Markdown & Alertes Visuelles** : Formatage automatique des titres, listes, code inline et boîtes d'avertissement `> [!WARNING]` / `> [!NOTE]`.
+4. **Intégration Contextuelle FinOps** : Dans le tableau des recommandations de rightsizing, chaque ligne dispose d'un bouton **"FinAI"** qui ouvre le Copilot pré-rempli avec le nom du cluster et du namespace.
+5. **Passerelle Directe vers le Simulateur What-If** : Chaque extrait CLI dispose d'un bouton direct **"Simuler dans What-If"** pour tester le comportement de charge avant d'appliquer le patch en production.
+6. **Exportation du Journal d'Audit Markdown** : Bouton d'export en 1 clic dans le header pour télécharger l'intégralité des échanges sous forme de rapport Markdown daté (`finai-copilot-report-YYYY-MM-DD.md`) pour les comités d'architecture et tickets Jira.
+7. **Copie en 1-Clic avec Feedback Visuel** : Chaque extrait CLI dispose d'un bouton `Copier` avec badge de confirmation dynamique (`Copié !`) et indication du niveau de risque (`SAFE`, `MEDIUM`, `DESTRUCTIVE`).
+8. **Support Parfait Dark / Light Mode** : Contraste WCAG AA respecté sur tous les éléments, palette de code terminal dark-mode GitHub (`#0d1117`) et puces métriques colorées.
 
 ---
 
