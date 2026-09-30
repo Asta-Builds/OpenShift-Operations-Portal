@@ -76,28 +76,28 @@ export type ViewFilterMode = 'ALL' | 'CLI' | 'PLAN' | 'METRICS';
         </div>
 
         <div class="flex items-center gap-1.5">
-          <!-- Export Chat to PDF -->
+          <!-- Export Chat to PDF (Executive Summary) -->
           <button
             type="button"
             *ngIf="messages.length > 0"
             (click)="exportChatPdf()"
-            title="Télécharger le rapport exécutif au format PDF"
-            class="px-2.5 py-1.5 rounded-xl bg-danger/10 hover:bg-danger/20 border border-danger/25 text-danger font-semibold transition-all cursor-pointer flex items-center gap-1.5 text-xs shadow-sm"
+            title="Télécharger le rapport exécutif managérial au format PDF"
+            class="px-2.5 py-1.5 rounded-xl bg-danger hover:bg-danger/90 text-white font-semibold transition-all cursor-pointer flex items-center gap-1.5 text-xs shadow-sm shadow-danger/20"
           >
             <app-icon name="file-text" [size]="14"></app-icon>
-            <span class="text-[11px]">PDF</span>
+            <span class="text-[11px] font-bold">Export PDF</span>
           </button>
 
-          <!-- Export Chat to Markdown -->
+          <!-- Export Chat to Markdown (DevOps & Jira) -->
           <button
             type="button"
             *ngIf="messages.length > 0"
             (click)="exportChatMarkdown()"
-            title="Exporter la conversation en rapport Markdown"
-            class="p-2 rounded-xl text-default-400 hover:text-foreground hover:bg-content2 transition-colors cursor-pointer flex items-center gap-1 text-xs"
+            title="Exporter l'historique complet au format Markdown (.md) pour Jira ou documentation"
+            class="px-2.5 py-1.5 rounded-xl bg-content2 hover:bg-content3 border border-divider text-default-600 hover:text-foreground font-medium transition-all cursor-pointer flex items-center gap-1.5 text-xs"
           >
-            <app-icon name="download" [size]="15"></app-icon>
-            <span class="hidden sm:inline text-[11px] font-medium">MD</span>
+            <app-icon name="download" [size]="14"></app-icon>
+            <span class="text-[11px]">Audit .MD</span>
           </button>
 
           <!-- Reset Chat -->
